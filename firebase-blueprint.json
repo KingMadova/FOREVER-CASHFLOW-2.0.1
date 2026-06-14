@@ -1,0 +1,145 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "FBO Profile info",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "title": { "type": "string" },
+        "grade": { "type": "string" },
+        "initials": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "companyName": { "type": "string" },
+        "companyAddress": { "type": "string" },
+        "companyPhone": { "type": "string" },
+        "companyEmail": { "type": "string" },
+        "siret": { "type": "string" },
+        "fboId": { "type": "string" },
+        "bankRIB": { "type": "string" },
+        "waveMoney": { "type": "string" },
+        "orangeMoney": { "type": "string" },
+        "mtnMoney": { "type": "string" },
+        "tvaRate": { "type": "number" },
+        "tvaApplicable": { "type": "boolean" },
+        "themeMode": { "type": "string" },
+        "monthlyGoalCC": { "type": "number" },
+        "monthlyGoalAmount": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "grade", "createdAt", "updatedAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Custom product",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "prixRetail": { "type": "number" },
+        "unitCC": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "name", "prixRetail", "unitCC", "createdAt"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer/Prospect",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "status": { "type": "string" },
+        "pipelineStage": { "type": "string" },
+        "lastContactDate": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["userId", "name", "phone", "status", "pipelineStage", "createdAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Order",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "date": { "type": "string" },
+        "items": { "type": "array" },
+        "status": { "type": "string" },
+        "totalRetail": { "type": "number" },
+        "totalCost": { "type": "number" },
+        "totalMargin": { "type": "number" },
+        "totalCC": { "type": "number" },
+        "discountPercent": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "customerId", "customerName", "date", "items", "status", "totalRetail", "totalCost", "totalMargin", "totalCC", "createdAt"]
+    },
+    "BudgetEntry": {
+      "title": "BudgetEntry",
+      "description": "Budget Entry",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "type", "category", "amount", "date", "description", "createdAt"]
+    },
+    "AgendaItem": {
+      "title": "AgendaItem",
+      "description": "Agenda Entry",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "type": { "type": "string" },
+        "contactName": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "location": { "type": "string" },
+        "notes": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "title", "date", "time", "type", "completed", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "FBO profiles"
+    },
+    "/users/{userId}/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "FBO customers/prospects"
+    },
+    "/users/{userId}/orders/{orderId}": {
+      "schema": "Order",
+      "description": "FBO orders"
+    },
+    "/users/{userId}/budget/{entryId}": {
+      "schema": "BudgetEntry",
+      "description": "FBO budget entries"
+    },
+    "/users/{userId}/agenda/{itemId}": {
+      "schema": "AgendaItem",
+      "description": "FBO agenda/tasks"
+    },
+    "/users/{userId}/products/{productId}": {
+      "schema": "Product",
+      "description": "FBO custom products"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Forever CashFlow",
+  "description": "Un CRM mobile-first pour distributeurs FLP (Forever Business Owner) permettant le suivi des prospects, clients, commandes, budget et de calculer instantanément des projections de marge.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

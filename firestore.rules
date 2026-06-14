@@ -1,0 +1,130 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // --- Validation Helpers ---
+    function isValidUserProfile(data) {
+      return data.name is string &&
+             data.grade is string && (data.grade in ['AA', 'A', 'MA', 'M']) &&
+             (data.createdAt == null || data.createdAt is string) &&
+             (data.updatedAt == null || data.updatedAt is string) &&
+             (data.monthlyGoalCC == null || data.monthlyGoalCC is number) &&
+             (data.monthlyGoalAmount == null || data.monthlyGoalAmount is number);
+    }
+
+    function isValidCustomer(data, userId) {
+      return data.userId == userId &&
+             data.name is string && data.name.size() > 0 &&
+             data.phone is string &&
+             data.status is string &&
+             data.pipelineStage is string &&
+             data.createdAt is string;
+    }
+
+    function isValidOrder(data, userId) {
+      return data.userId == userId &&
+             data.customerId is string &&
+             data.customerName is string &&
+             data.date is string &&
+             data.items is list && data.items.size() > 0 &&
+             data.status is string &&
+             data.totalRetail is number &&
+             data.totalCost is number &&
+             data.totalMargin is number &&
+             data.totalCC is number &&
+             data.createdAt is string;
+    }
+
+    function isValidBudgetEntry(data, userId) {
+      return data.userId == userId &&
+             data.type is string && (data.type in ['REVENUE', 'EXPENSE']) &&
+             data.category is string &&
+             data.amount is number &&
+             data.date is string &&
+             data.description is string &&
+             data.createdAt is string;
+    }
+
+    function isValidAgendaItem(data, userId) {
+      return data.userId == userId &&
+             data.title is string && data.title.size() > 0 &&
+             data.date is string &&
+             data.time is string &&
+             data.type is string &&
+             data.completed is bool &&
+             data.createdAt is string;
+    }
+
+    function isValidProduct(data, userId) {
+      return data.userId == userId &&
+             data.name is string && data.name.size() > 0 &&
+             data.prixRetail is number &&
+             data.unitCC is number &&
+             data.createdAt is string;
+    }
+
+    // --- Match Rules ---
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) && isValidUserProfile(incoming());
+      allow delete: if false; // Profiles are rarely deleted via client in this app
+
+      match /customers/{customerId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(customerId) && isValidCustomer(incoming(), userId);
+        allow update: if isOwner(userId) && isValidCustomer(incoming(), userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /orders/{orderId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(orderId) && isValidOrder(incoming(), userId);
+        allow update: if isOwner(userId) && isValidOrder(incoming(), userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /budget/{entryId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(entryId) && isValidBudgetEntry(incoming(), userId);
+        allow update: if isOwner(userId) && isValidBudgetEntry(incoming(), userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /agenda/{itemId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(itemId) && isValidAgendaItem(incoming(), userId);
+        allow update: if isOwner(userId) && isValidAgendaItem(incoming(), userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /products/{productId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(productId) && isValidProduct(incoming(), userId);
+        allow update: if isOwner(userId) && isValidProduct(incoming(), userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}
