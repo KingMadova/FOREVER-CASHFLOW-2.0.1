@@ -135,7 +135,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             <div>
               <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100 tracking-tight">Forever CashFlow</h2>
-              <span className="text-xs font-semibold text-amber-500 uppercase tracking-wider">CRM de Recrutement</span>
+              <span className="text-xs font-semibold text-amber-500 uppercase tracking-wider">CRM des Conquérants</span>
             </div>
           </div>
         </div>

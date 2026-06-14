@@ -1,10 +1,10 @@
 {
-  "projectId": "hypnagogic-oven-7pp0d",
-  "appId": "1:158867992863:web:bdb29acbc7604f7c1ec02a",
-  "apiKey": "AIzaSyCmIbQj6EMpw1Vuw6VHSIGBGddM4PMFXz4",
-  "authDomain": "hypnagogic-oven-7pp0d.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-fea87958-efb7-46b1-89b3-9160c34730cc",
-  "storageBucket": "hypnagogic-oven-7pp0d.firebasestorage.app",
-  "messagingSenderId": "158867992863",
-  "measurementId": ""
+  "projectId": "academie-des-conquerants",
+  "appId": "1:93988387223:web:785c71149e604d939f2cd2",
+  "apiKey": "AIzaSyCTqqyExZey-9uF1oJ38SyRBsn544lAyQE",
+  "authDomain": "academie-des-conquerants.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "academie-des-conquerants.firebasestorage.app",
+  "messagingSenderId": "93988387223",
+  "measurementId": "G-210T2H1WWF"
 }
