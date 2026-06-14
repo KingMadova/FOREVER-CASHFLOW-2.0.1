@@ -205,12 +205,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const saved = localStorage.getItem('fcf-products');
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.some((p: any) => p.id === 'p1' || p.id === 'p3' || parsed.length < 20)) {
-          localStorage.setItem('fcf-products', JSON.stringify(DEFAULT_PRODUCTS));
+        const parsed = JSON.parse(saved) as Product[];
+        // Si la liste sauvegardée est suspecte (trop courte), on remet les défauts
+        if (parsed.length < DEFAULT_PRODUCTS.length / 2) {
           return DEFAULT_PRODUCTS;
         }
-        return parsed;
+        // Nettoyage des produits fantômes au passage
+        return parsed.filter(p => !p.id.endsWith('_new'));
       }
       return DEFAULT_PRODUCTS;
     } catch {
@@ -410,8 +411,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Products listener
     const unsubProducts = onSnapshot(query(collection(db, paths.products), orderBy('name', 'asc')), (snap) => {
       if (!snap.empty) {
-        const data = snap.docs.map(d => ({ ...d.data(), id: d.id } as Product));
-        setProducts(data);
+        const remoteData = snap.docs.map(d => ({ ...d.data(), id: d.id } as Product));
+        
+        setProducts(prev => {
+          // On commence avec les produits par défaut (le catalogue complet)
+          const base = [...DEFAULT_PRODUCTS];
+          
+          // On injecte les produits distants (soit des mises à jour, soit des nouveaux)
+          remoteData.forEach(remoteProd => {
+            const index = base.findIndex(p => p.id === remoteProd.id);
+            if (index >= 0) {
+              base[index] = remoteProd;
+            } else {
+              base.push(remoteProd);
+            }
+          });
+          
+          return base.filter(p => !p.id.endsWith('_new'));
+        });
       }
     }, (err) => handleFirestoreError(err, OperationType.LIST, paths.products));
 

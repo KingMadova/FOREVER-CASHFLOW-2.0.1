@@ -196,28 +196,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
     // Save profile to useStore state
     updateProfile(updatedProfile);
 
-    // 2. Inject activated startup products
-    CHOSEN_EASY_START_PRODUCTS.forEach(p => {
-      if (selectedQuickProducts.includes(p.id)) {
-        // Prevent ID conflict by creating simple unique product id
-        const cleanId = p.id.replace('_new', '');
-        addProduct({
-          id: cleanId,
-          name: p.name,
-          prixRetail: p.prixRetail,
-          unitCC: p.unitCC
-        });
-      }
-    });
-
-    // 3. Inject custom created products
-    customProducts.forEach(cp => {
-      const uniqueId = 'cst_' + Math.random().toString(36).substr(2, 5);
-      addProduct({
-        id: uniqueId,
-        ...cp
-      });
-    });
+    // Injection de produits désactivée pour éviter la confusion dans le catalogue global
 
     // 4. Save completed flag
     try {
