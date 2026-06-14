@@ -419,15 +419,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           
           // On injecte les produits distants (soit des mises à jour, soit des nouveaux)
           remoteData.forEach(remoteProd => {
-            const index = base.findIndex(p => p.id === remoteProd.id);
-            if (index >= 0) {
-              base[index] = remoteProd;
-            } else {
-              base.push(remoteProd);
+            if (!remoteProd.id.includes('_new')) {
+              const index = base.findIndex(p => p.id === remoteProd.id);
+              if (index >= 0) {
+                base[index] = remoteProd;
+              } else {
+                base.push(remoteProd);
+              }
             }
           });
           
-          return base.filter(p => !p.id.endsWith('_new'));
+          return base.filter(p => !p.id.includes('_new'));
         });
       }
     }, (err) => handleFirestoreError(err, OperationType.LIST, paths.products));
