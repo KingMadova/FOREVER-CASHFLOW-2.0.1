@@ -1,34 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
-import { UserProfile, Product, GRADES, GradeCode } from '../../types';
+import { UserProfile, GRADES, GradeCode } from '../../types';
 import { 
   Sparkles, 
   User, 
   Wallet, 
-  ShoppingBag, 
-  Check, 
   X, 
   ArrowRight, 
   ArrowLeft, 
   Building, 
   Award,
   Phone,
-  Plus,
-  Trash2,
   CheckCircle2,
   HelpCircle,
   TrendingUp,
-  Info
+  Info,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-
-// Recommended startup bundles / signature products in West/Central Africa for immediate activation
-const CHOSEN_EASY_START_PRODUCTS = [
-  { id: '15_new', name: 'FOREVER ALOE VERA GEL (Duo détox)', prixRetail: 40312, unitCC: 0.2 },
-  { id: '51_new', name: 'ALOE PROPOLIS CRÈME (Soin boutons)', prixRetail: 15531, unitCC: 0.077 },
-  { id: '28_new', name: 'FOREVER BRIGHT TOOTHGEL (Packs x3)', prixRetail: 26784, unitCC: 0.093 },
-  { id: '547_new', name: 'PACK DÉTOX C9 MINCEUR (Vanille)', prixRetail: 97166, unitCC: 0.482 }
-];
 
 interface OnboardingWizardProps {
   isOpen: boolean;
@@ -37,7 +26,7 @@ interface OnboardingWizardProps {
 }
 
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, isManualTrigger = false }) => {
-  const { profile, updateProfile, products, addProduct } = useStore();
+  const { profile, updateProfile } = useStore();
   const [step, setStep] = useState(1);
 
   // Profile temporary form state
@@ -53,17 +42,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
   const [waveMoney, setWaveMoney] = useState(profile.waveMoney || '');
   const [orangeMoney, setOrangeMoney] = useState(profile.orangeMoney || '');
   const [bankRIB, setBankRIB] = useState(profile.bankRIB || '');
-
-  // Products temporary state (predefined favorites checklist & custom products creator)
-  const [selectedQuickProducts, setSelectedQuickProducts] = useState<string[]>([
-    '15_new', '51_new', '547_new'
-  ]);
-  const [customProducts, setCustomProducts] = useState<Omit<Product, 'id'>[]>([]);
-
-  // New Custom Product Creator fields
-  const [newProdName, setNewProdName] = useState('');
-  const [newProdPrice, setNewProdPrice] = useState<number | ''>('');
-  const [newProdCC, setNewProdCC] = useState<number | ''>('');
 
   // Local validation error message
   const [validationError, setValidationError] = useState('');
@@ -94,45 +72,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
   const handleFboIdChange = (val: string) => {
     const cleaned = val.replace(/[^0-9]/g, '').slice(0, 12);
     setFboId(cleaned);
-  };
-
-  // Toggle quick product activation selection
-  const toggleQuickProduct = (id: string) => {
-    setSelectedQuickProducts(prev => 
-      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
-    );
-  };
-
-  // Add custom products to local list
-  const handleAddLocalCustomProduct = () => {
-    if (!newProdName.trim()) {
-      setValidationError('Veuillez indiquer un nom pour le produit personnalisé.');
-      return;
-    }
-    if (!newProdPrice || Number(newProdPrice) <= 0) {
-      setValidationError('Indiquez un prix public de vente supérieur à 0 FCFA.');
-      return;
-    }
-    const ccVal = newProdCC === '' ? 0.05 : Number(newProdCC);
-
-    setCustomProducts(prev => [
-      ...prev,
-      {
-        name: newProdName.trim().toUpperCase(),
-        prixRetail: Number(newProdPrice),
-        unitCC: ccVal
-      }
-    ]);
-
-    // Reset inputs
-    setNewProdName('');
-    setNewProdPrice('');
-    setNewProdCC('');
-    setValidationError('');
-  };
-
-  const handleRemoveLocalCustomProduct = (index: number) => {
-    setCustomProducts(prev => prev.filter((_, i) => i !== index));
   };
 
   // Handle Step progression & save partials
@@ -196,9 +135,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
     // Save profile to useStore state
     updateProfile(updatedProfile);
 
-    // Injection de produits désactivée pour éviter la confusion dans le catalogue global
-
-    // 4. Save completed flag
+    // 2. Save completed flag
     try {
       localStorage.setItem('fcf-onboarding-completed', 'true');
     } catch (e) {
@@ -244,9 +181,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
           </button>
         </div>
 
-        {/* Progress Timeline Tracker */}
+               {/* Progress Timeline Tracker */}
         <div className="px-6 py-4 bg-slate-100/50 dark:bg-[#131316]/50 border-b border-slate-150 dark:border-slate-800/60 flex items-center justify-between gap-1 select-none">
-          {[1, 2, 3, 4].map((num) => {
+          {[1, 2, 3].map((num) => {
             const active = step >= num;
             const current = step === num;
             return (
@@ -264,10 +201,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                   <span className={`hidden sm:inline text-[10px] font-bold uppercase tracking-wider ${
                     current ? 'text-slate-900 dark:text-slate-100 font-black' : active ? 'text-amber-600 dark:text-amber-500' : 'text-slate-400'
                   }`}>
-                    {num === 1 ? 'Identité' : num === 2 ? 'Finances' : num === 3 ? 'Catalogue' : 'Finalisation'}
+                    {num === 1 ? 'Identité' : num === 2 ? 'Finances' : 'Finalisation'}
                   </span>
                 </div>
-                {num < 4 && (
+                {num < 3 && (
                   <div className={`flex-1 h-0.5 mx-2 rounded ${active && step > num ? 'bg-amber-500' : 'bg-slate-200 dark:bg-slate-800'}`} />
                 )}
               </div>
@@ -308,7 +245,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* FBO Real Name */}
                   <div className="space-y-1.5">
-                    <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-650 dark:text-slate-300">
+                     <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-650 dark:text-slate-300">
                       Votre nom et prénom <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
@@ -494,7 +431,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                     <label className="text-[10.5px] font-black uppercase text-slate-700 dark:text-slate-350 flex items-center gap-1.5">
                       RIB Bancaire complet (virements bonus FLP de fin de mois)
                     </label>
-                    <p className="text-[9px] text-slate-450 dark:text-slate-500 mb-1 leading-normal">
+                    <p className="text-[9px] text-slate-450 dark:text-slate-550 mb-1 leading-normal">
                       Ce RIB sera affiché de manière sécurisée en bas de vos factures clients pour faciliter les paiements par virement.
                     </p>
                     <input
@@ -516,160 +453,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
               </motion.div>
             )}
 
-            {/* STEP 3: HIGH ROTATION COMMODITIES OR CUSTOM SERVICES */}
+            {/* STEP 3: QUICK START GUIDE & CONFIRMATION */}
             {step === 3 && (
               <motion.div
                 key="step-3"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.15 }}
-                className="space-y-4"
-              >
-                <div>
-                  <h3 className="text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-wide flex items-center gap-1.5">
-                    <ShoppingBag className="w-4 h-4 text-amber-500" />
-                    Étape 3 : Vos Premiers Produits ou Packs Favoris
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Cochez les produits Forever que vous souhaitez vendre en priorité aujourd'hui ou fabriquez immédiatement vos propres bundles/services FBO.
-                  </p>
-                </div>
-
-                {/* Preconfigured items checkbox menu */}
-                <div className="space-y-2">
-                  <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-650 dark:text-slate-350 block">
-                    Sélectionner les produits Forever favoris pour votre catalogue rapide :
-                  </label>
-                  
-                  <div className="divide-y divide-slate-100 dark:divide-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl bg-[#fcfcfd]/40 dark:bg-[#131316]/20 overflow-hidden">
-                    {CHOSEN_EASY_START_PRODUCTS.map((prod) => {
-                      const selected = selectedQuickProducts.includes(prod.id);
-                      return (
-                        <button
-                          type="button"
-                          key={prod.id}
-                          onClick={() => toggleQuickProduct(prod.id)}
-                          className="w-full flex items-center justify-between p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 text-left transition-colors cursor-pointer select-none"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                              selected ? 'bg-amber-500 border-amber-500 text-slate-950' : 'border-slate-300 dark:border-slate-700'
-                            }`}>
-                              {selected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                            </div>
-                            
-                            <div>
-                              <p className="text-xs font-bold text-slate-900 dark:text-slate-50">
-                                {prod.name}
-                              </p>
-                              <p className="text-[9.5px] text-slate-450 dark:text-slate-550 font-bold">
-                                {prod.prixRetail.toLocaleString('fr-FR')} FCFA • <span className="text-amber-500 font-extrabold">{prod.unitCC} CC</span>
-                              </p>
-                            </div>
-                          </div>
-                          <span className="text-[9px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold uppercase">
-                            Premium
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Add Custom personalized items builder */}
-                <div className="border-t border-slate-100 dark:border-slate-850 pt-4 space-y-3">
-                  <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                      Ajouter un pack personnalisé ou soin sur-mesure ?
-                    </h4>
-                    <p className="text-[10px] text-slate-500">
-                      Vous pouvez créer des kits d'assemblages ou des prestations de coaching minceur et détox que vous commercialisez sous votre propre marque :
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 bg-slate-50 dark:bg-[#121215] p-3 rounded-2xl border border-slate-150 dark:border-slate-850">
-                    <div className="sm:col-span-2 space-y-1">
-                      <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-550 block select-none">Nom du soin/pack</span>
-                      <input
-                        type="text"
-                        value={newProdName}
-                        onChange={(e) => setNewProdName(e.target.value)}
-                        placeholder="Saisissez le nom du produit"
-                        className="w-full bg-white dark:bg-[#18181b] border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-550 block select-none">Prix (FCFA)</span>
-                      <input
-                        type="number"
-                        value={newProdPrice}
-                        onChange={(e) => setNewProdPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                        placeholder="Saisissez le prix"
-                        className="w-full bg-white dark:bg-[#18181b] border border-slate-205 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-550 block select-none">Cases CC (FLP)</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={newProdCC}
-                        onChange={(e) => setNewProdCC(e.target.value === '' ? '' : Number(e.target.value))}
-                        placeholder="Saisissez les CC"
-                        className="w-full bg-white dark:bg-[#18181b] border border-slate-205 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold outline-none"
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <button
-                        type="button"
-                        onClick={handleAddLocalCustomProduct}
-                        className="w-full py-1.5 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white hover:text-amber-400 rounded-lg text-xs font-black uppercase flex items-center justify-center gap-1 cursor-pointer h-9 transition-colors"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Créer
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* List of custom additions */}
-                  {customProducts.length > 0 && (
-                    <div className="space-y-1 pt-1">
-                      <p className="text-[9px] font-black text-amber-600 dark:text-amber-500 uppercase select-none">
-                        Packs personnalisés à injecter dans votre boutique ({customProducts.length}) :
-                      </p>
-                      
-                      <div className="max-h-24 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/40 border border-[#eff0f2] dark:border-slate-800 rounded-xl bg-white dark:bg-[#111113] p-1">
-                        {customProducts.map((cp, idx) => (
-                          <div key={idx} className="p-2 flex items-center justify-between text-xs text-slate-800 dark:text-slate-300 font-bold">
-                            <div>
-                              <span>{cp.name}</span>
-                              <span className="text-[9px] text-slate-450 dark:text-slate-500 font-bold ml-2">
-                                ({cp.prixRetail.toLocaleString()} FCFA • {cp.unitCC} CC)
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveLocalCustomProduct(idx)}
-                              className="p-1 text-slate-400 hover:text-red-500 transition-colors"
-                              title="Retirer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-              </motion.div>
-            )}
-
-            {/* STEP 4: QUICK START GUIDE & CONFIRMATION */}
-            {step === 4 && (
-              <motion.div
-                key="step-4"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -683,7 +470,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                   <h3 className="text-base font-black uppercase text-slate-900 dark:text-slate-50 tracking-wide mt-1">
                     Prêt pour le Décollage de votre Business FLP !
                   </h3>
-                  <p className="text-xs text-slate-500 max-w-lg">
+                  <p className="text-xs text-slate-505 max-w-lg">
                     Fantastique ! Vos données FBO de base sont configurées. Rappelez-vous ces 3 commandements essentiels pour faire prospérer votre activité de vente directe :
                   </p>
                 </div>
@@ -734,11 +521,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                     <div className="text-right truncate text-[11px]">
                       {waveMoney ? `Mobile 1` : ''} {orangeMoney ? `• Mobile 2` : ''} {!waveMoney && !orangeMoney ? 'Aucun' : ''}
                     </div>
-
-                    <div className="text-left font-normal text-slate-450">Produits favoris activés :</div>
-                    <div className="text-right">
-                      {selectedQuickProducts.length + customProducts.length} produit(s)
-                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -763,7 +545,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
           )}
 
           {/* Next / Terminer button */}
-          {step < 4 ? (
+          {step < 3 ? (
             <button
               onClick={handleNextStep}
               className="py-2.1 px-5 bg-slate-900 hover:bg-slate-800 dark:bg-amber-500 dark:hover:bg-amber-600 text-white dark:text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer h-12 transition-all active:scale-95 shadow-lg shadow-amber-500/5 hover:-translate-y-0.5"

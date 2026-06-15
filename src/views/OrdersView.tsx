@@ -953,13 +953,13 @@ export const OrdersView: React.FC = () => {
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-[10px] space-y-2">
                     {profile.waveMoney && (
                       <div className="flex justify-between border-b border-slate-200/50 pb-1 gap-2">
-                        <span className="font-bold text-slate-500">Wave Money</span>
+                        <span className="font-bold text-slate-500">Mobile Money 1</span>
                         <span className="text-slate-900 font-black">{profile.waveMoney}</span>
                       </div>
                     )}
                     {profile.orangeMoney && (
                       <div className="flex justify-between border-b border-slate-200/50 pb-1 gap-2">
-                        <span className="font-bold text-slate-500">Orange Money</span>
+                        <span className="font-bold text-slate-500">Mobile Money 2</span>
                         <span className="text-slate-900 font-black">{profile.orangeMoney}</span>
                       </div>
                     )}
