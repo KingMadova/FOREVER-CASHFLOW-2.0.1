@@ -206,12 +206,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const saved = localStorage.getItem('fcf-products');
       if (saved) {
         const parsed = JSON.parse(saved) as Product[];
-        // Si la liste sauvegardée est suspecte (trop courte), on remet les défauts
-        if (parsed.length < DEFAULT_PRODUCTS.length / 2) {
+        // Nettoyage strict : on retire TOUS les produits fantômes onboarding (_new)
+        const cleaned = parsed.filter(p => !p.id.includes('_new'));
+        // Si après nettoyage la liste est suspecte (trop courte), on remet les défauts complets
+        if (cleaned.length < DEFAULT_PRODUCTS.length / 2) {
+          // On persiste le reset immédiatement pour éviter de re-déclencher le problème
+          localStorage.setItem('fcf-products', JSON.stringify(DEFAULT_PRODUCTS));
           return DEFAULT_PRODUCTS;
         }
-        // Nettoyage des produits fantômes au passage
-        return parsed.filter(p => !p.id.endsWith('_new'));
+        // On persiste la version nettoyée si des _new avaient pollué le storage
+        if (cleaned.length !== parsed.length) {
+          localStorage.setItem('fcf-products', JSON.stringify(cleaned));
+        }
+        return cleaned;
       }
       return DEFAULT_PRODUCTS;
     } catch {
@@ -660,8 +667,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addProduct = async (product: Omit<Product, 'createdAt' | 'userId'>) => {
     if (!user) return;
+    // Bloquer tout produit fantome issu de l onboarding (id contenant _new)
+    const rawId = (product as any).id || '';
+    if (rawId.includes('_new')) return;
     const path = getPaths(user.uid).products;
-    const id = (product as any).id || 'prod_' + Math.random().toString(36).substr(2, 9);
+    const id = rawId || 'prod_' + Math.random().toString(36).substr(2, 9);
     try {
       await setDoc(doc(db, path, id), {
         ...product,

@@ -162,6 +162,19 @@ export const OrdersView: React.FC = () => {
 
   // Printable Invoice controller
   const handlePrint = () => {
+    // Masquer temporairement le contenu de la page principale pour eviter la duplication a l impression
+    // Le canvas de facture est dans le Drawer, le reste de la page doit etre invisible
+    const mainContainer = document.getElementById('orders_view_container');
+    const drawerPanel = document.getElementById('app_drawer_panel');
+    
+    if (mainContainer) mainContainer.style.visibility = 'hidden';
+    // S assurer que le Drawer et son contenu restent visibles via le CSS print
+    
+    const afterPrint = () => {
+      if (mainContainer) mainContainer.style.visibility = '';
+      window.removeEventListener('afterprint', afterPrint);
+    };
+    window.addEventListener('afterprint', afterPrint);
     window.print();
   };
 
