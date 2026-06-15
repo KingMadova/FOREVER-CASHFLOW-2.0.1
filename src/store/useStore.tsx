@@ -420,11 +420,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!snap.empty) {
         const remoteData = snap.docs.map(d => ({ ...d.data(), id: d.id } as Product));
         
+        // PURGE : supprimer de Firestore tous les produits _new qui y auraient ete ecrits par l onboarding
+        const phantomProducts = remoteData.filter(p => p.id.includes('_new'));
+        if (phantomProducts.length > 0) {
+          phantomProducts.forEach(phantom => {
+            deleteDoc(doc(db, paths.products, phantom.id)).catch(() => {});
+          });
+        }
+
         setProducts(prev => {
           // On commence avec les produits par défaut (le catalogue complet)
           const base = [...DEFAULT_PRODUCTS];
           
-          // On injecte les produits distants (soit des mises à jour, soit des nouveaux)
+          // On injecte uniquement les produits distants valides (pas de _new)
           remoteData.forEach(remoteProd => {
             if (!remoteProd.id.includes('_new')) {
               const index = base.findIndex(p => p.id === remoteProd.id);

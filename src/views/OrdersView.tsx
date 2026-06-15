@@ -160,22 +160,70 @@ export const OrdersView: React.FC = () => {
     }
   };
 
-  // Printable Invoice controller
+  // Printable Invoice controller - approche fenetre isolee pour eviter duplication
   const handlePrint = () => {
-    // Masquer temporairement le contenu de la page principale pour eviter la duplication a l impression
-    // Le canvas de facture est dans le Drawer, le reste de la page doit etre invisible
-    const mainContainer = document.getElementById('orders_view_container');
-    const drawerPanel = document.getElementById('app_drawer_panel');
-    
-    if (mainContainer) mainContainer.style.visibility = 'hidden';
-    // S assurer que le Drawer et son contenu restent visibles via le CSS print
-    
-    const afterPrint = () => {
-      if (mainContainer) mainContainer.style.visibility = '';
-      window.removeEventListener('afterprint', afterPrint);
+    const canvas = document.getElementById('invoice_printable_canvas');
+    if (!canvas) { window.print(); return; }
+
+    // Recuperer les styles critiques pour l impression (Tailwind + custom)
+    const styleSheets = Array.from(document.styleSheets)
+      .map(sheet => {
+        try {
+          return Array.from(sheet.cssRules).map(r => r.cssText).join('\n');
+        } catch {
+          // Cross-origin stylesheet, on tente de linker
+          return sheet.href ? `@import url("${sheet.href}");` : '';
+        }
+      })
+      .join('\n');
+
+    const printWin = window.open('', '_blank', 'width=800,height=1100');
+    if (!printWin) { window.print(); return; }
+
+    printWin.document.write(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Facture</title>
+  <style>
+    ${styleSheets}
+    @page { margin: 15mm; size: A4 portrait; }
+    body { margin: 0; padding: 0; background: white; font-family: Inter, sans-serif; }
+    #invoice_printable_canvas {
+      width: 100% !important;
+      max-width: 100% !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+  </style>
+</head>
+<body>
+  ${canvas.outerHTML}
+</body>
+</html>`);
+    printWin.document.close();
+    printWin.focus();
+
+    // Attendre le chargement complet avant d imprimer
+    printWin.onload = () => {
+      setTimeout(() => {
+        printWin.print();
+        printWin.onafterprint = () => printWin.close();
+        // Fallback fermeture si afterprint non supporte
+        setTimeout(() => { try { printWin.close(); } catch {} }, 2000);
+      }, 300);
     };
-    window.addEventListener('afterprint', afterPrint);
-    window.print();
+
+    // Fallback si onload ne se declenche pas (contenu synchrone)
+    setTimeout(() => {
+      if (!printWin.closed) {
+        printWin.print();
+        setTimeout(() => { try { printWin.close(); } catch {} }, 2000);
+      }
+    }, 800);
   };
 
   const handleExportOrdersCSV = () => {
