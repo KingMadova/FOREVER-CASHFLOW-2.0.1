@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { StoreProvider, useStore } from './store/useStore';
 import { Layout } from './components/ui/Layout';
+import { PWAInstallPrompt } from './components/ui/PWAInstallPrompt';
 
 // View Imports
 import { DashboardView } from './views/DashboardView';
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="/settings" element={<ProtectedRoute><SettingsView /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <PWAInstallPrompt />
       </BrowserRouter>
     </StoreProvider>
   );
