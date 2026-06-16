@@ -35,12 +35,26 @@ export const SettingsView: React.FC = () => {
     orders,
     budget,
     importBackupData,
-    hardResetData
+    hardResetData,
+    purgePhantomProducts
   } = useStore();
 
   const navigate = useNavigate();
   const [systemFeedback, setSystemFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
+
+  const handlePurgePhantoms = async () => {
+    setIsPurging(true);
+    try {
+      await purgePhantomProducts();
+      setSystemFeedback({ message: 'Produits parasites supprimés ! Rechargement...', type: 'success' });
+      setTimeout(() => window.location.reload(), 1500);
+    } catch {
+      setSystemFeedback({ message: 'Erreur lors de la purge.', type: 'error' });
+      setIsPurging(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -385,6 +399,16 @@ export const SettingsView: React.FC = () => {
           <p className="text-xs text-red-700/80 dark:text-red-400/80 leading-relaxed font-semibold">
             Cette action supprimera irrémédiablement l'intégralité du cache local : prospects enregistrés, commandes, rapports financiers et informations du profil utilisateur. Prenez soin de faire une sauvegarde JSON au préalable.
           </p>
+
+          <button
+            type="button"
+            onClick={handlePurgePhantoms}
+            disabled={isPurging}
+            className="mb-3 py-3 px-5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white text-xs font-black uppercase rounded-2xl transition-all cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <Trash2 className="w-4 h-4" />
+            {isPurging ? 'Nettoyage en cours...' : 'Purger les produits parasites (onboarding)'}
+          </button>
 
           {!showResetConfirm ? (
             <button

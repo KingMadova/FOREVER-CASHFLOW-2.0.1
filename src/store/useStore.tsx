@@ -8,6 +8,7 @@ import {
   setDoc, 
   updateDoc, 
   deleteDoc, 
+  getDocs,
   onSnapshot, 
   serverTimestamp,
   query,
@@ -61,6 +62,7 @@ interface StoreContextType {
   // Backup / Restore Actions
   importBackupData: (data: any) => Promise<void>;
   hardResetData: () => Promise<void>;
+  purgePhantomProducts: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -420,13 +422,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!snap.empty) {
         const remoteData = snap.docs.map(d => ({ ...d.data(), id: d.id } as Product));
         
-        // PURGE : supprimer de Firestore tous les produits _new qui y auraient ete ecrits par l onboarding
+        // PURGE : supprimer de Firestore les produits _new issus de l ancien onboarding
         const phantomProducts = remoteData.filter(p => p.id.includes('_new'));
-        if (phantomProducts.length > 0) {
-          phantomProducts.forEach(phantom => {
-            deleteDoc(doc(db, paths.products, phantom.id)).catch(() => {});
-          });
-        }
+        phantomProducts.forEach(phantom => {
+          deleteDoc(doc(db, paths.products, phantom.id)).catch(() => {});
+        });
 
         setProducts(prev => {
           // On commence avec les produits par défaut (le catalogue complet)
@@ -853,6 +853,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const purgePhantomProducts = async () => {
+    if (!user) return;
+    const path = getPaths(user.uid).products;
+    const snap = await getDocs(collection(db, path)).catch(() => null);
+    if (!snap) return;
+    for (const d of snap.docs) {
+      if (d.id.includes('_new')) {
+        await deleteDoc(doc(db, path, d.id)).catch(() => {});
+      }
+    }
+    localStorage.removeItem('fcf-products');
+  };
+
   const hardResetData = async () => {
     // 1. Clear local storage
     localStorage.removeItem('fcf-customers');
@@ -928,7 +941,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isSyncing,
         triggerSync,
         importBackupData,
-        hardResetData
+        hardResetData,
+        purgePhantomProducts
       }}
     >
       {children}
