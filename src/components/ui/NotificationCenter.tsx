@@ -278,7 +278,7 @@ export const NotificationCenter: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="fixed top-[70px] left-4 right-4 sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:mt-2.5 sm:w-[410px] min-h-[12rem] bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl z-55 overflow-hidden text-left flex flex-col"
+            className="fixed top-[64px] left-2 right-2 sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:mt-2.5 sm:w-[410px] bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl z-55 overflow-hidden text-left flex flex-col" style={{ maxHeight: 'calc(100vh - 80px)' }}
             id="notification_dropdown_box"
           >
             {/* 1. Header Column & Mute Sync */}
