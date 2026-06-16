@@ -281,68 +281,55 @@ export const NotificationCenter: React.FC = () => {
             className="fixed top-[64px] left-2 right-2 sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:mt-2.5 sm:w-[410px] bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl z-55 overflow-hidden text-left flex flex-col" style={{ maxHeight: 'calc(100vh - 80px)' }}
             id="notification_dropdown_box"
           >
-            {/* 1. Header Column & Mute Sync */}
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-[#1c1c1f]/70 flex items-center justify-between">
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                  Centre d'Alertes FBO
+            {/* 1. Header */}
+            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-[13px] font-bold text-slate-900 dark:text-slate-100 leading-none">
+                  Centre d'alertes
                 </h3>
-                <p className="text-[10px] text-slate-500 font-medium select-none">
-                  {alertsCount} tâche(s) & commande(s) prioritaires
+                <p className="text-[11px] text-slate-500 mt-0.5 select-none">
+                  {alertsCount} tâche{alertsCount > 1 ? 's' : ''} prioritaire{alertsCount > 1 ? 's' : ''}
                 </p>
               </div>
-
-              <div className="flex items-center gap-1">
-                {/* Audio chime status switcher */}
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={toggleMute}
-                  className={`p-2 rounded-lg active:scale-95 transition-all outline-none cursor-pointer text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50`}
-                  title={isMuted ? "Activer le son des alertes" : "Désactiver le son des alertes"}
+                  className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+                  title={isMuted ? "Activer le son" : "Désactiver le son"}
                   id="mute_notification_audio_btn"
                 >
-                  {isMuted ? <VolumeX className="w-4 h-4 text-rose-500" /> : <Volume2 className="w-4 h-4 text-emerald-500" />}
+                  {isMuted ? <VolumeX className="w-4 h-4 text-rose-500" /> : <Volume2 className="w-4 h-4 text-slate-500 dark:text-slate-400" />}
                 </button>
-                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 select-none">
-                  Suivi Actif
-                </span>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+                  title="Fermer"
+                >
+                  <X className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                </button>
               </div>
             </div>
 
-            {/* 2. TAB CONTROLLER BAR */}
-            <div className="px-4 py-2 bg-white dark:bg-[#1f1f22] border-b border-slate-100 dark:border-slate-800 flex gap-1.5" id="notification_tab_group">
-              <button
-                onClick={() => setActiveTab('all')}
-                className={`py-1.5 px-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer outline-none ${
-                  activeTab === 'all'
-                    ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-                id="notification_tab_all"
-              >
-                Toutes ({alertsCount})
-              </button>
-              <button
-                onClick={() => setActiveTab('followups')}
-                className={`py-1.5 px-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer outline-none ${
-                  activeTab === 'followups'
-                    ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-                id="notification_tab_followups"
-              >
-                Suivis ({followUpAlarms.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('deadlines')}
-                className={`py-1.5 px-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer outline-none ${
-                  activeTab === 'deadlines'
-                    ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-                id="notification_tab_deadlines"
-              >
-                Délais ({deliveryAlarms.length + pendingOrders.length})
-              </button>
+            {/* 2. Tabs */}
+            <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex gap-1.5" id="notification_tab_group">
+              {[
+                { key: 'all', label: 'Toutes', count: alertsCount },
+                { key: 'followups', label: 'Suivis', count: followUpAlarms.length },
+                { key: 'deadlines', label: 'Délais', count: deliveryAlarms.length + pendingOrders.length },
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key as any)}
+                  className={`py-1.5 px-2.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer outline-none ${
+                    activeTab === tab.key
+                      ? 'bg-amber-500 text-slate-950'
+                      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                  id={`notification_tab_${tab.key}`}
+                >
+                  {tab.label} ({tab.count})
+                </button>
+              ))}
             </div>
 
             {/* 3. DYNAMIC NOTIFICATION ROWS */}
@@ -647,28 +634,21 @@ export const NotificationCenter: React.FC = () => {
 
             </div>
 
-            {/* 4. Footer navigation shortcut links */}
-            <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#1c1c1f]/20 text-center flex gap-2">
+            {/* 4. Footer */}
+            <div className="p-3 border-t border-slate-100 dark:border-slate-800 flex gap-2">
               <button
-                onClick={() => {
-                  setIsOpen(false);
-                  navigate('/agenda');
-                }}
-                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-[10px] font-black uppercase text-slate-700 dark:text-slate-200 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-0.5 h-9"
+                onClick={() => { setIsOpen(false); navigate('/agenda'); }}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1"
               >
-                Planner complet
+                Planner
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
-              
               <button
-                onClick={() => {
-                  setIsOpen(false);
-                  navigate('/orders');
-                }}
-                className="flex-1 py-2 bg-amber-500 hover:bg-amber-653 text-slate-950 text-[10px] font-black uppercase rounded-xl transition-all cursor-pointer flex items-center justify-center gap-0.5 h-9"
+                onClick={() => { setIsOpen(false); navigate('/orders'); }}
+                className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1"
               >
                 Mes ventes
-                <ChevronRight className="w-3.5 h-3.5 text-slate-900" />
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </motion.div>
@@ -683,49 +663,46 @@ export const NotificationCenter: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 sm:w-[380px] max-w-sm bg-slate-900 border border-slate-800 text-white rounded-3xl p-4 shadow-2xl flex items-start gap-3 z-60"
+            className="fixed bottom-0 left-0 right-0 sm:left-auto sm:right-4 sm:bottom-4 sm:w-[380px] bg-slate-900 border-t border-slate-800 sm:border sm:rounded-2xl z-60"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
             id="notification_slide_toast"
           >
-            <div className="w-9 h-9 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
-              <Sparkles className="w-5 h-5 animate-pulse" />
-            </div>
-
-            <div className="flex-1 min-w-0 text-left">
-              <h4 className="text-xs font-black uppercase text-amber-400 tracking-wider">
-                Priorité du Jour FBO 🚀
-              </h4>
-              <p className="text-xs text-slate-300 font-semibold leading-relaxed mt-1">
-                Vous avez {alertsCount} rappel(s) ou délais de commandes urgents à valider aujourd'hui.
-              </p>
-
-              <div className="flex gap-2 mt-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowToast(false);
-                    setIsOpen(true);
-                  }}
-                  className="py-1.5 px-3 bg-white text-slate-950 hover:bg-amber-400 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer"
-                >
-                  Consulter
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowToast(false)}
-                  className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-[10px] font-bold uppercase rounded-lg transition-all cursor-pointer"
-                >
-                  Masquer
-                </button>
+            <div className="flex items-start gap-3 p-4">
+              <div className="w-9 h-9 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+                <Bell className="w-4 h-4 text-amber-400" />
               </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400 mb-0.5">
+                  Priorité du jour
+                </p>
+                <p className="text-[13px] text-slate-300 leading-snug">
+                  {alertsCount} rappel{alertsCount > 1 ? 's' : ''} ou délai{alertsCount > 1 ? 's' : ''} urgent{alertsCount > 1 ? 's' : ''} à traiter.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowToast(false)}
+                className="text-slate-500 hover:text-slate-200 transition-colors cursor-pointer p-1 -mr-1 -mt-1"
+                id="notify_close_toast_btn"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-
-            <button
-              onClick={() => setShowToast(false)}
-              className="text-slate-400 hover:text-white transition-colors cursor-pointer"
-              id="notify_close_toast_btn"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex gap-2 px-4 pb-3">
+              <button
+                type="button"
+                onClick={() => { setShowToast(false); setIsOpen(true); }}
+                className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-bold uppercase rounded-xl transition-all cursor-pointer tracking-wide"
+              >
+                Consulter
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowToast(false)}
+                className="flex-1 py-2.5 bg-white/8 hover:bg-white/12 border border-white/10 text-slate-400 hover:text-white text-[11px] font-bold uppercase rounded-xl transition-all cursor-pointer tracking-wide"
+              >
+                Masquer
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
