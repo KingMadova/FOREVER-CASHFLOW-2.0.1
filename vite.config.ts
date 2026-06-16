@@ -12,12 +12,12 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: 'auto',
-        includeAssets: ['icon.jpg', 'favicon.ico', 'apple-touch-icon.png'],
+        includeAssets: ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
         manifest: {
           name: 'Forever CashFlow',
           short_name: 'CashFlow',
           description: 'CRM mobile-first pour distributeurs FLP',
-          theme_color: '#0f172a',
+          theme_color: '#f59e0b',
           background_color: '#09090b',
           display: 'standalone',
           orientation: 'portrait',
@@ -25,27 +25,27 @@ export default defineConfig(() => {
           scope: '/',
           icons: [
             {
-              src: 'icon.jpg',
+              src: 'icon-192.png',
               sizes: '192x192',
-              type: 'image/jpeg',
+              type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'icon.jpg',
+              src: 'icon-512.png',
               sizes: '512x512',
-              type: 'image/jpeg',
+              type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'icon.jpg',
+              src: 'icon-192.png',
               sizes: '192x192',
-              type: 'image/jpeg',
+              type: 'image/png',
               purpose: 'maskable'
             },
             {
-              src: 'icon.jpg',
+              src: 'icon-512.png',
               sizes: '512x512',
-              type: 'image/jpeg',
+              type: 'image/png',
               purpose: 'maskable'
             }
           ]

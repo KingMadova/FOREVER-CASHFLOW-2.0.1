@@ -16,11 +16,16 @@
   }
 }
 
-/* Print configuration specifically for the Monochrome high-contrast print-card */
+/* Print configuration - teleportation DOM via #fcf_print_root */
 @media print {
   @page {
     margin: 15mm;
     size: A4 portrait;
+  }
+
+  /* Masquer tout sauf le conteneur de teleportation cree par handlePrint */
+  body > *:not(#fcf_print_root) {
+    display: none !important;
   }
 
   html, body {
@@ -31,62 +36,54 @@
     font-family: "Inter", sans-serif !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    height: auto !important;
   }
 
-  /* Masquer tout le contenu de la page sauf le canvas a imprimer */
-  body > * {
-    display: none !important;
-  }
-
-  /* Afficher uniquement le portail d impression (Drawer overlay) */
-  body #print-portal,
-  body #print-portal * {
+  /* Conteneur racine d impression */
+  #fcf_print_root {
     display: block !important;
-    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
   }
 
-  /* Hide everything at the top level and sub-elements by default */
-  body * {
-    visibility: hidden !important;
-  }
-
-  /* Make sure our core print blocks and ALL of their nested elements are visible */
-  #invoice_printable_canvas,
-  #invoice_printable_canvas *,
-  #report_printable_canvas,
-  #report_printable_canvas * {
-    visibility: visible !important;
-  }
-
-  /* Positionner proprement le canvas - fixed pour eviter la duplication */
-  #invoice_printable_canvas,
-  #report_printable_canvas {
+  /* Le canvas de facture */
+  #fcf_print_root #invoice_printable_canvas {
     display: block !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
+    position: static !important;
     width: 100% !important;
     max-width: 100% !important;
-    margin: 0 !important;
-    padding: 15mm !important;
     border: none !important;
     box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
     background: white !important;
-    z-index: 99999999 !important;
+    color: #0f172a !important;
     box-sizing: border-box !important;
-    overflow: visible !important;
   }
 
-  /* Ensure background fills and text look great in PDF */
+  /* Tous les enfants du canvas */
+  #fcf_print_root #invoice_printable_canvas * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Couleurs pour l impression */
+  .bg-amber-500 {
+    background-color: #d97706 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .bg-slate-900 {
     background-color: #0d1527 !important;
     color: #ffffff !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  
+
   .bg-slate-50 {
     background-color: #f8fafc !important;
     -webkit-print-color-adjust: exact !important;
@@ -99,13 +96,6 @@
     print-color-adjust: exact !important;
   }
 
-  .bg-amber-500 {
-    background-color: #d97706 !important; /* Slightly darker gold for rich printer contrast */
-    color: #ffffff !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
   .bg-emerald-500 {
     background-color: #059669 !important;
     color: #ffffff !important;
@@ -113,27 +103,13 @@
     print-color-adjust: exact !important;
   }
 
-  .text-slate-900 {
-    color: #0f172a !important;
-  }
+  .text-slate-900 { color: #0f172a !important; }
+  .text-white { color: #ffffff !important; }
+  .text-emerald-500, .text-emerald-600 { color: #047857 !important; }
+  .text-red-500, .text-red-600 { color: #b91c1c !important; }
+  .text-blue-600 { color: #1d4ed8 !important; }
 
-  .text-white {
-    color: #ffffff !important;
-  }
-
-  .text-emerald-500, .text-emerald-600 {
-    color: #047857 !important;
-  }
-
-  .text-red-500, .text-red-600 {
-    color: #b91c1c !important;
-  }
-
-  .text-blue-600 {
-    color: #1d4ed8 !important;
-  }
-
-  /* Grid adjustment for print compatibility */
+  /* Grilles */
   .grid-cols-2 {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -146,7 +122,7 @@
     gap: 1rem !important;
   }
 
-  /* Table styling enhancements for physical paper */
+  /* Tables */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
@@ -162,50 +138,13 @@
     display: table-header-group !important;
   }
 
-  /* Page break rules for structured reports */
+  /* Sauts de page */
   p, div, h1, h2, h3, h4, h5, h6 {
     page-break-inside: avoid !important;
   }
 
-  /* Avoid cutting off on bottom sheets */
   .p-10 {
     padding: 0 !important;
-  }
-
-  /* Masquer le contenu de la vue principale (orders_view_container) pendant l impression
-     pour eviter la duplication avec le canvas dans le Drawer */
-  #orders_view_container {
-    display: none !important;
-  }
-
-  /* S assurer que le Drawer overlay est pleinement visible et imprimable */
-  .fixed.inset-0.z-50 {
-    position: static !important;
-    display: block !important;
-    visibility: visible !important;
-  }
-
-  /* Masquer les elements de navigation et d interface du Drawer (backdrop, boutons) */
-  #app_drawer_panel > .w-12,
-  #app_drawer_panel > div:first-child,
-  .absolute.inset-0.bg-black\/40,
-  .absolute.inset-0.bg-black\/75,
-  #drawer_close_btn {
-    display: none !important;
-  }
-
-  /* Le Drawer doit s afficher en plein ecran a l impression */
-  #app_drawer_panel {
-    position: static !important;
-    max-height: none !important;
-    overflow: visible !important;
-    box-shadow: none !important;
-    border: none !important;
-    border-radius: 0 !important;
-    padding: 0 !important;
-    background: white !important;
-    width: 100% !important;
-    max-width: 100% !important;
   }
 }
 
