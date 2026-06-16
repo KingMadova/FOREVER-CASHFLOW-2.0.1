@@ -856,12 +856,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const purgePhantomProducts = async () => {
     if (!user) return;
     const path = getPaths(user.uid).products;
+    // Supprimer TOUS les produits Firestore pour forcer le retour aux DEFAULT_PRODUCTS
+    // Les produits modifiés par l onboarding (même sans _new) seront ainsi écrasés
     const snap = await getDocs(collection(db, path)).catch(() => null);
     if (!snap) return;
     for (const d of snap.docs) {
-      if (d.id.includes('_new')) {
-        await deleteDoc(doc(db, path, d.id)).catch(() => {});
-      }
+      await deleteDoc(doc(db, path, d.id)).catch(() => {});
     }
     localStorage.removeItem('fcf-products');
   };
@@ -894,6 +894,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       for (const item of agendaList) {
         await deleteDoc(doc(db, paths.agenda, item.id)).catch(() => {});
+      }
+      // Purger aussi tous les produits Firestore pour retour aux DEFAULT_PRODUCTS
+      const prodSnap = await getDocs(collection(db, paths.products)).catch(() => null);
+      if (prodSnap) {
+        for (const d of prodSnap.docs) {
+          await deleteDoc(doc(db, paths.products, d.id)).catch(() => {});
+        }
       }
     }
   };
