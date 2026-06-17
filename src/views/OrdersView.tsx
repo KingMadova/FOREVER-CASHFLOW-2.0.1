@@ -18,7 +18,8 @@ import {
   Search,
   ShoppingCart,
   ChevronRight,
-  Download
+  Download,
+  Edit2
 } from 'lucide-react';
 
 export const OrdersView: React.FC = () => {
@@ -29,6 +30,8 @@ export const OrdersView: React.FC = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
   // Filter lists
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL');
@@ -128,6 +131,37 @@ export const OrdersView: React.FC = () => {
     const totalCost = totalTrueRetail * (1 - currentGrade.tauxRemise);
     const totalMargin = totalRetail - totalCost;
 
+    const resetForm = () => {
+      setOrderCustomer('');
+      setCustomerSearchQuery('');
+      setApplyDiscount(false);
+      setDiscountPercent(5);
+      setInvoiceItems([]);
+      setOrderFormError(null);
+      setIsEditMode(false);
+      setEditingOrderId(null);
+    };
+
+    if (isEditMode && editingOrderId) {
+      // Mise a jour de la commande existante
+      const existing = orders.find(o => o.id === editingOrderId);
+      if (!existing) return;
+      updateOrder({
+        ...existing,
+        customerId: selectedCust.id,
+        customerName: selectedCust.name,
+        items: parsedItems,
+        totalRetail,
+        totalCost: Math.round(totalCost),
+        totalMargin: Math.round(totalMargin),
+        totalCC,
+        discountPercent: applyDiscount ? discountPercent : undefined
+      });
+      setIsNewOrderOpen(false);
+      resetForm();
+      return;
+    }
+
     addOrder({
       customerId: selectedCust.id,
       customerName: selectedCust.name,
@@ -141,14 +175,8 @@ export const OrdersView: React.FC = () => {
       discountPercent: applyDiscount ? discountPercent : undefined
     });
 
-    // Reset Form
-    setOrderCustomer('');
-    setCustomerSearchQuery('');
-    setApplyDiscount(false);
-    setDiscountPercent(5);
-    setInvoiceItems([]);
-    setOrderFormError(null);
     setIsNewOrderOpen(false);
+    resetForm();
   };
 
   const handleUpdateStatus = (ord: Order, nextStatus: OrderStatus) => {
@@ -158,6 +186,41 @@ export const OrdersView: React.FC = () => {
     if (selectedOrder && selectedOrder.id === ord.id) {
       setSelectedOrder(updatedOrd);
     }
+  };
+
+  // Ouvrir le formulaire en mode edition depuis une commande PENDING
+  const handleEditOrder = (ord: Order) => {
+    // Pré-remplir le client
+    const cust = customers.find(c => c.id === ord.customerId);
+    setOrderCustomer(ord.customerId);
+    setCustomerSearchQuery(cust?.name || ord.customerName);
+
+    // Pré-remplir les produits (reconstruire depuis les items)
+    const prefilledItems = ord.items.map(item => {
+      const prod = products.find(p => p.id === item.productId) || {
+        id: item.productId,
+        name: item.productName,
+        prixRetail: item.unitPrice,
+        unitCC: item.unitCC,
+      } as any;
+      return { product: prod, quantity: item.quantity };
+    });
+    setInvoiceItems(prefilledItems);
+
+    // Pré-remplir la remise
+    if (ord.discountPercent) {
+      setApplyDiscount(true);
+      setDiscountPercent(ord.discountPercent);
+    } else {
+      setApplyDiscount(false);
+      setDiscountPercent(5);
+    }
+
+    // Passer en mode edition
+    setIsEditMode(true);
+    setEditingOrderId(ord.id);
+    setIsDetailOpen(false);
+    setIsNewOrderOpen(true);
   };
 
   // Printable Invoice controller - approche fenetre isolee pour eviter duplication
@@ -367,8 +430,15 @@ export const OrdersView: React.FC = () => {
         onClose={() => {
           setIsNewOrderOpen(false);
           setOrderFormError(null);
+          setIsEditMode(false);
+          setEditingOrderId(null);
+          setOrderCustomer('');
+          setCustomerSearchQuery('');
+          setInvoiceItems([]);
+          setApplyDiscount(false);
+          setDiscountPercent(5);
         }}
-        title="Créer un Bon de Vente FLP"
+        title={isEditMode ? 'Modifier la Commande' : 'Créer un Bon de Vente FLP'}
       >
         <form onSubmit={handleCreateOrder} className="space-y-4">
           
@@ -741,7 +811,7 @@ export const OrdersView: React.FC = () => {
             type="submit"
             className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all text-sm mt-4"
           >
-            CONFIRMER LE BON DE COMMANDE
+            {isEditMode ? 'ENREGISTRER LES MODIFICATIONS' : 'CONFIRMER LE BON DE COMMANDE'}
           </button>
         </form>
       </Drawer>
@@ -795,6 +865,15 @@ export const OrdersView: React.FC = () => {
 
             {/* Change Status Switchers */}
             <div className="flex gap-2">
+              {selectedOrder.status === 'PENDING' && (
+                <button
+                  onClick={() => handleEditOrder(selectedOrder)}
+                  className="py-3 px-3 bg-amber-100 dark:bg-amber-500/15 hover:bg-amber-200 text-amber-700 dark:text-amber-400 font-extrabold rounded-2xl text-xs active:scale-95 transition-all"
+                  title="Modifier la commande"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              )}
               {selectedOrder.status === 'PENDING' && (
                 <button
                   onClick={() => handleUpdateStatus(selectedOrder, OrderStatus.VALIDATED)}
