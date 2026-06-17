@@ -659,16 +659,16 @@ export const NotificationCenter: React.FC = () => {
       <AnimatePresence>
         {showToast && alertsCount > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="fixed bottom-0 left-0 right-0 sm:left-auto sm:right-4 sm:bottom-4 sm:w-[380px] bg-slate-900 border-t border-slate-800 sm:border sm:rounded-2xl z-60"
-            style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 30 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            className="fixed left-3 right-3 xl:left-auto xl:right-6 xl:w-[380px] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl z-60"
+            style={{ bottom: 'calc(72px + env(safe-area-inset-bottom, 8px) + 8px)' }}
             id="notification_slide_toast"
           >
-            <div className="flex items-start gap-3 p-4">
-              <div className="w-9 h-9 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+            <div className="flex items-start gap-3 p-4 pb-2">
+              <div className="w-8 h-8 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5">
                 <Bell className="w-4 h-4 text-amber-400" />
               </div>
               <div className="flex-1 min-w-0">
@@ -681,13 +681,13 @@ export const NotificationCenter: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowToast(false)}
-                className="text-slate-500 hover:text-slate-200 transition-colors cursor-pointer p-1 -mr-1 -mt-1"
+                className="text-slate-500 hover:text-slate-200 transition-colors cursor-pointer p-1 -mr-1 -mt-0.5 shrink-0"
                 id="notify_close_toast_btn"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex gap-2 px-4 pb-3">
+            <div className="flex gap-2 px-4 pb-4">
               <button
                 type="button"
                 onClick={() => { setShowToast(false); setIsOpen(true); }}
@@ -698,7 +698,7 @@ export const NotificationCenter: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowToast(false)}
-                className="flex-1 py-2.5 bg-white/8 hover:bg-white/12 border border-white/10 text-slate-400 hover:text-white text-[11px] font-bold uppercase rounded-xl transition-all cursor-pointer tracking-wide"
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-white text-[11px] font-bold uppercase rounded-xl transition-all cursor-pointer tracking-wide"
               >
                 Masquer
               </button>
