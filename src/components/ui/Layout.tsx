@@ -130,8 +130,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Sidebar Header with Gold Accent */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col gap-1">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-white font-extrabold text-xl shadow-md">
-              FC
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-md shrink-0">
+              <img src="/icon-192.png" alt="Forever CashFlow" className="w-full h-full object-cover" />
             </div>
             <div>
               <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100 tracking-tight">Forever CashFlow</h2>

@@ -445,9 +445,37 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
         monthlySummaryList: targetMonthlySummaryList
       });
 
-      // Trigger standard browser print engine
+      // Teleporter le canvas vers #fcf_print_root puis imprimer (coherent avec OrdersView)
       setTimeout(() => {
+        const canvas = document.getElementById('report_printable_canvas');
+        if (!canvas) {
+          window.print();
+          setIsExportDialogOpen(false);
+          return;
+        }
+
+        const printRoot = document.createElement('div');
+        printRoot.id = 'fcf_print_root';
+        document.body.appendChild(printRoot);
+
+        const originalParent = canvas.parentNode as HTMLElement;
+        const originalNextSibling = canvas.nextSibling;
+        printRoot.appendChild(canvas);
+
         window.print();
+
+        const restore = () => {
+          if (originalNextSibling) {
+            originalParent.insertBefore(canvas, originalNextSibling);
+          } else {
+            originalParent.appendChild(canvas);
+          }
+          printRoot.remove();
+          window.removeEventListener('afterprint', restore);
+        };
+        window.addEventListener('afterprint', restore);
+        setTimeout(restore, 2500);
+
         setIsExportDialogOpen(false);
       }, 350);
     }
