@@ -111,7 +111,7 @@ export const ActivityReport: React.FC = () => {
 
   // --- MONTHLY DATA AGGREGATION ---
   const activeOrdersThisMonth = orders.filter(o => 
-    o.status !== 'CANCELLED' && isDateInMonthAndYear(o.date, selectedMonth, selectedYear)
+    o.status === 'VALIDATED' && isDateInMonthAndYear(o.date, selectedMonth, selectedYear)
   );
 
   const monthlyRetailSales = activeOrdersThisMonth.reduce((acc, o) => acc + o.totalRetail, 0);
@@ -145,7 +145,7 @@ export const ActivityReport: React.FC = () => {
 
   // --- YEARLY DATA AGGREGATION ---
   const activeOrdersThisYear = orders.filter(o => 
-    o.status !== 'CANCELLED' && isDateInYear(o.date, selectedYear)
+    o.status === 'VALIDATED' && isDateInYear(o.date, selectedYear)
   );
 
   const yearlyRetailSales = activeOrdersThisYear.reduce((acc, o) => acc + o.totalRetail, 0);
@@ -165,7 +165,7 @@ export const ActivityReport: React.FC = () => {
 
   // Monthly table generator for Yearly view
   const monthlySummaryList = months.map(m => {
-    const ordersInM = orders.filter(o => o.status !== 'CANCELLED' && isDateInMonthAndYear(o.date, m.value, selectedYear));
+    const ordersInM = orders.filter(o => o.status === 'VALIDATED' && isDateInMonthAndYear(o.date, m.value, selectedYear));
     const budgetInM = budget.filter(b => isDateInMonthAndYear(b.date, m.value, selectedYear));
 
     const sales = ordersInM.reduce((acc, o) => acc + o.totalRetail, 0);
@@ -236,7 +236,7 @@ Date de génération : ${new Date().toLocaleString()}`;
 
     // Calculate details for specific chosen period
     const targetOrders = orders.filter(o => {
-      if (o.status === 'CANCELLED') return false;
+      if (o.status !== 'VALIDATED') return false;
       const d = new Date(o.date);
       if (isYearly) {
         return d.getFullYear() === year;
@@ -272,7 +272,7 @@ Date de génération : ${new Date().toLocaleString()}`;
     // Generate monthly list for specified Year
     const targetMonthlySummaryList = months.map(m => {
       const ordersInM = orders.filter(o => {
-        if (o.status === 'CANCELLED') return false;
+        if (o.status !== 'VALIDATED') return false;
         const d = new Date(o.date);
         return d.getFullYear() === year && (d.getMonth() + 1) === m.value;
       });

@@ -224,6 +224,34 @@ export const OrdersView: React.FC = () => {
   };
 
   // Printable Invoice controller - approche fenetre isolee pour eviter duplication
+  // Impression du registre complet des commandes (teleportation DOM)
+  const handlePrintRegistry = () => {
+    const canvas = document.getElementById('orders_registry_printable_canvas');
+    if (!canvas) return;
+
+    const printRoot = document.createElement('div');
+    printRoot.id = 'fcf_print_root';
+    document.body.appendChild(printRoot);
+
+    const originalParent = canvas.parentNode as HTMLElement;
+    const originalNextSibling = canvas.nextSibling;
+    printRoot.appendChild(canvas);
+
+    window.print();
+
+    const restore = () => {
+      if (originalNextSibling) {
+        originalParent.insertBefore(canvas, originalNextSibling);
+      } else {
+        originalParent.appendChild(canvas);
+      }
+      printRoot.remove();
+      window.removeEventListener('afterprint', restore);
+    };
+    window.addEventListener('afterprint', restore);
+    setTimeout(restore, 2500);
+  };
+
   const handlePrint = () => {
     const canvas = document.getElementById('invoice_printable_canvas');
     if (!canvas) return;
@@ -349,7 +377,7 @@ export const OrdersView: React.FC = () => {
             Exporter Excel
           </button>
           <button
-            onClick={() => window.print()}
+            onClick={handlePrintRegistry}
             className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
             title="Imprimer le Registre de Ventes PDF"
           >
@@ -1096,7 +1124,7 @@ export const OrdersView: React.FC = () => {
 
       {/* 5. Hidden during normal browser session, displays purely when user executes standard PDF printable action on orders list */}
       {!isDetailOpen && (
-        <div id="report_printable_canvas" className="hidden print:block p-8 bg-white text-slate-900 space-y-6 font-sans">
+        <div id="orders_registry_printable_canvas" className="hidden print:block p-8 bg-white text-slate-900 space-y-6 font-sans">
           <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-6">
             <div>
               <h1 className="text-2xl font-black tracking-tight uppercase">Registre des Commandes & Ventes</h1>
@@ -1124,24 +1152,24 @@ export const OrdersView: React.FC = () => {
             )}
           </div>
 
-          {/* Totals Summary */}
+          {/* Totals Summary - uniquement les commandes VALIDEES (livrees et confirmees) */}
           <div className="grid grid-cols-3 gap-4 text-center">
             <div className="p-3 border border-slate-200 rounded-xl">
               <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Total de Ventes Brut</span>
               <p className="text-base font-bold text-slate-900 mt-1 font-mono">
-                {orders.reduce((sum, o) => sum + (o.status === OrderStatus.CANCELLED ? 0 : o.totalRetail), 0).toLocaleString()} F
+                {orders.reduce((sum, o) => sum + (o.status === OrderStatus.VALIDATED ? o.totalRetail : 0), 0).toLocaleString()} F
               </p>
             </div>
             <div className="p-3 border border-slate-200 rounded-xl">
-              <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Marge Directe Estimée</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Marge Directe Confirmée</span>
               <p className="text-base font-bold text-emerald-600 mt-1 font-mono">
-                +{orders.reduce((sum, o) => sum + (o.status === OrderStatus.CANCELLED ? 0 : o.totalMargin), 0).toLocaleString()} F
+                +{orders.reduce((sum, o) => sum + (o.status === OrderStatus.VALIDATED ? o.totalMargin : 0), 0).toLocaleString()} F
               </p>
             </div>
             <div className="p-3 border border-slate-200 rounded-xl bg-slate-50">
               <span className="text-[9px] font-black text-slate-500 uppercase block tracking-wider">Volume d'Activité</span>
               <p className="text-base font-bold text-blue-600 mt-1 font-mono">
-                {orders.reduce((sum, o) => sum + (o.status === OrderStatus.CANCELLED ? 0 : o.totalCC), 0).toFixed(3)} CC
+                {orders.reduce((sum, o) => sum + (o.status === OrderStatus.VALIDATED ? o.totalCC : 0), 0).toFixed(3)} CC
               </p>
             </div>
           </div>

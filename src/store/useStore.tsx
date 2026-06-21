@@ -299,22 +299,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const triggerSync = async () => {
-    if (syncQueue.length === 0 || isSyncing || isOfflineMode) return;
+    if (syncQueue.length === 0 || isSyncing || isOfflineMode || !user) return;
     setIsSyncing(true);
 
     const tasksToProcess = [...syncQueue];
+    const paths = getPaths(user.uid);
 
     for (const task of tasksToProcess) {
-      // Simulate real-world network delay for a satisfyingly premium UI transition
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      if (task.type === 'CUSTOMER') {
-        setCustomers(prev => prev.map(c => c.id === task.entityId ? { ...c, synced: true } : c));
-      } else if (task.type === 'ORDER') {
-        setOrders(prev => prev.map(o => o.id === task.entityId ? { ...o, synced: true } : o));
+      try {
+        if (task.type === 'CUSTOMER') {
+          await setDoc(doc(db, paths.customers, task.entityId), task.payload);
+          setCustomers(prev => prev.map(c => c.id === task.entityId ? { ...c, synced: true } : c));
+        } else if (task.type === 'ORDER') {
+          await setDoc(doc(db, paths.orders, task.entityId), task.payload);
+          setOrders(prev => prev.map(o => o.id === task.entityId ? { ...o, synced: true } : o));
+        }
+        // Tache reussie : on la retire de la queue
+        setSyncQueue(prev => prev.filter(t => t.id !== task.id));
+      } catch (err) {
+        // Echec reel (pas juste offline) : on garde la tache en queue pour reessayer plus tard
+        console.error('Sync failed for task', task.id, err);
       }
-
-      setSyncQueue(prev => prev.filter(t => t.id !== task.id));
     }
 
     setIsSyncing(false);
@@ -486,10 +491,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       userId: user.uid,
       createdAt: new Date().toISOString().split('T')[0],
     };
+    // Affichage local immediat (optimiste), meme si la requete reseau echoue
+    setCustomers(prev => [...prev, { ...newCust, id, synced: !isOfflineMode } as Customer]);
     try {
       await setDoc(doc(db, path, id), newCust);
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, path);
+      // En offline : on met la tache en queue pour synchro automatique au retour du reseau
+      setSyncQueue(prev => [...prev, {
+        id: 'sync_' + Math.random().toString(36).substr(2, 9),
+        type: 'CUSTOMER',
+        entityId: id,
+        name: cust.name,
+        actionType: 'ADD',
+        payload: newCust,
+        createdAt: new Date().toISOString()
+      }]);
     }
   };
 
@@ -522,9 +538,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       userId: user.uid,
       createdAt: new Date().toISOString()
     };
+    // Affichage local immediat (optimiste)
+    setOrders(prev => [...prev, { ...newOrd, id, synced: !isOfflineMode } as Order]);
     try {
       await setDoc(doc(db, paths.orders, id), newOrd);
-      
+
       if (newOrd.status === 'VALIDATED') {
         await addBudgetEntry({
           type: 'REVENUE',
@@ -537,7 +555,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
       }
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, paths.orders);
+      // En offline : on met la tache en queue pour synchro automatique au retour du reseau
+      setSyncQueue(prev => [...prev, {
+        id: 'sync_' + Math.random().toString(36).substr(2, 9),
+        type: 'ORDER',
+        entityId: id,
+        name: ord.customerName,
+        actionType: 'ADD',
+        payload: newOrd,
+        createdAt: new Date().toISOString()
+      }]);
     }
   };
 
