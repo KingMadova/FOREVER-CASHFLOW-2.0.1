@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Target, Users, ShoppingBag, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Target, Users, ShoppingBag, BookOpen } from 'lucide-react';
 
 export const BottomNav: React.FC = () => {
   const navigate = useNavigate();
@@ -32,10 +32,10 @@ export const BottomNav: React.FC = () => {
       id: 'nav_orders'
     },
     {
-      path: '/projection',
-      label: 'Projection',
-      icon: <TrendingUp className="w-5 h-5" />,
-      id: 'nav_projection'
+      path: '/tracker',
+      label: 'Journal G4',
+      icon: <BookOpen className="w-5 h-5" />,
+      id: 'nav_tracker'
     }
   ];
 

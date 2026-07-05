@@ -406,7 +406,9 @@ export const OrdersView: React.FC = () => {
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] text-slate-400 font-bold">{ord.date}</span>
+                  <span className="text-[10px] text-slate-400 font-bold">
+                    {ord.status === OrderStatus.VALIDATED ? (ord.validatedAt || ord.date) : ord.date}
+                  </span>
                   <span className={`text-[8px] font-extrabold uppercase px-2 py-0.5 rounded ${
                     ord.status === OrderStatus.VALIDATED 
                       ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400' 
@@ -959,7 +961,12 @@ export const OrdersView: React.FC = () => {
                   <h4 className="font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1 mb-2">Facturé à</h4>
                   <div className="space-y-0.5 text-slate-700">
                     <p className="font-bold text-slate-900">{selectedOrder.customerName}</p>
-                    <p className="italic text-slate-500">Achat validé le {selectedOrder.date}</p>
+                    <p className="italic text-slate-500">
+                      Achat validé le {selectedOrder.validatedAt || selectedOrder.date}
+                      {selectedOrder.validatedAt && selectedOrder.validatedAt !== selectedOrder.date && (
+                        <span className="text-xs text-slate-400 ml-1">(créé le {selectedOrder.date})</span>
+                      )}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1198,7 +1205,9 @@ export const OrdersView: React.FC = () => {
                     .map((o, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50">
                         <td className="p-2.5 font-bold uppercase">#{o.id.split('_')[1]?.toUpperCase() || o.id}</td>
-                        <td className="p-2.5 font-sans whitespace-nowrap">{o.date}</td>
+                        <td className="p-2.5 font-sans whitespace-nowrap">
+                          {o.status === 'VALIDATED' ? (o.validatedAt || o.date) : o.date}
+                        </td>
                         <td className="p-2.5 font-sans font-bold">{o.customerName}</td>
                         <td className="p-2.5 font-sans">
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${

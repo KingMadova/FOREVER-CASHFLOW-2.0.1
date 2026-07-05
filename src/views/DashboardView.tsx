@@ -13,7 +13,9 @@ import {
   ChevronRight,
   TrendingDown,
   Target,
-  Pencil
+  Pencil,
+  Flame,
+  Zap
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -28,7 +30,7 @@ import { useNavigate } from 'react-router-dom';
 import { GRADES } from '../types';
 
 export const DashboardView: React.FC = () => {
-  const { orders, customers, budget, profile, updateProfile } = useStore();
+  const { orders, customers, budget, profile, updateProfile, getDailyLog, dailyLogs } = useStore();
   const navigate = useNavigate();
 
   // Sales Goal inputs and states
@@ -172,6 +174,42 @@ export const DashboardView: React.FC = () => {
   };
 
   const activities = getRecentActivities();
+
+  // Widget G4 : score du jour + streak
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayLog = getDailyLog(todayStr);
+  const checksDone = todayLog ? [
+    todayLog.consumedProduct, todayLog.trained,
+    todayLog.statusMorning, todayLog.statusNoon, todayLog.statusEvening
+  ].filter(Boolean).length : 0;
+  const countersDone = todayLog ? [
+    (todayLog.contactsAdded || 0) >= 5,
+    (todayLog.conversationsStarted || 0) >= 100,
+  ].filter(Boolean).length : 0;
+  const dayScore = checksDone + countersDone;
+  const dayScorePct = Math.round((dayScore / 7) * 100);
+
+  const streak = (() => {
+    let count = 0;
+    const d = new Date(todayStr + 'T00:00:00');
+    while (true) {
+      const ds = d.toISOString().split('T')[0];
+      const l = getDailyLog(ds);
+      if (!l || (!l.consumedProduct && !l.trained && !(l.contactsAdded && l.contactsAdded > 0))) break;
+      count++; d.setDate(d.getDate() - 1);
+    }
+    return count;
+  })();
+
+  // CC du mois depuis les logs
+  const nowDate = new Date();
+  const monthStart = `${nowDate.getFullYear()}-${String(nowDate.getMonth()+1).padStart(2,'0')}-01`;
+  const monthContacts = dailyLogs
+    .filter(l => l.date >= monthStart)
+    .reduce((s, l) => s + (l.contactsAdded || 0), 0);
+  const monthPresentations = dailyLogs
+    .filter(l => l.date >= monthStart)
+    .reduce((s, l) => s + (l.oneToOne||0) + ((l.miniConferences||0)*3) + ((l.conferences||0)*5) + ((l.boutiques||0)*5), 0);
 
   return (
     <div className="space-y-6" id="dashboard_view_container">
@@ -533,6 +571,51 @@ export const DashboardView: React.FC = () => {
 
         {/* Right activities sidebar pane */}
         <div className="lg:col-span-4 flex flex-col gap-6">
+
+          {/* Widget G4 — Journal Excellente Vie */}
+          <div
+            className="bg-slate-900 dark:bg-slate-800 rounded-3xl p-4 cursor-pointer active:scale-[0.99] transition-all"
+            onClick={() => navigate('/tracker')}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Journal G4 · Aujourd'hui</p>
+                <p className={`text-3xl font-black mt-0.5 ${dayScorePct >= 80 ? 'text-emerald-400' : dayScorePct >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
+                  {dayScore}<span className="text-base text-slate-500 font-bold">/7</span>
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                {streak > 0 && (
+                  <div className="flex items-center gap-1 bg-orange-500/15 rounded-xl px-2.5 py-1">
+                    <Flame className="w-3.5 h-3.5 text-orange-400" />
+                    <span className="text-xs font-black text-orange-400">{streak}j</span>
+                  </div>
+                )}
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </div>
+            </div>
+            {/* Barre score */}
+            <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden mb-3">
+              <div
+                className={`h-1.5 rounded-full transition-all duration-500 ${dayScorePct >= 80 ? 'bg-emerald-500' : dayScorePct >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                style={{ width: `${dayScorePct}%` }}
+              />
+            </div>
+            {/* Mini stats mois */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-slate-800/60 rounded-xl p-2">
+                <p className="text-[9px] text-slate-500 uppercase tracking-wider">Contacts mois</p>
+                <p className="text-sm font-black text-slate-200 mt-0.5">{monthContacts}<span className="text-[10px] text-slate-500">/150</span></p>
+              </div>
+              <div className="bg-slate-800/60 rounded-xl p-2">
+                <p className="text-[9px] text-slate-500 uppercase tracking-wider">Présentations</p>
+                <p className="text-sm font-black text-slate-200 mt-0.5">{monthPresentations}<span className="text-[10px] text-slate-500">/150</span></p>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-2 text-center">
+              {dayScorePct >= 80 ? '🔥 Journée excellente' : dayScorePct >= 50 ? '⚡ Continue à pousser' : '👆 Ouvrir le journal G4'}
+            </p>
+          </div>
           <Card className="flex-1 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-[#1f1f22] flex flex-col justify-between">
             <div>
               <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3 mb-4 uppercase tracking-wider text-left">

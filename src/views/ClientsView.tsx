@@ -15,7 +15,11 @@ import {
   Layers,
   ChevronRight,
   UserCheck,
-  MessageCircle
+  MessageCircle,
+  Download,
+  Star,
+  TrendingUp,
+  ChevronDown
 } from 'lucide-react';
 
 const cleanPhoneForWhatsApp = (phoneStr: string) => {
@@ -47,6 +51,11 @@ export const ClientsView: React.FC = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState<'INFO' | 'ORDERS' | 'NOTES'>('INFO');
+
+  // Période sélectionnée pour le rapport VIP
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1); // 1-12
 
   // Input states
   const [newName, setNewName] = useState('');
@@ -102,6 +111,100 @@ export const ClientsView: React.FC = () => {
     return { spent, cc };
   };
 
+  // Commandes validées d un client sur le mois selectionne
+  const getClientOrdersForMonth = (clientId: string) => {
+    return orders.filter(o => {
+      if (o.status !== 'VALIDATED') return false;
+      if (o.customerId !== clientId) return false;
+      const dateStr = o.validatedAt || o.date;
+      const d = new Date(dateStr);
+      return d.getFullYear() === selectedYear && (d.getMonth() + 1) === selectedMonth;
+    });
+  };
+
+  const getClientMonthStats = (clientId: string) => {
+    const monthOrders = getClientOrdersForMonth(clientId);
+    const spent = monthOrders.reduce((s, o) => s + o.totalRetail, 0);
+    const cc    = monthOrders.reduce((s, o) => s + o.totalCC, 0);
+    const margin = monthOrders.reduce((s, o) => s + o.totalMargin, 0);
+    return { spent, cc, margin, count: monthOrders.length };
+  };
+
+  // Classement VIP du mois (clients ayant au moins 1 commande validée)
+  const vipRanking = clients
+    .map(c => ({ client: c, ...getClientMonthStats(c.id) }))
+    .filter(r => r.count > 0)
+    .sort((a, b) => b.spent - a.spent);
+
+  const isVip = (clientId: string) => vipRanking.findIndex(r => r.client.id === clientId) < 3 && vipRanking.some(r => r.client.id === clientId);
+
+  const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const periodLabel = `${MONTHS_FR[selectedMonth - 1]} ${selectedYear}`;
+
+  // Export PDF du rapport VIP via iframe isolée
+  const handleExportVipPDF = () => {
+    const canvas = document.getElementById('clients_vip_printable');
+    if (!canvas) return;
+
+    const clone = canvas.cloneNode(true) as HTMLElement;
+    clone.style.cssText = 'display:block!important;visibility:visible!important;';
+
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;opacity:0;';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDoc) { document.body.removeChild(iframe); return; }
+
+    iframeDoc.open();
+    iframeDoc.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>
+      <style>
+        @page { margin: 12mm; size: A4 portrait; }
+        * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        body { margin: 0; padding: 0; background: white; color: #0f172a; font-family: Inter, ui-sans-serif, sans-serif; font-size: 12px; }
+        h1 { font-size: 22px; font-weight: 900; color: #0f172a; margin: 0 0 4px; letter-spacing: -0.03em; }
+        h2 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 20px 0 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; }
+        .header-right { text-align: right; }
+        .badge { background: #f59e0b; color: #0f172a; font-weight: 800; font-size: 9px; padding: 2px 8px; border-radius: 20px; display: inline-block; text-transform: uppercase; }
+        .subtitle { color: #64748b; font-size: 11px; margin: 2px 0 0; }
+        .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+        .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; }
+        .summary-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; }
+        .summary-value { font-size: 18px; font-weight: 900; color: #0f172a; margin-top: 2px; }
+        .summary-value.gold { color: #d97706; }
+        .summary-value.green { color: #059669; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        thead tr { background: #0f172a; color: white; }
+        thead th { padding: 8px 10px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; text-align: left; font-weight: 700; }
+        tbody tr { border-bottom: 1px solid #f1f5f9; }
+        tbody tr:nth-child(odd) { background: #fafafa; }
+        tbody tr.vip-row { background: #fffbeb; border-left: 3px solid #f59e0b; }
+        td { padding: 8px 10px; font-size: 11px; vertical-align: top; }
+        .rank { font-weight: 900; color: #d97706; }
+        .client-name { font-weight: 700; }
+        .client-phone { color: #64748b; font-size: 10px; margin-top: 1px; }
+        .orders-sub { margin-top: 8px; }
+        .orders-sub-title { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 4px; letter-spacing: 0.05em; }
+        .order-line { font-size: 10px; color: #475569; padding: 2px 0; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; }
+        .amount { font-weight: 700; }
+        .gold { color: #d97706; }
+        .green { color: #059669; }
+        .footer-note { font-size: 9px; color: #94a3b8; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+        .no-clients { text-align: center; padding: 32px; color: #94a3b8; font-size: 13px; }
+      </style>
+    </head><body>${clone.outerHTML}</body></html>`);
+    iframeDoc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      const cleanup = () => { try { document.body.removeChild(iframe); } catch {} window.removeEventListener('afterprint', cleanup); };
+      window.addEventListener('afterprint', cleanup);
+      setTimeout(cleanup, 3000);
+    }, 600);
+  };
+
   const handleSaveNotes = () => {
     if (!selectedClient) return;
     updateCustomer({
@@ -137,7 +240,57 @@ export const ClientsView: React.FC = () => {
         </button>
       </div>
 
-      {/* 2. Unified sleek Search filter */}
+      {/* 2. Sélecteur de période + export VIP */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 flex-1 min-w-0">
+          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <select
+            value={selectedMonth}
+            onChange={e => setSelectedMonth(Number(e.target.value))}
+            className="text-xs font-bold text-slate-700 dark:text-slate-200 bg-transparent focus:outline-none cursor-pointer"
+          >
+            {['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'].map((m, i) => (
+              <option key={i} value={i + 1}>{m}</option>
+            ))}
+          </select>
+          <select
+            value={selectedYear}
+            onChange={e => setSelectedYear(Number(e.target.value))}
+            className="text-xs font-bold text-slate-700 dark:text-slate-200 bg-transparent focus:outline-none cursor-pointer ml-1"
+          >
+            {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+
+        {vipRanking.length > 0 && (
+          <button
+            onClick={handleExportVipPDF}
+            className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl active:scale-95 transition-all shrink-0"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Rapport VIP PDF
+          </button>
+        )}
+      </div>
+
+      {/* 2b. Résumé VIP du mois (si données) */}
+      {vipRanking.length > 0 && (
+        <div className="bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 rounded-2xl p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Star className="w-3.5 h-3.5 text-amber-500" />
+            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">{vipRanking.length} client{vipRanking.length > 1 ? 's' : ''} actif{vipRanking.length > 1 ? 's' : ''} en {periodLabel}</span>
+          </div>
+          <div className="flex gap-3 text-[10px] text-slate-600 dark:text-slate-400 font-medium">
+            <span>CA total : <strong className="text-amber-600 dark:text-amber-400">{vipRanking.reduce((s, r) => s + r.spent, 0).toLocaleString()} F</strong></span>
+            <span>•</span>
+            <span>CC total : <strong className="text-blue-600 dark:text-blue-400">{vipRanking.reduce((s, r) => s + r.cc, 0).toFixed(3)} CC</strong></span>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Unified sleek Search filter */}
       <div className="relative">
         <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
           <Search className="w-5 h-5" />
@@ -184,6 +337,11 @@ export const ClientsView: React.FC = () => {
                   <div className="min-w-0">
                     <h3 className="font-bold text-slate-900 dark:text-slate-100 truncate text-base leading-snug flex items-center gap-1.5 flex-wrap">
                       <span>{c.name}</span>
+                      {isVip(c.id) && (
+                        <span className="text-[8px] font-black uppercase py-0.5 px-1.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-300/50 flex items-center gap-0.5">
+                          ⭐ VIP
+                        </span>
+                      )}
                       {c.synced === false && (
                         <span className="text-[8px] font-black uppercase py-0.5 px-1.5 rounded-full bg-red-100 text-red-600 dark:bg-red-950/70 dark:text-red-400 border border-red-200/30 tracking-wider flex items-center gap-1 select-none animate-pulse" title="Créé hors-ligne. En attente de réseau.">
                           <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
@@ -193,12 +351,24 @@ export const ClientsView: React.FC = () => {
                     </h3>
                     <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{c.phone}</p>
                     
-                    {/* Performance metrics below */}
-                    <div className="flex items-center gap-2 mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-extrabold uppercase">
-                      <span>{spent.toLocaleString()} F</span>
-                      <span className="text-slate-300 dark:text-slate-700">•</span>
-                      <span>{cc.toFixed(3)} CC</span>
-                    </div>
+                    {/* Métriques : total global + ce mois */}
+                    {(() => {
+                      const monthStats = getClientMonthStats(c.id);
+                      return (
+                        <div className="flex flex-col gap-0.5 mt-1">
+                          <div className="flex items-center gap-2 text-[10px] text-amber-600 dark:text-amber-400 font-extrabold uppercase">
+                            <span>{spent.toLocaleString()} F</span>
+                            <span className="text-slate-300 dark:text-slate-700">•</span>
+                            <span>{cc.toFixed(3)} CC</span>
+                          </div>
+                          {monthStats.count > 0 && (
+                            <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold">
+                              {periodLabel} : {monthStats.count} cmd · {monthStats.spent.toLocaleString()} F
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -502,6 +672,112 @@ export const ClientsView: React.FC = () => {
           </div>
         )}
       </Drawer>
+
+      {/* Canvas imprimable VIP — caché, utilisé uniquement pour l export PDF */}
+      <div id="clients_vip_printable" style={{ display: 'none' }}>
+        <div className="header">
+          <div>
+            <h1>Rapport Clientèle VIP</h1>
+            <p className="subtitle">Période : {periodLabel} · {vipRanking.length} client(s) actif(s)</p>
+          </div>
+          <div className="header-right">
+            <div className="badge">Forever CashFlow · Les Conquérants</div>
+            <p className="subtitle" style={{ marginTop: 4 }}>Généré le {new Date().toLocaleDateString('fr-FR')}</p>
+          </div>
+        </div>
+
+        {/* Résumé global */}
+        <div className="summary-grid">
+          <div className="summary-card">
+            <div className="summary-label">CA Total période</div>
+            <div className="summary-value gold">{vipRanking.reduce((s, r) => s + r.spent, 0).toLocaleString()} F</div>
+          </div>
+          <div className="summary-card">
+            <div className="summary-label">Marge Directe</div>
+            <div className="summary-value green">+{vipRanking.reduce((s, r) => s + r.margin, 0).toLocaleString()} F</div>
+          </div>
+          <div className="summary-card">
+            <div className="summary-label">Volume CC</div>
+            <div className="summary-value">{vipRanking.reduce((s, r) => s + r.cc, 0).toFixed(3)} CC</div>
+          </div>
+        </div>
+
+        {/* Classement détaillé */}
+        {vipRanking.length === 0 ? (
+          <div className="no-clients">Aucun client avec commande validée sur cette période.</div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th style={{ width: 30 }}>#</th>
+                <th>Client</th>
+                <th style={{ textAlign: 'right' }}>CA (F)</th>
+                <th style={{ textAlign: 'right' }}>Marge (F)</th>
+                <th style={{ textAlign: 'right' }}>CC</th>
+                <th style={{ textAlign: 'right' }}>Cmds</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vipRanking.map((r, idx) => (
+                <tr key={r.client.id} className={idx < 3 ? 'vip-row' : ''}>
+                  <td><span className="rank">{idx + 1}{idx < 3 ? ' ⭐' : ''}</span></td>
+                  <td>
+                    <div className="client-name">{r.client.name}</div>
+                    <div className="client-phone">{r.client.phone}</div>
+                    {/* Détail commandes du mois */}
+                    {getClientOrdersForMonth(r.client.id).length > 0 && (
+                      <div className="orders-sub">
+                        <div className="orders-sub-title">Commandes du mois</div>
+                        {getClientOrdersForMonth(r.client.id).map(o => (
+                          <div key={o.id} className="order-line">
+                            <span>{o.validatedAt || o.date} · {o.items.map(i => i.productName).join(', ')}</span>
+                            <span className="amount gold">{o.totalRetail.toLocaleString()} F</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ textAlign: 'right' }}><span className="amount gold">{r.spent.toLocaleString()}</span></td>
+                  <td style={{ textAlign: 'right' }}><span className="amount green">+{r.margin.toLocaleString()}</span></td>
+                  <td style={{ textAlign: 'right' }}>{r.cc.toFixed(3)}</td>
+                  <td style={{ textAlign: 'right' }}>{r.count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {/* Clients sans commande ce mois */}
+        {clients.filter(c => !vipRanking.some(r => r.client.id === c.id)).length > 0 && (
+          <>
+            <h2 style={{ color: '#94a3b8', marginTop: 24 }}>Clients inactifs ce mois</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Client</th>
+                  <th>Téléphone</th>
+                  <th>Adresse</th>
+                  <th style={{ textAlign: 'right' }}>CA Total (all time)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clients.filter(c => !vipRanking.some(r => r.client.id === c.id)).map(c => (
+                  <tr key={c.id}>
+                    <td className="client-name">{c.name}</td>
+                    <td>{c.phone}</td>
+                    <td>{c.address || '—'}</td>
+                    <td style={{ textAlign: 'right' }}>{getClientTotalSpendAndCC(c.id).spent.toLocaleString()} F</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        <div className="footer-note">
+          Forever CashFlow · Les Conquérants de l'Excellente Vie · Coach Alvine YOKA · Pointe-Noire, Congo-Brazzaville
+        </div>
+      </div>
 
     </div>
   );

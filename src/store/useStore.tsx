@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { Customer, Order, BudgetEntry, UserProfile, Product, ThemeMode, GradeCode, AgendaItem } from '../types';
+import { Customer, Order, BudgetEntry, UserProfile, Product, ThemeMode, GradeCode, AgendaItem, DailyLog } from '../types';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
 import { 
@@ -63,6 +63,10 @@ interface StoreContextType {
   importBackupData: (data: any) => Promise<void>;
   hardResetData: () => Promise<void>;
   purgePhantomProducts: () => Promise<void>;
+  // Daily Log G4
+  dailyLogs: DailyLog[];
+  getDailyLog: (date: string) => DailyLog | undefined;
+  saveDailyLog: (log: Partial<DailyLog> & { date: string }) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -236,6 +240,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return DEFAULT_AGENDA;
     }
   });
+
+  // Daily Logs G4 (stockés en Firestore sous users/{uid}/dailyLogs/{date})
+  const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
 
   // Sync state & connection state
   const [isOnline, setIsOnline] = useState<boolean>(() => {
@@ -422,6 +429,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setAgendaList(data);
     }, (err) => handleFirestoreError(err, OperationType.LIST, paths.agenda));
 
+    // Daily Logs G4 listener
+    const unsubDailyLogs = onSnapshot(query(collection(db, paths.dailyLogs), orderBy('date', 'desc')), (snap) => {
+      const data = snap.docs.map(d => ({ ...d.data(), id: d.id } as DailyLog));
+      setDailyLogs(data);
+    }, () => {});
+
     // Products listener
     const unsubProducts = onSnapshot(query(collection(db, paths.products), orderBy('name', 'asc')), (snap) => {
       if (!snap.empty) {
@@ -460,6 +473,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubOrders();
       unsubBudget();
       unsubAgenda();
+      unsubDailyLogs();
       unsubProducts();
     };
   }, [user]);
@@ -880,6 +894,58 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // ── DAILY LOG G4 ──────────────────────────────────────────────
+  const getDailyLog = (date: string): DailyLog | undefined => {
+    return dailyLogs.find(l => l.date === date);
+  };
+
+  const saveDailyLog = async (partial: Partial<DailyLog> & { date: string }) => {
+    if (!user) return;
+    const path = getPaths(user.uid).dailyLogs;
+    const id = partial.date; // ID = date YYYY-MM-DD, 1 doc par jour
+    const existing = getDailyLog(partial.date);
+    const now = new Date().toISOString();
+
+    const log: DailyLog = {
+      // Valeurs par défaut si nouveau log
+      consumedProduct: false,
+      trained: false,
+      statusMorning: false,
+      statusNoon: false,
+      statusEvening: false,
+      contactsAdded: 0,
+      conversationsStarted: 0,
+      followUpsDone: 0,
+      oneToOne: 0,
+      miniConferences: 0,
+      conferences: 0,
+      boutiques: 0,
+      createdAt: now,
+      // Ecraser avec les valeurs existantes puis le patch
+      ...existing,
+      ...partial,
+      id,
+      updatedAt: now,
+    };
+
+    // Mise à jour optimiste locale immédiate
+    setDailyLogs(prev => {
+      const idx = prev.findIndex(l => l.date === partial.date);
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = log;
+        return updated;
+      }
+      return [log, ...prev];
+    });
+
+    try {
+      await setDoc(doc(db, path, id), log);
+    } catch (err) {
+      console.error('saveDailyLog error:', err);
+    }
+  };
+
   const purgePhantomProducts = async () => {
     if (!user) return;
     const path = getPaths(user.uid).products;
@@ -976,7 +1042,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         triggerSync,
         importBackupData,
         hardResetData,
-        purgePhantomProducts
+        purgePhantomProducts,
+        dailyLogs,
+        getDailyLog,
+        saveDailyLog
       }}
     >
       {children}

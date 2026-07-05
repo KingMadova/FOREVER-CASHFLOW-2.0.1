@@ -55,4 +55,5 @@ export const getPaths = (userId: string) => ({
   budget: `users/${userId}/budget`,
   agenda: `users/${userId}/agenda`,
   products: `users/${userId}/products`,
+  dailyLogs: `users/${userId}/dailyLogs`,
 });

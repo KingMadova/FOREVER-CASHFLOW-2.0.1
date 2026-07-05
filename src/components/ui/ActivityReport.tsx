@@ -445,36 +445,52 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
         monthlySummaryList: targetMonthlySummaryList
       });
 
-      // Teleporter le canvas vers #fcf_print_root puis imprimer (coherent avec OrdersView)
+      // Impression via iframe isolee (evite les conflits CSS de l app React)
       setTimeout(() => {
         const canvas = document.getElementById('report_printable_canvas');
-        if (!canvas) {
-          window.print();
-          setIsExportDialogOpen(false);
-          return;
-        }
+        if (!canvas) { setIsExportDialogOpen(false); return; }
 
-        const printRoot = document.createElement('div');
-        printRoot.id = 'fcf_print_root';
-        document.body.appendChild(printRoot);
+        const clone = canvas.cloneNode(true) as HTMLElement;
+        clone.style.cssText = 'display:block!important;visibility:visible!important;';
 
-        const originalParent = canvas.parentNode as HTMLElement;
-        const originalNextSibling = canvas.nextSibling;
-        printRoot.appendChild(canvas);
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;opacity:0;';
+        document.body.appendChild(iframe);
 
-        window.print();
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (!iframeDoc) { document.body.removeChild(iframe); setIsExportDialogOpen(false); return; }
 
-        const restore = () => {
-          if (originalNextSibling) {
-            originalParent.insertBefore(canvas, originalNextSibling);
-          } else {
-            originalParent.appendChild(canvas);
-          }
-          printRoot.remove();
-          window.removeEventListener('afterprint', restore);
-        };
-        window.addEventListener('afterprint', restore);
-        setTimeout(restore, 2500);
+        const styleLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+          .map((l: any) => `<link rel="stylesheet" href="${l.href}">`).join('');
+        const styleBlocks = Array.from(document.querySelectorAll('style'))
+          .map((s: any) => `<style>${s.textContent}</style>`).join('');
+
+        iframeDoc.open();
+        iframeDoc.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>
+          ${styleLinks}${styleBlocks}
+          <style>
+            @page { margin: 12mm; size: A4 portrait; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            html, body { margin: 0; padding: 0; background: white; color: #0f172a; font-family: Inter, sans-serif; }
+            table { width: 100%; border-collapse: collapse; }
+            tr { page-break-inside: avoid; }
+            thead { display: table-header-group; }
+            .bg-amber-500 { background-color: #f59e0b !important; }
+            .bg-slate-900 { background-color: #0f172a !important; }
+            .text-white { color: #ffffff !important; }
+            .grid-cols-3 { grid-template-columns: repeat(3,1fr) !important; }
+            .grid-cols-2 { grid-template-columns: repeat(2,1fr) !important; }
+          </style>
+        </head><body>${clone.outerHTML}</body></html>`);
+        iframeDoc.close();
+
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          const cleanup = () => { try { document.body.removeChild(iframe); } catch {} window.removeEventListener('afterprint', cleanup); };
+          window.addEventListener('afterprint', cleanup);
+          setTimeout(cleanup, 3000);
+        }, 600);
 
         setIsExportDialogOpen(false);
       }, 350);

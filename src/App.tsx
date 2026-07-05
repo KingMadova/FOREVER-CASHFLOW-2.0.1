@@ -14,6 +14,7 @@ import { BudgetView } from './views/BudgetView';
 import { AgendaView } from './views/AgendaView';
 import { ProfileView } from './views/ProfileView';
 import { SettingsView } from './views/SettingsView';
+import { TrackerView } from './views/TrackerView';
 import { LoginView } from './views/LoginView';
 import { SignupView } from './views/SignupView';
 
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/agenda" element={<ProtectedRoute><AgendaView /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfileView /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsView /></ProtectedRoute>} />
+          <Route path="/tracker" element={<ProtectedRoute><TrackerView /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <PWAInstallPrompt />

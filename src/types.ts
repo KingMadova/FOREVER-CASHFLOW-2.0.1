@@ -135,6 +135,35 @@ export interface AgendaItem {
   completed: boolean;
 }
 
+// Journal quotidien G4 - Tracker d'activité Excellente Vie
+export interface DailyLog {
+  id: string;          // format YYYY-MM-DD (clé unique par jour)
+  date: string;        // YYYY-MM-DD
+
+  // === CHECKLIST QUOTIDIENNE (cocher) ===
+  consumedProduct: boolean;     // Consommation produit du jour
+  trained: boolean;             // Formation 30 min
+  statusMorning: boolean;       // Statut WhatsApp 06h-08h
+  statusNoon: boolean;          // Statut WhatsApp 12h-14h
+  statusEvening: boolean;       // Statut WhatsApp 18h-20h
+
+  // === COMPTEURS MANUELS DU JOUR ===
+  contactsAdded: number;        // Nouveaux contacts ajoutés (objectif : 5/jour)
+  conversationsStarted: number; // Conversations lancées (objectif : 100/jour)
+  followUpsDone: number;        // Suivis effectués
+
+  // === PRÉSENTATIONS DU JOUR (hebdomadaire via cumul) ===
+  oneToOne: number;             // One-to-One
+  miniConferences: number;      // Mini-conférences (3-5 personnes)
+  conferences: number;          // Conférences (6+ personnes)
+  boutiques: number;            // Boutiques à domicile
+
+  // Métadonnées
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppStoreState {
   themeMode: ThemeMode;
   profile: UserProfile;
