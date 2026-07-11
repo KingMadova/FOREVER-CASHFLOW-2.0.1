@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
@@ -51,11 +51,6 @@ export const ClientsView: React.FC = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState<'INFO' | 'ORDERS' | 'NOTES'>('INFO');
-
-  // Période sélectionnée pour le rapport VIP
-  const now = new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1); // 1-12
 
   // Input states
   const [newName, setNewName] = useState('');

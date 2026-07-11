@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
@@ -24,7 +24,7 @@ export const BudgetView: React.FC = () => {
   // Dialog controllers
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newType, setNewType] = useState<'REVENUE' | 'EXPENSE'>('EXPENSE');
-  
+
   // Form fields
   const [amount, setAmount] = useState<number>(0);
   const [category, setCategory] = useState<string>('Carburant');
@@ -33,15 +33,44 @@ export const BudgetView: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const totalRevenue = budget
+  // Filtre mensuel dynamique — se recale automatiquement au changement de mois
+  const [currentDateRef, setCurrentDateRef] = useState(() => new Date());
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const n = new Date();
+      setCurrentDateRef(prev =>
+        n.getMonth() !== prev.getMonth() || n.getFullYear() !== prev.getFullYear() ? n : prev
+      );
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentMonthStr = `${currentDateRef.getFullYear()}-${String(currentDateRef.getMonth() + 1).padStart(2, '0')}`;
+  const lastMonthDate = new Date(currentDateRef);
+  lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+  const lastMonthStr = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+  // Budget du mois en cours uniquement
+  const currentMonthBudget = budget.filter(b => b.date.startsWith(currentMonthStr));
+  const lastMonthBudget = budget.filter(b => b.date.startsWith(lastMonthStr));
+
+  const totalRevenue = currentMonthBudget
     .filter(b => b.type === 'REVENUE')
     .reduce((sum, b) => sum + b.amount, 0);
 
-  const totalExpense = budget
+  const totalExpense = currentMonthBudget
     .filter(b => b.type === 'EXPENSE')
     .reduce((sum, b) => sum + b.amount, 0);
 
   const netBalance = totalRevenue - totalExpense;
+
+  // Comparaison mois précédent
+  const lastRevenue = lastMonthBudget.filter(b => b.type === 'REVENUE').reduce((s, b) => s + b.amount, 0);
+  const lastExpense = lastMonthBudget.filter(b => b.type === 'EXPENSE').reduce((s, b) => s + b.amount, 0);
+
+  // All-time pour le rapport PDF (garder la vue globale dans l export)
+  const totalRevenueAllTime = budget.filter(b => b.type === 'REVENUE').reduce((s, b) => s + b.amount, 0);
+  const totalExpenseAllTime = budget.filter(b => b.type === 'EXPENSE').reduce((s, b) => s + b.amount, 0);
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,31 +205,37 @@ export const BudgetView: React.FC = () => {
         </button>
       </div>
 
-      {/* 2. Top Cumulative Performance Grid cards */}
-      <div className="grid grid-cols-3 gap-3" id="budget_cumulative_grid">
-        {/* Total revenue */}
-        <Card className="p-4 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1f1f22]">
-          <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Entrées (Marge/Bonus)</span>
-          <p className="text-base font-black text-emerald-500 mt-1 truncate">
-            +{totalRevenue.toLocaleString()} F
-          </p>
-        </Card>
-
-        {/* Total expenses */}
-        <Card className="p-4 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1f1f22]">
-          <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Sorties (Prospection)</span>
-          <p className="text-base font-black text-red-500 mt-1 truncate">
-            -{totalExpense.toLocaleString()} F
-          </p>
-        </Card>
-
-        {/* Net result balance */}
-        <Card className={`p-4 rounded-3xl border border-slate-200 dark:border-slate-800 bg-[#1e293b] text-white`}>
-          <span className="text-[9px] font-bold text-slate-300 block uppercase tracking-wider">Trésorerie Actuelle</span>
-          <p className="text-base font-black text-amber-400 mt-1 truncate">
-            {netBalance.toLocaleString()} F
-          </p>
-        </Card>
+      {/* 2. Top Cumulative Performance Grid cards — mois en cours */}
+      <div className="space-y-2">
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+          {(['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'])[currentDateRef.getMonth()]} {currentDateRef.getFullYear()} · Mois en cours
+        </p>
+        <div className="grid grid-cols-3 gap-3" id="budget_cumulative_grid">
+          <Card className="p-4 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1f1f22]">
+            <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Entrées</span>
+            <p className="text-base font-black text-emerald-500 mt-1 truncate">+{totalRevenue.toLocaleString()} F</p>
+            {lastRevenue > 0 && (
+              <p className="text-[9px] text-slate-400 mt-0.5">
+                {totalRevenue >= lastRevenue ? '↑' : '↓'} vs {lastRevenue.toLocaleString()} F mois préc.
+              </p>
+            )}
+          </Card>
+          <Card className="p-4 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1f1f22]">
+            <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Sorties</span>
+            <p className="text-base font-black text-red-500 mt-1 truncate">-{totalExpense.toLocaleString()} F</p>
+            {lastExpense > 0 && (
+              <p className="text-[9px] text-slate-400 mt-0.5">
+                {totalExpense <= lastExpense ? '↓' : '↑'} vs {lastExpense.toLocaleString()} F mois préc.
+              </p>
+            )}
+          </Card>
+          <Card className="p-4 rounded-3xl border border-slate-200 dark:border-slate-800 bg-[#1e293b] text-white">
+            <span className="text-[9px] font-bold text-slate-300 block uppercase tracking-wider">Bénéfice net</span>
+            <p className={`text-base font-black mt-1 truncate ${netBalance >= 0 ? 'text-amber-400' : 'text-red-400'}`}>
+              {netBalance.toLocaleString()} F
+            </p>
+          </Card>
+        </div>
       </div>
 
       {/* 3. Transaction mapping listing chronological */}
@@ -453,15 +488,15 @@ export const BudgetView: React.FC = () => {
         <div className="grid grid-cols-3 gap-4 text-center">
           <div className="p-3 border border-slate-200 rounded-xl">
             <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Entrées (Revenus)</span>
-            <p className="text-base font-bold text-emerald-600 mt-1 font-mono">+{totalRevenue.toLocaleString()} F</p>
+            <p className="text-base font-bold text-emerald-600 mt-1 font-mono">+{totalRevenueAllTime.toLocaleString()} F</p>
           </div>
           <div className="p-3 border border-slate-200 rounded-xl">
             <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Sorties (Dépenses)</span>
-            <p className="text-base font-bold text-red-600 mt-1 font-mono">-{totalExpense.toLocaleString()} F</p>
+            <p className="text-base font-bold text-red-600 mt-1 font-mono">-{totalExpenseAllTime.toLocaleString()} F</p>
           </div>
           <div className="p-3 border border-slate-200 rounded-xl bg-slate-50">
             <span className="text-[9px] font-black text-slate-500 uppercase block tracking-wider">Trésorerie active</span>
-            <p className="text-base font-black text-slate-900 mt-1 font-mono">{netBalance.toLocaleString()} F</p>
+            <p className="text-base font-black text-slate-900 mt-1 font-mono">{(totalRevenueAllTime - totalExpenseAllTime).toLocaleString()} F</p>
           </div>
         </div>
 

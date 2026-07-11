@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { useStore } from '../store/useStore';
 import { 
@@ -34,11 +34,11 @@ export const DashboardView: React.FC = () => {
   const navigate = useNavigate();
 
   // Sales Goal inputs and states
-  const [isEditingGoals, setIsEditingGoals] = React.useState(false);
-  const [goalCCInput, setGoalCCInput] = React.useState('');
-  const [goalAmountInput, setGoalAmountInput] = React.useState('');
+  const [isEditingGoals, setIsEditingGoals] = useState(false);
+  const [goalCCInput, setGoalCCInput] = useState('');
+  const [goalAmountInput, setGoalAmountInput] = useState('');
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (profile) {
       setGoalCCInput((profile.monthlyGoalCC || 0).toString());
       setGoalAmountInput((profile.monthlyGoalAmount || 0).toString());
@@ -57,24 +57,39 @@ export const DashboardView: React.FC = () => {
     setIsEditingGoals(false);
   };
 
-  // Get current month stats
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  // Détection changement de mois : force le re-render au 1er de chaque mois
+  const [currentDateRef, setCurrentDateRef] = useState(() => new Date());
+  useEffect(() => {
+    // Vérifie toutes les minutes si le mois a changé (app ouverte longtemps)
+    const interval = setInterval(() => {
+      const now = new Date();
+      if (now.getMonth() !== currentDateRef.getMonth() || now.getFullYear() !== currentDateRef.getFullYear()) {
+        setCurrentDateRef(now);
+      }
+    }, 60_000); // toutes les 60 secondes
+    return () => clearInterval(interval);
+  }, [currentDateRef]);
 
-  // Filter items in current month
+  // Get current month stats — basé sur currentDateRef pour se recaler automatiquement
+  const currentMonth = currentDateRef.getMonth();
+  const currentYear = currentDateRef.getFullYear();
+
+  // Filter items in current month — utilise validatedAt pour les commandes validées
   const thisMonthOrders = orders.filter(o => {
-    const oDate = new Date(o.date);
+    const dateStr = o.status === 'VALIDATED' ? (o.validatedAt || o.date) : o.date;
+    const oDate = new Date(dateStr);
     return oDate.getMonth() === currentMonth && oDate.getFullYear() === currentYear;
   });
 
   // Calculate last month for comparison
-  const lastMonthDate = new Date();
+  const lastMonthDate = new Date(currentDateRef);
   lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
   const lastMonth = lastMonthDate.getMonth();
   const lastYear = lastMonthDate.getFullYear();
 
   const lastMonthOrders = orders.filter(o => {
-    const oDate = new Date(o.date);
+    const dateStr = o.status === 'VALIDATED' ? (o.validatedAt || o.date) : o.date;
+    const oDate = new Date(dateStr);
     return oDate.getMonth() === lastMonth && oDate.getFullYear() === lastYear;
   });
 
