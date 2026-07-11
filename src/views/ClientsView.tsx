@@ -52,6 +52,19 @@ export const ClientsView: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState<'INFO' | 'ORDERS' | 'NOTES'>('INFO');
 
+  // Période sélectionnée pour le rapport VIP
+  // Recalculer la date courante dynamiquement pour détecter le changement de mois
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const n = new Date();
+      setNow(prev => (n.getMonth() !== prev.getMonth() || n.getFullYear() !== prev.getFullYear()) ? n : prev);
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1); // 1-12
+
   // Input states
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
