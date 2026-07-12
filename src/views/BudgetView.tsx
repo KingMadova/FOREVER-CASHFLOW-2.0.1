@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { printCanvas } from '../lib/printHelper';
 import { useStore } from '../store/useStore';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
@@ -94,56 +95,8 @@ export const BudgetView: React.FC = () => {
     setIsAddOpen(false);
   };
 
-  const handlePrintBudget = () => {
-    const canvas = document.getElementById('report_printable_canvas');
-    if (!canvas) return;
-
-    const clone = canvas.cloneNode(true) as HTMLElement;
-    clone.style.cssText = 'display:block!important;visibility:visible!important;';
-
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;opacity:0;';
-    document.body.appendChild(iframe);
-
-    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!iframeDoc) { document.body.removeChild(iframe); return; }
-
-    const styleLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
-      .map((l: any) => `<link rel="stylesheet" href="${l.href}">`).join('');
-    const styleBlocks = Array.from(document.querySelectorAll('style'))
-      .map((s: any) => `<style>${s.textContent}</style>`).join('');
-
-    iframeDoc.open();
-    iframeDoc.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>
-      ${styleLinks}${styleBlocks}
-      <style>
-        @page { margin: 12mm; size: A4 portrait; }
-        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        html, body { margin: 0; padding: 0; background: white; color: #0f172a; font-family: Inter, sans-serif; }
-        table { width: 100%; border-collapse: collapse; }
-        tr { page-break-inside: avoid; }
-        thead { display: table-header-group; }
-        .bg-emerald-500 { background-color: #10b981 !important; }
-        .bg-red-500 { background-color: #ef4444 !important; }
-        .bg-amber-500 { background-color: #f59e0b !important; }
-        .bg-slate-900 { background-color: #0f172a !important; }
-        .text-white { color: #ffffff !important; }
-        .grid-cols-3 { grid-template-columns: repeat(3,1fr) !important; }
-        .grid-cols-2 { grid-template-columns: repeat(2,1fr) !important; }
-      </style>
-    </head><body>${clone.outerHTML}</body></html>`);
-    iframeDoc.close();
-
-    setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      const cleanup = () => {
-        try { document.body.removeChild(iframe); } catch {}
-        window.removeEventListener('afterprint', cleanup);
-      };
-      window.addEventListener('afterprint', cleanup);
-      setTimeout(cleanup, 3000);
-    }, 600);
+  const handlePrintBudget = async () => {
+    await printCanvas('report_printable_canvas');
   };
 
   const handleExportCSV = () => {

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { printCanvas } from '../lib/printHelper';
 import { useStore } from '../store/useStore';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
@@ -224,63 +225,12 @@ export const OrdersView: React.FC = () => {
   };
 
   // Printable Invoice controller - approche fenetre isolee pour eviter duplication
-  // Impression du registre complet des commandes (teleportation DOM)
-  const handlePrintRegistry = () => {
-    const canvas = document.getElementById('orders_registry_printable_canvas');
-    if (!canvas) return;
-
-    const printRoot = document.createElement('div');
-    printRoot.id = 'fcf_print_root';
-    document.body.appendChild(printRoot);
-
-    const originalParent = canvas.parentNode as HTMLElement;
-    const originalNextSibling = canvas.nextSibling;
-    printRoot.appendChild(canvas);
-
-    window.print();
-
-    const restore = () => {
-      if (originalNextSibling) {
-        originalParent.insertBefore(canvas, originalNextSibling);
-      } else {
-        originalParent.appendChild(canvas);
-      }
-      printRoot.remove();
-      window.removeEventListener('afterprint', restore);
-    };
-    window.addEventListener('afterprint', restore);
-    setTimeout(restore, 2500);
+  const handlePrintRegistry = async () => {
+    await printCanvas('orders_registry_printable_canvas');
   };
 
-  const handlePrint = () => {
-    const canvas = document.getElementById('invoice_printable_canvas');
-    if (!canvas) return;
-
-    // Teleporter le canvas a la racine du body dans un div dedie
-    // => pas de window.open (bloque sur mobile), fonctionne partout
-    const printRoot = document.createElement('div');
-    printRoot.id = 'fcf_print_root';
-    document.body.appendChild(printRoot);
-
-    const originalParent = canvas.parentNode as HTMLElement;
-    const originalNextSibling = canvas.nextSibling;
-    printRoot.appendChild(canvas);
-
-    window.print();
-
-    const restore = () => {
-      if (originalNextSibling) {
-        originalParent.insertBefore(canvas, originalNextSibling);
-      } else {
-        originalParent.appendChild(canvas);
-      }
-      printRoot.remove();
-      window.removeEventListener('afterprint', restore);
-    };
-
-    window.addEventListener('afterprint', restore);
-    // Fallback iOS Safari qui ne declenche pas afterprint
-    setTimeout(restore, 2500);
+  const handlePrint = async () => {
+    await printCanvas('invoice_printable_canvas');
   };
 
   const handleExportOrdersCSV = () => {
