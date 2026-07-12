@@ -393,7 +393,7 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
           csvContent += `;;Aucun flux de trésorerie enregistré;;;\n`;
         }
 
-        fileName = `Export_FBO_Mensuel_${monthLabel}_${year}.csv`;
+        fileName = `FCF_Rapport_Mensuel_${monthLabel}_${year}.csv`;
       } else {
         csvContent += `Rapport Annuel FBO;Exercice ${year}\n`;
         csvContent += `Conseiller FBO;${profile.name}\n`;
@@ -414,7 +414,7 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
           csvContent += `"${m.monthName}";${m.sales};${m.cc.toFixed(3)};${m.margin};${m.expenses};${m.otherIncomes};${m.net}\n`;
         });
 
-        fileName = `Export_FBO_Annuel_${year}.csv`;
+        fileName = `FCF_Rapport_Annuel_${year}.csv`;
       }
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -1162,7 +1162,7 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
           <div className="text-right flex flex-col items-end">
             <span className="text-[10px] font-black text-slate-400 uppercase block tracking-wider">Signature certifiée du Conseiller FBO :</span>
             <div className="w-48 h-12 border-b border-dashed border-slate-300 my-2" />
-            <p className="text-slate-500 text-[9px] font-mono italic">FBO Partner, Dakar, Sénégal</p>
+            <p className="text-slate-500 text-[9px] font-mono italic">FBO Partner, Pointe-Noire, Congo-Brazzaville</p>
           </div>
         </div>
 

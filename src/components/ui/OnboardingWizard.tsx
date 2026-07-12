@@ -39,8 +39,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
   const [companyEmail, setCompanyEmail] = useState(profile.companyEmail || '');
 
   // Payments temporaries state
-  const [waveMoney, setWaveMoney] = useState(profile.waveMoney || '');
-  const [orangeMoney, setOrangeMoney] = useState(profile.orangeMoney || '');
+  const [airtelMoney, setAirtelMoney] = useState(profile.airtelMoney || '');
+  const [mtnMoney, setMtnMoney] = useState(profile.mtnMoney || '');
   const [bankRIB, setBankRIB] = useState(profile.bankRIB || '');
 
   // Local validation error message
@@ -56,8 +56,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
       setFboGrade(profile.grade || 'AA');
       setCompanyPhone(profile.companyPhone || '');
       setCompanyEmail(profile.companyEmail || '');
-      setWaveMoney(profile.waveMoney || '');
-      setOrangeMoney(profile.orangeMoney || '');
+      setAirtelMoney(profile.airtelMoney || '');
+      setMtnMoney(profile.mtnMoney || '');
       setBankRIB(profile.bankRIB || '');
       setValidationError('');
       if (!isManualTrigger) {
@@ -90,8 +90,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
     }
 
     if (step === 2) {
-      // Wave and orange validation (at least warning if both empty)
-      if (!waveMoney && !orangeMoney) {
+      // Airtel / MTN validation (at least warning if both empty)
+      if (!airtelMoney && !mtnMoney) {
         // We let them pass, but warn them
       }
     }
@@ -127,8 +127,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
       fboId: fboId ? fboId : 'Non défini',
       companyPhone: companyPhone || profile.companyPhone,
       companyEmail: companyEmail || profile.companyEmail,
-      waveMoney: waveMoney || undefined,
-      orangeMoney: orangeMoney || undefined,
+      airtelMoney: airtelMoney || undefined,
+      mtnMoney: mtnMoney || undefined,
       bankRIB: bankRIB || undefined,
     };
 
@@ -388,15 +388,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                           1
                         </span>
                         <div>
-                          <p className="text-xs font-bold text-sky-950 dark:text-sky-400">Paiement Mobile 1</p>
+                          <p className="text-xs font-bold text-sky-950 dark:text-sky-400">Airtel Money</p>
                           <p className="text-[9.5px] text-slate-450 dark:text-slate-500">Pour encaissement rapide</p>
                         </div>
                       </div>
                       
                       <input
                         type="text"
-                        value={waveMoney}
-                        onChange={(e) => setWaveMoney(e.target.value)}
+                        value={airtelMoney}
+                        onChange={(e) => setAirtelMoney(e.target.value)}
                         placeholder="Saisissez un numéro de téléphone"
                         className="w-full bg-white dark:bg-[#121215] border border-slate-205 dark:border-slate-850 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none font-bold"
                         id="onb_wave_input"
@@ -410,15 +410,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                           2
                         </span>
                         <div>
-                          <p className="text-xs font-bold text-orange-950 dark:text-orange-450">Paiement Mobile 2</p>
+                          <p className="text-xs font-bold text-orange-950 dark:text-orange-450">MTN Mobile Money</p>
                           <p className="text-[9.5px] text-slate-450 dark:text-slate-500">Pour encaissement mobile</p>
                         </div>
                       </div>
                       
                       <input
                         type="text"
-                        value={orangeMoney}
-                        onChange={(e) => setOrangeMoney(e.target.value)}
+                        value={mtnMoney}
+                        onChange={(e) => setMtnMoney(e.target.value)}
                         placeholder="Saisissez un numéro de téléphone"
                         className="w-full bg-white dark:bg-[#121215] border border-slate-205 dark:border-slate-850 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none font-bold"
                         id="onb_orange_input"
@@ -519,7 +519,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
 
                     <div className="text-left font-normal text-slate-450">Numéros mobiles connectés :</div>
                     <div className="text-right truncate text-[11px]">
-                      {waveMoney ? `Mobile 1` : ''} {orangeMoney ? `• Mobile 2` : ''} {!waveMoney && !orangeMoney ? 'Aucun' : ''}
+                      {airtelMoney ? `Airtel Money` : ''} {mtnMoney ? `• MTN Money` : ''} {!airtelMoney && !mtnMoney ? 'Aucun' : ''}
                     </div>
                   </div>
                 </div>

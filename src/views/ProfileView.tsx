@@ -85,13 +85,13 @@ export const ProfileView: React.FC = () => {
   const [companyEmail, setCompanyEmail] = useState(profile.companyEmail || '');
   
   // Payment methods for client invoices
-  const [waveMoney, setWaveMoney] = useState(profile.waveMoney || '');
-  const [orangeMoney, setOrangeMoney] = useState(profile.orangeMoney || '');
+  const [airtelMoney, setAirtelMoney] = useState(profile.airtelMoney || '');
+  const [mtnMoney, setMtnMoney] = useState(profile.mtnMoney || '');
   const [bankRIB, setBankRIB] = useState(profile.bankRIB || '');
 
   // Tax Settings
   const [tvaApplicable, setTvaApplicable] = useState(profile.tvaApplicable || false);
-  const [tvaRate, setTvaRate] = useState<number>(profile.tvaRate || 18); // default WAEMU Senegal TVA rate is 18%
+  const [tvaRate, setTvaRate] = useState<number>(profile.tvaRate || 18); // TVA Congo-Brazzaville : 18%
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -146,8 +146,8 @@ export const ProfileView: React.FC = () => {
       companyAddress,
       companyPhone,
       companyEmail,
-      waveMoney,
-      orangeMoney,
+      airtelMoney,
+      mtnMoney,
       bankRIB,
       tvaApplicable,
       tvaRate
@@ -377,22 +377,22 @@ export const ProfileView: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1">Paiement Mobile 1</label>
+                <label className="text-xs font-bold text-slate-500 block mb-1">Airtel Money</label>
                 <input
                   type="text"
-                  value={waveMoney}
-                  onChange={(e) => setWaveMoney(e.target.value)}
+                  value={airtelMoney}
+                  onChange={(e) => setAirtelMoney(e.target.value)}
                   placeholder="Saisissez un numéro de téléphone"
                   className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1">Paiement Mobile 2</label>
+                <label className="text-xs font-bold text-slate-500 block mb-1">MTN Mobile Money</label>
                 <input
                   type="text"
-                  value={orangeMoney}
-                  onChange={(e) => setOrangeMoney(e.target.value)}
+                  value={mtnMoney}
+                  onChange={(e) => setMtnMoney(e.target.value)}
                   placeholder="Saisissez un numéro de téléphone"
                   className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
                 />

@@ -96,8 +96,8 @@ export interface UserProfile {
   siret?: string;
   fboId?: string;
   bankRIB?: string;
-  waveMoney?: string;
-  orangeMoney?: string;
+  airtelMoney?: string;   // Airtel Money Congo
+  mtnMoney?: string;     // MTN Mobile Money Congo
   mtnMoney?: string;
   tvaRate?: number;
   tvaApplicable?: boolean;

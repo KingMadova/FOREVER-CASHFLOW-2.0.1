@@ -270,7 +270,7 @@ export const OrdersView: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `commandes_fbo_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `FCF_Commandes_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -981,16 +981,16 @@ export const OrdersView: React.FC = () => {
                 <div className="space-y-3">
                   <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Modalités de Règlement</h5>
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-[10px] space-y-2">
-                    {profile.waveMoney && (
+                    {profile.airtelMoney && (
                       <div className="flex justify-between border-b border-slate-200/50 pb-1 gap-2">
-                        <span className="font-bold text-slate-500">Mobile Money 1</span>
-                        <span className="text-slate-900 font-black">{profile.waveMoney}</span>
+                        <span className="font-bold text-slate-500">Airtel Money</span>
+                        <span className="text-slate-900 font-black">{profile.airtelMoney}</span>
                       </div>
                     )}
-                    {profile.orangeMoney && (
+                    {profile.mtnMoney && (
                       <div className="flex justify-between border-b border-slate-200/50 pb-1 gap-2">
-                        <span className="font-bold text-slate-500">Mobile Money 2</span>
-                        <span className="text-slate-900 font-black">{profile.orangeMoney}</span>
+                        <span className="font-bold text-slate-500">MTN Mobile Money</span>
+                        <span className="text-slate-900 font-black">{profile.mtnMoney}</span>
                       </div>
                     )}
                     {profile.bankRIB && (
@@ -999,7 +999,7 @@ export const OrdersView: React.FC = () => {
                         <span className="text-slate-900 font-mono text-[9px] break-all">{profile.bankRIB}</span>
                       </div>
                     )}
-                    {!profile.waveMoney && !profile.orangeMoney && !profile.bankRIB && (
+                    {!profile.airtelMoney && !profile.mtnMoney && !profile.bankRIB && (
                       <p className="italic text-slate-400 italic">Paiement au comptant (Espèces)</p>
                     )}
                   </div>

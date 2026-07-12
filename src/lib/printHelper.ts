@@ -1,7 +1,13 @@
 // Fonction utilitaire partagée pour l'impression via iframe
 // Récupère le vrai CSS compilé de l'app et l'injecte dans l'iframe
 
-export const printCanvas = async (canvasId: string): Promise<void> => {
+const CANVAS_TITLES: Record<string, string> = {
+  'invoice_printable_canvas':         'Facture',
+  'orders_registry_printable_canvas': 'Registre_Commandes',
+  'report_printable_canvas':          'Rapport_Activite',
+};
+
+export const printCanvas = async (canvasId: string, customTitle?: string): Promise<void> => {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
@@ -31,6 +37,10 @@ export const printCanvas = async (canvasId: string): Promise<void> => {
     }
   }
 
+    const pageTitle = customTitle || CANVAS_TITLES[canvasId] || 'Document';
+  const dateStr = new Date().toISOString().split('T')[0];
+  const docTitle = `FCF_${pageTitle}_${dateStr}`;
+
   const iframe = document.createElement('iframe');
   iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;opacity:0;';
   document.body.appendChild(iframe);
@@ -43,6 +53,7 @@ export const printCanvas = async (canvasId: string): Promise<void> => {
 <html lang="fr">
 <head>
   <meta charset="UTF-8"/>
+  <title>${docTitle}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <style>

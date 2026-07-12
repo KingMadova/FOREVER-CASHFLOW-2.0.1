@@ -232,7 +232,7 @@ export const NotificationCenter: React.FC = () => {
         return '242' + cleaned.substring(1);
       }
       if (cleaned.startsWith('77') || cleaned.startsWith('76') || cleaned.startsWith('78') || cleaned.startsWith('70')) {
-        return '221' + cleaned;
+        return '242' + cleaned;
       }
     } else if (cleaned.length === 8) {
       if (cleaned.startsWith('6') || cleaned.startsWith('5') || cleaned.startsWith('4')) {

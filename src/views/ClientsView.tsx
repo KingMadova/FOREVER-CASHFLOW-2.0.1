@@ -28,11 +28,12 @@ const cleanPhoneForWhatsApp = (phoneStr: string) => {
     cleaned = cleaned.substring(2);
   }
   if (cleaned.length === 9) {
+    // Congo-Brazzaville : préfixes 06 (Airtel) et 05 (MTN)
     if (cleaned.startsWith('06') || cleaned.startsWith('05') || cleaned.startsWith('04')) {
       return '242' + cleaned.substring(1);
     }
     if (cleaned.startsWith('77') || cleaned.startsWith('76') || cleaned.startsWith('78') || cleaned.startsWith('70')) {
-      return '221' + cleaned;
+      return '242' + cleaned;
     }
   } else if (cleaned.length === 8) {
     if (cleaned.startsWith('6') || cleaned.startsWith('5') || cleaned.startsWith('4')) {
@@ -421,7 +422,7 @@ export const ClientsView: React.FC = () => {
               required
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. Fatou Diop"
+              placeholder="ex. Marie Koumba"
               className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
             />
           </div>
@@ -435,7 +436,7 @@ export const ClientsView: React.FC = () => {
                 inputMode="tel"
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
-                placeholder="e.g. +221 77..."
+                placeholder="ex. +242 06 xxx xxxx"
                 className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
               />
             </div>
@@ -445,7 +446,7 @@ export const ClientsView: React.FC = () => {
                 type="email"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="e.g. fatou@gmail.com"
+                placeholder="ex. marie@gmail.com"
                 className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
               />
             </div>
@@ -457,7 +458,7 @@ export const ClientsView: React.FC = () => {
               type="text"
               value={newAddress}
               onChange={(e) => setNewAddress(e.target.value)}
-              placeholder="e.g. Secteur 2, Zone Commerciale"
+              placeholder="ex. Quartier Tié-Tié, Pointe-Noire"
               className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
             />
           </div>

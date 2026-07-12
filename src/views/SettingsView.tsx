@@ -76,7 +76,7 @@ export const SettingsView: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Sg_App_ForeverFBO_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `FCF_Backup_${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

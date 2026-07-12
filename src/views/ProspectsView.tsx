@@ -35,7 +35,7 @@ const cleanPhoneForWhatsApp = (phoneStr: string) => {
       return '242' + cleaned.substring(1);
     }
     if (cleaned.startsWith('77') || cleaned.startsWith('76') || cleaned.startsWith('78') || cleaned.startsWith('70')) {
-      return '221' + cleaned;
+      return '242' + cleaned;
     }
   } else if (cleaned.length === 8) {
     if (cleaned.startsWith('6') || cleaned.startsWith('5') || cleaned.startsWith('4')) {
@@ -279,7 +279,7 @@ export const ProspectsView: React.FC = () => {
               required
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. Jean Dupont"
+              placeholder="ex. Patrick Mouyabi"
               className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
             />
           </div>
@@ -293,7 +293,7 @@ export const ProspectsView: React.FC = () => {
                 inputMode="tel"
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
-                placeholder="e.g. +221 77 654 12 34"
+                placeholder="ex. +242 06 xxx xxxx"
                 className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
               />
             </div>
