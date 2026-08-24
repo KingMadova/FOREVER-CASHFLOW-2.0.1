@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { printCanvas } from '../lib/printHelper';
-import { useOrdersStore, createOrderFromCart } from '../store/slices/ordersSlice';
+import { useOrdersStore, createOrderFromCart, calculateLivraisonFrais } from '../store/slices/ordersSlice';
 import { useCustomersStore } from '../store/slices/customersSlice';
 import { useProductsStore } from '../store/slices/productsSlice';
 import { useAuthStore } from '../store/slices/authSlice';
@@ -92,6 +92,8 @@ export const OrdersView: React.FC = () => {
 
   const [applyDiscount, setApplyDiscount] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(5);
+  // Dual-mode remise : % manuel OU montant perçu (l'un recalcule l'autre)
+  const [amountPaidInput, setAmountPaidInput] = useState<string>('');
 
   const [orderFormError, setOrderFormError] = useState<string | null>(null);
   const [productSearchError, setProductSearchError] = useState<string | null>(null);
@@ -135,6 +137,19 @@ export const OrdersView: React.FC = () => {
   // Calculate prices based on FBO profile grade & discount logic
   const currentGrade = GRADES.find(g => g.code === profile.grade) || GRADES[1]; // default Animateur (38%)
 
+  // Totaux live pour le modal de création (dual-mode remise)
+  const catalogTotal = invoiceItems.reduce((acc, slot) => acc + (slot.product.prixRetail * slot.quantity), 0);
+  const livraisonFraisLive = calculateLivraisonFrais(catalogTotal, livraisonMode);
+  const gesteLive =
+    orderGeste === 'CLEAN9_-7K' ? 7166 :
+    orderGeste === 'FIELDS_OFFERT' ? 10285 :
+    orderGeste === 'REMISE_5' ? Math.max(0, Math.round(catalogTotal * 0.05)) : 0;
+  const effectivePaid = amountPaidInput !== '' ? Math.max(0, parseInt(amountPaidInput) || 0) : catalogTotal;
+  const effectiveDiscount = catalogTotal > 0 ? Math.max(0, Math.min(100, ((catalogTotal - effectivePaid) / catalogTotal) * 100)) : 0;
+  const totalCostGrade = catalogTotal * (1 - currentGrade.tauxRemise);
+  const marginLive = effectivePaid - totalCostGrade - livraisonFraisLive - gesteLive;
+  const marginPct = catalogTotal > 0 ? (marginLive / catalogTotal) * 100 : 0;
+
   // Helper to add or increment item in order
   const handleAddProductToOrder = (prod: Product) => {
     const existsIndex = invoiceItems.findIndex(item => item.product.id === prod.id);
@@ -166,6 +181,7 @@ export const OrdersView: React.FC = () => {
         setCustomerSearchQuery('');
         setApplyDiscount(false);
         setDiscountPercent(5);
+        setAmountPaidInput('');
         setInvoiceItems([]);
         setOrderFormError(null);
         setIsEditMode(false);
@@ -199,21 +215,26 @@ export const OrdersView: React.FC = () => {
       const selectedCust = customers.find(c => c.id === orderCustomer);
       if (!selectedCust) return;
 
-      // Build the list of order items
+      // Build the list of order items — les items gardent leur PRIX CATALOGUE ;
+      // la négociation est portée par amountPaid (la remise en découle).
       const parsedItems: OrderItem[] = invoiceItems.map(item => {
-        const retailPrice = item.product.prixRetail;
-        const appliedPrice = applyDiscount ? retailPrice * (1 - discountPercent / 100) : retailPrice;
-
         return {
           productId: item.product.id,
           productName: item.product.name,
           quantity: item.quantity,
-          unitPrice: Math.round(appliedPrice),
+          unitPrice: item.product.prixRetail,
           unitCC: item.product.unitCC,
           unitPV: item.product.unitPV,
           isDiscounted: applyDiscount
         };
       });
+
+      // Montant réellement perçu : saisie directe OU dérivé du %
+      const paidAmount = applyDiscount
+        ? (amountPaidInput !== ''
+            ? Math.max(0, parseInt(amountPaidInput) || 0)
+            : Math.round(catalogTotal * (1 - discountPercent / 100)))
+        : undefined;
 
       // Use the helper to create complete order with all fields
       const orderData = createOrderFromCart({
@@ -229,6 +250,8 @@ export const OrdersView: React.FC = () => {
         distributeurId: profile.fboId || '',
         tags: orderTags.split(',').map(t => t.trim()).filter(Boolean),
         notes: orderNotes,
+        catalogTotal,
+        amountPaid: paidAmount,
         profileGrade: currentGrade,
       });
 
@@ -293,13 +316,15 @@ export const OrdersView: React.FC = () => {
     });
     setInvoiceItems(prefilledItems);
 
-    // Pré-remplir la remise
+    // Pré-remplir la remise et le montant perçu
     if (ord.discountPercent) {
       setApplyDiscount(true);
       setDiscountPercent(ord.discountPercent);
+      setAmountPaidInput(ord.amountPaid != null ? String(ord.amountPaid) : '');
     } else {
       setApplyDiscount(false);
       setDiscountPercent(5);
+      setAmountPaidInput('');
     }
 
     // Passer en mode edition
@@ -664,38 +689,100 @@ export const OrdersView: React.FC = () => {
             </div>
 
             {applyDiscount && (
-              <div className="space-y-2 pt-2 border-t border-slate-200/40 dark:border-slate-800/60 animate-in fade-in duration-200">
+              <div className="space-y-3 pt-2 border-t border-slate-200/40 dark:border-slate-800/60 animate-in fade-in duration-200">
+                {/* Mode % : slider + saisie manuelle */}
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-slate-500 font-medium">Pourcentage de remise</span>
+                  <span className="text-xs text-slate-500 font-medium">Remise en pourcentage</span>
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
-                      min="5"
-                      max="15"
+                      min="0"
+                      max="100"
                       value={discountPercent}
                       onChange={(e) => {
-                        const val = parseInt(e.target.value) || 5;
-                        setDiscountPercent(Math.min(15, Math.max(5, val)));
+                        const val = parseInt(e.target.value) || 0;
+                        const clamped = Math.min(90, Math.max(0, val));
+                        setDiscountPercent(clamped);
+                        // Le % pilote le montant perçu
+                        setAmountPaidInput(String(Math.round(catalogTotal * (1 - clamped / 100))));
                       }}
-                      className="w-12 bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-lg py-1 px-1.5 text-xs font-bold text-center text-amber-600 dark:text-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-14 bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-lg py-1 px-1.5 text-xs font-bold text-center text-amber-600 dark:text-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
                     />
                     <span className="text-xs font-bold text-slate-500">%</span>
                   </div>
                 </div>
 
-                {/* Range Bar strictly limited between 5% and 15% */}
                 <input
                   type="range"
-                  min="5"
-                  max="15"
-                  value={discountPercent}
-                  onChange={(e) => setDiscountPercent(parseInt(e.target.value))}
+                  min="0"
+                  max="50"
+                  value={Math.min(50, discountPercent)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setDiscountPercent(val);
+                    setAmountPaidInput(String(Math.round(catalogTotal * (1 - val / 100))));
+                  }}
                   className="w-full accent-amber-500 h-1.5 bg-slate-200 dark:bg-slate-750 rounded-lg appearance-none cursor-pointer"
                 />
 
-                <div className="flex justify-between text-[9px] text-slate-400 font-bold px-1 font-mono">
-                  <span>Remise min: 5%</span>
-                  <span>Remise max: 15%</span>
+                {/* Mode montant perçu : la remise % se recalcule */}
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-500 font-medium">Montant perçu du client</span>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder={catalogTotal.toLocaleString()}
+                      value={amountPaidInput}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setAmountPaidInput(raw);
+                        const val = parseInt(raw) || 0;
+                        if (catalogTotal > 0) {
+                          const pct = Math.max(0, Math.min(100, ((catalogTotal - val) / catalogTotal) * 100));
+                          setDiscountPercent(Math.round(pct));
+                        }
+                      }}
+                      className="w-24 bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-lg py-1 px-2 text-xs font-bold text-right text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                    <span className="text-xs font-bold text-slate-500">F</span>
+                  </div>
+                </div>
+
+                {/* Récap live : marge recalculée automatiquement */}
+                <div className="bg-slate-50 dark:bg-[#1a1a1d] rounded-xl p-2.5 space-y-1 text-[10px] font-medium">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Valeur catalogue</span>
+                    <span className="font-bold text-slate-600 dark:text-slate-300">{catalogTotal.toLocaleString()} F</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Remise effective</span>
+                    <span className={`font-bold ${effectiveDiscount > 15 ? 'text-red-500' : 'text-amber-600 dark:text-amber-400'}`}>
+                      {effectiveDiscount.toFixed(1)} %
+                      {effectiveDiscount > 15 && ' ⚠ au-delà des 15% conseillés'}
+                    </span>
+                  </div>
+                  {livraisonFraisLive > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Livraison</span>
+                      <span className="text-slate-500">-{livraisonFraisLive.toLocaleString()} F</span>
+                    </div>
+                  )}
+                  {gesteLive > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Geste commercial</span>
+                      <span className="text-slate-500">-{gesteLive.toLocaleString()} F</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-700">
+                    <span className="text-slate-500 font-black uppercase tracking-wider">Marge nette estimée</span>
+                    <span className={`font-black ${marginLive >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                      {marginLive.toLocaleString()} F ({marginPct.toFixed(0)}%)
+                    </span>
+                  </div>
+                  <p className="text-[8px] text-slate-400 italic">
+                    Coût d'achat grade {currentGrade.code} ({(currentGrade.tauxRemise * 100).toFixed(0)}%) déduit, livraison et geste inclus.
+                  </p>
                 </div>
               </div>
             )}
@@ -912,9 +999,19 @@ export const OrdersView: React.FC = () => {
                       </div>
                       {applyDiscount && (
                         <div className="flex justify-between text-emerald-600 font-bold">
-                          <span>Remise Appliquée ({discountPercent}%):</span>
+                          <span>Remise Appliquée ({effectiveDiscount.toFixed(1)}%):</span>
                           <span>
-                            -{Math.round(invoiceItems.reduce((acc, slot) => acc + (slot.product.prixRetail * slot.quantity), 0) * (discountPercent / 100)).toLocaleString()} F
+                            -{(catalogTotal - effectivePaid).toLocaleString()} F
+                          </span>
+                        </div>
+                      )}
+                      {applyDiscount && (
+                        <div className="flex justify-between">
+                          <span className={`text-[10px] font-black uppercase ${marginLive >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            Marge nette estimée
+                          </span>
+                          <span className={`font-black ${marginLive >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                            {marginLive.toLocaleString()} F
                           </span>
                         </div>
                       )}
@@ -1224,6 +1321,13 @@ export const OrdersView: React.FC = () => {
                     <div className="flex justify-between text-[11px] px-1 text-emerald-600">
                       <span className="font-bold uppercase tracking-tight">Remise Client ({selectedOrder.discountPercent}%) :</span>
                       <span className="font-bold italic">Inclus</span>
+                    </div>
+                  )}
+
+                  {selectedOrder.amountPaid != null && selectedOrder.amountPaid !== selectedOrder.totalRetail && (
+                    <div className="flex justify-between text-[11px] px-1">
+                      <span className="text-slate-400 font-bold uppercase">Encaissé du client :</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-black">{selectedOrder.amountPaid.toLocaleString()} F</span>
                     </div>
                   )}
 

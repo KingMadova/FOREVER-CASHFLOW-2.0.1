@@ -24,7 +24,7 @@ function generateRefCommande(existingOrders: Order[]): string {
   return `CMD-${today}-${sequence}`;
 }
 
-function calculateLivraisonFrais(totalRetail: number, mode: LivraisonMode): number {
+export function calculateLivraisonFrais(totalRetail: number, mode: LivraisonMode): number {
   if (totalRetail >= 15000) return 0; // Livraison offerte ≥ 15k
   switch (mode) {
     case 'DOMICILE': return 5000;
@@ -297,17 +297,43 @@ export function createOrderFromCart(params: {
   distributeurId?: string;
   tags?: string[];
   notes?: string;
+  /** Prix catalogue total AVANT remise (Σ prixRetail × qté) */
+  catalogTotal: number;
+  /** Montant réellement perçu du client (après négociation/remise) */
+  amountPaid?: number;
   profileGrade: { tauxRemise: number };
 }): Omit<Order, 'id'> {
-  const totalRetail = params.items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+  // Prix catalogue (brut, sans remise) fourni par l'appelant
+  const catalogRetail = params.catalogTotal;
+  // Ce que le client paie réellement (fallback : catalogue si non négocié)
+  const paid = params.amountPaid ?? catalogRetail;
+  // Remise effective dérivée de la négociation
+  const discountPercent = catalogRetail > 0
+    ? Math.round(((catalogRetail - paid) / catalogRetail) * 100)
+    : 0;
+
+  // FIX COMPTABILITÉ : le coût d'achat se calcule sur le PRIX CATALOGUE
+  // (ton coût = prix retail × (1 - ton taux remise grade)), jamais sur le
+  // prix remisé. L'ancien calcul gonflait la marge avec la remise client.
+  const totalCost = params.items.reduce((sum, i) => {
+    const qtyShare = catalogRetail > 0 ? ((i.unitPrice * i.quantity) / catalogRetail) : 0;
+    return sum + (catalogRetail * (1 - params.profileGrade.tauxRemise)) * qtyShare;
+  }, 0);
+  // Marge RÉELLE : encaissement - coût d'achat - frais de livraison - geste commercial
+  const livraisonFraisCalc = calculateLivraisonFrais(catalogRetail, params.livraisonMode);
+  const gesteMontantCalc =
+    params.geste === 'CLEAN9_-7K' ? 7166 :
+    params.geste === 'FIELDS_OFFERT' ? 10285 :
+    params.geste === 'REMISE_5' ? Math.max(0, Math.round(catalogRetail * 0.05)) : 0;
+  const realMargin = paid - totalCost - livraisonFraisCalc - gesteMontantCalc;
+
+  const totalRetail = catalogRetail; // valeur catalogue conservée pour la facture
   const totalCC = params.items.reduce((sum, i) => sum + i.unitCC * i.quantity, 0);
   const totalPV = Math.round(totalCC * PV_PER_CC);
   const totalBV = totalCC; // 1 CC = 1 BV
-  const totalCost = params.items.reduce((sum, i) => sum + (i.unitPrice * (1 - params.profileGrade.tauxRemise)) * i.quantity, 0);
-  const totalMargin = totalRetail - totalCost;
-  
+
   const livraisonFrais = calculateLivraisonFrais(totalRetail, params.livraisonMode);
-  
+
   const baseOrder: Omit<Order, 'id'> = {
     customerId: params.customerId,
     customerName: params.customerName,
@@ -316,11 +342,12 @@ export function createOrderFromCart(params: {
     status: 'PENDING',
     totalRetail,
     totalCost,
-    totalMargin,
+    totalMargin: realMargin,
+    amountPaid: paid,
     totalCC,
     totalPV,
     totalBV,
-    discountPercent: params.geste === 'REMISE_5' ? 5 : undefined,
+    discountPercent: discountPercent > 0 ? discountPercent : undefined,
     type: params.type,
     canal: params.canal,
     paiement: params.paiement,

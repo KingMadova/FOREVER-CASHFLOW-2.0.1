@@ -84,6 +84,7 @@ export interface Order {
   totalRetail: number;
   totalCost: number;
   totalMargin: number;
+  amountPaid?: number;          // Montant réellement perçu du client (après négociation)
   totalCC: number;
   totalPV: number;              // Case Credits × ratio PV/CC (FLP)
   totalBV: number;              // Business Volume
