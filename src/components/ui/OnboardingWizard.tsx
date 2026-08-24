@@ -132,7 +132,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
       bankRIB: bankRIB || undefined,
     };
 
-    // Save profile to useStore state
+    // Save profile to auth store state
     updateProfile(updatedProfile);
 
     // 2. Save completed flag
