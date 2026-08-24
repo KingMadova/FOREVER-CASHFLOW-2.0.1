@@ -168,7 +168,8 @@ export interface BudgetEntry {
   description: string;
   createdAt: string;
   userId?: string;
-  orderId?: string;
+  orderId?: string;             // Lien vers la commande source (marge vente)
+  synced?: boolean;             // false = créé hors-ligne, en attente de sync
 }
 
 // Global App State type

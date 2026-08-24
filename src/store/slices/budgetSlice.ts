@@ -2,8 +2,9 @@ import { create } from 'zustand';
 import { BudgetEntry } from '../../types';
 import { useAuthStore } from './authSlice';
 import { db } from '../../lib/firebase';
-import { collection, doc, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { getPaths, handleFirestoreError, OperationType } from '../../lib/firestoreService';
+import { useSyncStore } from './syncSlice';
 
 interface BudgetState {
   budget: BudgetEntry[];
@@ -24,14 +25,38 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
 
     const path = getPaths(user.uid).budget;
     const id = 'bud_' + Math.random().toString(36).substr(2, 9);
+    const full: BudgetEntry = {
+      ...entry,
+      id,
+      userId: user.uid,
+      createdAt: entry.createdAt || new Date().toISOString(),
+      synced: true,
+    };
+
+    // Mise à jour optimiste : visible immédiatement dans l'UI
+    set((state) => ({ budget: [full, ...state.budget] }));
+
     try {
       await setDoc(doc(db, path, id), {
         ...entry,
         userId: user.uid,
-        createdAt: entry.createdAt || new Date().toISOString(),
+        createdAt: full.createdAt,
       });
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, path);
+      console.error('[addBudgetEntry] Ecriture Firestore impossible, mise en file de sync:', err);
+      useSyncStore.getState().addToSyncQueue({
+        id: 'sync_' + Math.random().toString(36).substr(2, 9),
+        type: 'BUDGET',
+        entityId: id,
+        name: `${entry.type === 'REVENUE' ? '+' : '-'}${entry.amount} F ${entry.category}`,
+        actionType: 'ADD',
+        payload: { ...entry, userId: user.uid, createdAt: full.createdAt },
+        createdAt: new Date().toISOString(),
+      });
+      // Marquer localement comme non synchronisé
+      set((state) => ({
+        budget: state.budget.map((b) => (b.id === id ? { ...b, synced: false } : b)),
+      }));
     }
   },
 
@@ -40,10 +65,19 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     if (!user) return;
 
     const path = getPaths(user.uid).budget;
+
+    // Optimiste
+    const prev = get().budget;
+    set((state) => ({
+      budget: state.budget.map((b) => (b.id === updated.id ? updated : b)),
+    }));
+
     try {
-      await updateDoc(doc(db, path, updated.id), { ...updated });
+      const { synced, ...toSave } = updated;
+      await updateDoc(doc(db, path, updated.id), toSave);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `${path}/${updated.id}`);
+      set({ budget: prev }); // rollback si échec
     }
   },
 
@@ -52,10 +86,16 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     if (!user) return;
 
     const path = getPaths(user.uid).budget;
+
+    // Optimiste
+    const prev = get().budget;
+    set((state) => ({ budget: state.budget.filter((b) => b.id !== id) }));
+
     try {
       await deleteDoc(doc(db, path, id));
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `${path}/${id}`);
+      set({ budget: prev }); // rollback si échec
     }
   },
 

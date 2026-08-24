@@ -4,7 +4,7 @@ import { getPaths } from '../../lib/firestoreService';
 
 export interface SyncTask {
   id: string;
-  type: 'CUSTOMER' | 'ORDER';
+  type: 'CUSTOMER' | 'ORDER' | 'BUDGET';
   entityId: string;
   name: string;
   actionType: 'ADD';
@@ -98,6 +98,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     const { doc, setDoc } = await import('firebase/firestore');
     const { useCustomersStore } = await import('./customersSlice');
     const { useOrdersStore } = await import('./ordersSlice');
+    const { useBudgetStore } = await import('./budgetSlice');
 
     for (const task of tasksToProcess) {
       try {
@@ -113,6 +114,13 @@ export const useSyncStore = create<SyncState>((set, get) => ({
           useOrdersStore.getState().setOrders(
             useOrdersStore.getState().orders.map((o) =>
               o.id === task.entityId ? { ...o, synced: true } : o
+            )
+          );
+        } else if (task.type === 'BUDGET') {
+          await setDoc(doc(db, paths.budget, task.entityId), task.payload);
+          useBudgetStore.getState().setBudget(
+            useBudgetStore.getState().budget.map((b) =>
+              b.id === task.entityId ? { ...b, synced: true } : b
             )
           );
         }

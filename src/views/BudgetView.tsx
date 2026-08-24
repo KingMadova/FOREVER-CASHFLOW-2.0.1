@@ -17,16 +17,18 @@ import {
   ArrowDownRight,
   CircleDollarSign,
   Printer,
-  Download
+  Download,
+  ChevronDown
 } from 'lucide-react';
 
 export const BudgetView: React.FC = () => {
-  const { budget, addBudgetEntry, deleteBudgetEntry } = useBudgetStore();
+  const { budget, addBudgetEntry, updateBudgetEntry, deleteBudgetEntry } = useBudgetStore();
   const { profile } = useAuthStore();
 
   // Dialog controllers
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newType, setNewType] = useState<'REVENUE' | 'EXPENSE'>('EXPENSE');
+  const [editingId, setEditingId] = useState<string | null>(null); // #1 mode édition
 
   // Form fields
   const [amount, setAmount] = useState<number>(0);
@@ -48,12 +50,16 @@ export const BudgetView: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const currentMonthStr = `${currentDateRef.getFullYear()}-${String(currentDateRef.getMonth() + 1).padStart(2, '0')}`;
-  const lastMonthDate = new Date(currentDateRef);
+  // #2 Navigateur de mois : décalage en mois par rapport à aujourd'hui
+  const [monthOffset, setMonthOffset] = useState(0); // 0 = mois courant, -1 = précédent...
+  const viewedDate = new Date(currentDateRef.getFullYear(), currentDateRef.getMonth() + monthOffset, 1);
+
+  const currentMonthStr = `${viewedDate.getFullYear()}-${String(viewedDate.getMonth() + 1).padStart(2, '0')}`;
+  const lastMonthDate = new Date(viewedDate);
   lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
   const lastMonthStr = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
 
-  // Budget du mois en cours uniquement
+  // Budget du mois affiché uniquement
   const currentMonthBudget = budget.filter(b => b.date.startsWith(currentMonthStr));
   const lastMonthBudget = budget.filter(b => b.date.startsWith(lastMonthStr));
 
@@ -84,23 +90,50 @@ export const BudgetView: React.FC = () => {
       }
 
       setFormError(null);
-      await addBudgetEntry({
-        type: newType,
-        category: category as any,
-        amount,
-        date,
-        description,
-        createdAt: new Date().toISOString(),
-      });
+
+      if (editingId) {
+        // #1 Édition d'une transaction existante
+        await updateBudgetEntry({
+          id: editingId,
+          type: newType,
+          category,
+          amount,
+          date,
+          description,
+          createdAt: budget.find(b => b.id === editingId)?.createdAt || new Date().toISOString(),
+        });
+      } else {
+        await addBudgetEntry({
+          type: newType,
+          category: category as any,
+          amount,
+          date,
+          description,
+          createdAt: new Date().toISOString(),
+        });
+      }
 
       // Reset Form
       setAmount(0);
       setDescription('');
+      setEditingId(null);
       setIsAddOpen(false);
     } catch (err) {
-      console.error('[handleAddSubmit] Echec ajout transaction:', err);
+      console.error('[handleAddSubmit] Echec enregistrement transaction:', err);
       setFormError("Erreur d'enregistrement. Vérifie ta connexion puis réessaie.");
     }
+  };
+
+  // #1 Ouvrir le drawer en mode édition avec pré-remplissage
+  const openEdit = (b: BudgetEntry) => {
+    setEditingId(b.id);
+    setNewType(b.type);
+    setCategory(b.category);
+    setAmount(b.amount);
+    setDate(b.date);
+    setDescription(b.description || '');
+    setFormError(null);
+    setIsAddOpen(true);
   };
 
   const handlePrintBudget = async () => {
@@ -166,11 +199,39 @@ export const BudgetView: React.FC = () => {
         </button>
       </div>
 
-      {/* 2. Top Cumulative Performance Grid cards — mois en cours */}
+      {/* 2. Top Cumulative Performance Grid cards — mois affiché */}
       <div className="space-y-2">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-          {(['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'])[currentDateRef.getMonth()]} {currentDateRef.getFullYear()} · Mois en cours
-        </p>
+        <div className="flex items-center justify-between">
+          {/* #2 Navigateur de mois */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setMonthOffset(m => m - 1)}
+              className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/20 rounded-lg transition-all cursor-pointer"
+              title="Mois précédent"
+            >
+              <ChevronDown className="w-4 h-4 rotate-90" />
+            </button>
+            <span className={`text-[10px] font-black uppercase tracking-wider ${monthOffset === 0 ? 'text-slate-400' : 'text-amber-600 dark:text-amber-400'}`}>
+              {(['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'])[viewedDate.getMonth()]} {viewedDate.getFullYear()}{monthOffset === 0 ? ' · Mois en cours' : ''}
+            </span>
+            <button
+              onClick={() => setMonthOffset(m => Math.min(0, m + 1))}
+              disabled={monthOffset === 0}
+              className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/20 rounded-lg transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Mois suivant"
+            >
+              <ChevronDown className="w-4 h-4 -rotate-90" />
+            </button>
+            {monthOffset !== 0 && (
+              <button
+                onClick={() => setMonthOffset(0)}
+                className="ml-1 text-[9px] font-bold text-amber-600 hover:underline cursor-pointer"
+              >
+                Aujourd'hui
+              </button>
+            )}
+          </div>
+        </div>
         <div className="grid grid-cols-3 gap-3" id="budget_cumulative_grid">
           <Card className="p-4 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1f1f22]">
             <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Entrées</span>
@@ -198,6 +259,37 @@ export const BudgetView: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {/* 2b. #3 Répartition des sorties par catégorie */}
+      {totalExpense > 0 && (
+        <div className="bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-3xl p-4">
+          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+            Où part ton argent ce mois-ci
+          </h4>
+          <div className="space-y-2">
+            {(() => {
+              const byCat = new Map<string, number>();
+              for (const b of currentMonthBudget.filter(x => x.type === 'EXPENSE')) {
+                byCat.set(b.category, (byCat.get(b.category) || 0) + b.amount);
+              }
+              const sorted = [...byCat.entries()].sort((a, b) => b[1] - a[1]);
+              return sorted.map(([cat, amt]) => (
+                <div key={cat} className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 w-24 truncate">{cat}</span>
+                  <div className="flex-1 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full"
+                      style={{ width: `${Math.max(3, Math.round((amt / totalExpense) * 100))}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-black text-red-500 w-20 text-right">{amt.toLocaleString()} F</span>
+                  <span className="text-[9px] text-slate-400 w-9 text-right">{Math.round((amt / totalExpense) * 100)}%</span>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* 3. Transaction mapping listing chronological */}
       <div className="space-y-3" id="budget_mapping_area">
@@ -237,11 +329,34 @@ export const BudgetView: React.FC = () => {
               id={`budget_card_${b.id}`}
             >
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] text-slate-400 font-bold">{b.date}</span>
                   <span className="text-[8px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded py-0.5 px-2">
                     {b.category}
                   </span>
+                  {/* #4 Badge origine : vente auto vs saisie manuelle */}
+                  {b.orderId ? (
+                    <span
+                      className="text-[8px] font-bold uppercase tracking-wider bg-blue-50 dark:bg-blue-950/40 text-blue-500 dark:text-blue-400 rounded py-0.5 px-2"
+                      title="Marge générée automatiquement par une vente validée"
+                    >
+                      🛒 Vente
+                    </span>
+                  ) : (
+                    <span
+                      className="text-[8px] font-bold uppercase tracking-wider bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 rounded py-0.5 px-2"
+                      title="Saisi manuellement dans le livre de trésorerie"
+                    >
+                      ✍ Manuel
+                    </span>
+                  )}
+                  {/* #5 Badge hors-ligne en attente de sync */}
+                  {b.synced === false && (
+                    <span className="text-[8px] font-black uppercase py-0.5 px-1.5 rounded bg-red-100 text-red-600 dark:bg-red-950/70 dark:text-red-400 border border-red-200/30 tracking-wider flex items-center gap-1 select-none animate-pulse" title="Créé hors-ligne. En attente de synchronisation.">
+                      <span className="w-1 h-1 bg-red-500 rounded-full" />
+                      Hors-ligne
+                    </span>
+                  )}
                 </div>
 
                 <h4 className="font-bold text-slate-900 dark:text-slate-100 text-xs mt-1 truncate">
@@ -249,13 +364,25 @@ export const BudgetView: React.FC = () => {
                 </h4>
               </div>
 
-              {/* Amount and delete key */}
-              <div className="flex items-center gap-4 shrink-0">
+              {/* Amount and action keys */}
+              <div className="flex items-center gap-3 shrink-0">
                 <span className={`font-black text-sm ${
                   b.type === 'REVENUE' ? 'text-emerald-500' : 'text-red-500'
                 }`}>
                   {b.type === 'REVENUE' ? '+' : '-'}{b.amount.toLocaleString()} F
                 </span>
+
+                {/* #1 Bouton éditer (masqué pendant la confirmation de suppression) */}
+                {deletingId !== b.id && !b.orderId && (
+                  <button
+                    onClick={() => openEdit(b)}
+                    className="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/20 rounded-lg active:scale-90 transition-all cursor-pointer"
+                    title="Modifier cette transaction"
+                    id={`budget_edit_${b.id}`}
+                  >
+                    <Layers className="w-4 h-4" />
+                  </button>
+                )}
 
                 {deletingId === b.id ? (
                   <div className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-150">
@@ -300,8 +427,13 @@ export const BudgetView: React.FC = () => {
         onClose={() => {
           setIsAddOpen(false);
           setFormError(null);
+          setEditingId(null);
         }}
-        title={newType === 'EXPENSE' ? 'Noter une Sortie de Caisse' : 'Ajouter une Entrée de Caisse'}
+        title={
+          editingId
+            ? 'Modifier la Transaction'
+            : newType === 'EXPENSE' ? 'Noter une Sortie de Caisse' : 'Ajouter une Entrée de Caisse'
+        }
       >
         <form onSubmit={handleAddSubmit} className="space-y-4">
           
@@ -411,7 +543,7 @@ export const BudgetView: React.FC = () => {
             type="submit"
             className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all text-sm mt-4"
           >
-            ENREGISTRER LA TRANSACTION
+            {editingId ? 'ENREGISTRER LES MODIFICATIONS' : 'ENREGISTRER LA TRANSACTION'}
           </button>
         </form>
       </Drawer>
