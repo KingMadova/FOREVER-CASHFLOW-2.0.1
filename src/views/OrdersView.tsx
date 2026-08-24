@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { printCanvas } from '../lib/printHelper';
 import { useOrdersStore, createOrderFromCart } from '../store/slices/ordersSlice';
 import { useCustomersStore } from '../store/slices/customersSlice';
@@ -30,6 +30,43 @@ import {
   Star,
   Tag
 } from 'lucide-react';
+
+// Libellés affichables des champs opérationnels (mêmes valeurs que le formulaire)
+const TYPE_LABELS: Record<string, string> = {
+  UNITE: '📦 Unité(s)',
+  PACK: '🎁 Pack (Clean 9, Vital 5...)',
+  KIT: '🛠 Kit Personnalisé',
+};
+const CANAL_LABELS: Record<string, string> = {
+  WHATSAPP: '💬 WhatsApp',
+  META_ADS: '📊 Meta Ads',
+  RECOMMANDATION: '🤝 Recommandation',
+  BOUCHE_OREILLE: '👄 Bouche-à-oreille',
+  EVENEMENT: '🎪 Événement',
+  AUTRE: '➕ Autre',
+};
+const PAIEMENT_LABELS: Record<string, string> = {
+  ESPECES: '💵 Espèces',
+  AIRTEL: '📱 Airtel Money',
+  MTN: '📱 MTN Money',
+  MIXTE: '💵+📱 Mixte',
+  VIREMENT: '🏦 Virement',
+  AUTRE: '➕ Autre',
+};
+const GESTE_LABELS: Record<string, string> = {
+  AUCUN: '❌ Aucun',
+  'CLEAN9_-7K': '🧴 Clean 9 -7 166 FCFA',
+  LIVRAISON_GRATUITE: '🚚 Livraison offerte',
+  FIELDS_OFFERT: '🌿 Fields of Greens offert',
+  REMISE_5: '🏷️ Remise 5% (Client Priv.)',
+  AUTRE: '➕ Autre',
+};
+const LIVRAISON_MODE_LABELS: Record<string, string> = {
+  DOMICILE: '🏠 Domicile',
+  POINT_RELAIS: '📍 Point relais',
+  MAIN_PROPRE: '🤝 Main propre',
+  RETRAIT_BOUTIQUE: '🏬 Retrait boutique',
+};
 
 export const OrdersView: React.FC = () => {
   const { orders, addOrder, updateOrder, deleteOrder } = useOrdersStore();
@@ -75,6 +112,20 @@ export const OrdersView: React.FC = () => {
   // Top Product autocomplete search Bar state
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [isProductSuggestionsOpen, setIsProductSuggestionsOpen] = useState(false);
+
+  // Pont depuis la fiche client : "Passer commande" pré-sélectionne le client
+  // et ouvre directement le modal de création.
+  useEffect(() => {
+    const presetId = sessionStorage.getItem('fcf-new-order-customer');
+    if (!presetId) return;
+    sessionStorage.removeItem('fcf-new-order-customer');
+    const cust = customers.find(c => c.id === presetId);
+    if (cust) {
+      setOrderCustomer(cust.id);
+      setCustomerSearchQuery(cust.name);
+    }
+    setIsNewOrderOpen(true);
+  }, []);
 
   const filteredOrders = orders.filter(o => {
     if (statusFilter === 'ALL') return true;
@@ -1097,7 +1148,7 @@ export const OrdersView: React.FC = () => {
               <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8">
                 <div className="space-y-1">
                   <h1 className="text-3xl font-black tracking-tighter text-slate-900">FACTURE</h1>
-                  <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Référence : #{selectedOrder.id.split('_')[1]?.toUpperCase() || selectedOrder.id}</p>
+                  <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Référence : #{selectedOrder.refCommande || selectedOrder.id}</p>
                 </div>
                 <div className="text-right">
                   <div className="w-12 h-12 bg-amber-500 rounded-lg flex items-center justify-center ml-auto mb-2 print:bg-amber-500">
@@ -1232,7 +1283,67 @@ export const OrdersView: React.FC = () => {
               </div>
             </div>
 
-            {/* FBO Internal Data (Not Printed on Customer Invoice) */}
+            {/* FBO Internal Data - la marge est affichée sous les détails opérationnels */}
+
+            {/* Operational Details - champs saisis à la création, désormais visibles */}
+            <details className="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-3xl px-4 py-3 mb-2" open>
+              <summary className="text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer select-none flex items-center gap-1">
+                Détails opérationnels
+                <span className="text-slate-300 normal-case font-medium">(canal • règlement • livraison)</span>
+              </summary>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 mt-3 text-[11px]">
+                <div>
+                  <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Type</p>
+                  <p className="font-bold text-slate-800 dark:text-slate-200">{TYPE_LABELS[selectedOrder.type] || selectedOrder.type || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Canal</p>
+                  <p className="font-bold text-slate-800 dark:text-slate-200">{CANAL_LABELS[selectedOrder.canal] || selectedOrder.canal || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Règlement</p>
+                  <p className="font-bold text-slate-800 dark:text-slate-200">{PAIEMENT_LABELS[selectedOrder.paiement] || selectedOrder.paiement || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Geste commercial</p>
+                  <p className="font-bold text-slate-800 dark:text-slate-200">{GESTE_LABELS[selectedOrder.geste] || selectedOrder.geste || '—'}</p>
+                </div>
+                {selectedOrder.gesteMontant != null && (
+                  <div className="col-span-2">
+                    <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Valeur du geste</p>
+                    <p className="font-bold text-amber-600 dark:text-amber-400">{selectedOrder.gesteMontant.toLocaleString()} FCFA</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Livraison</p>
+                  <p className="font-bold text-slate-800 dark:text-slate-200">
+                    {LIVRAISON_MODE_LABELS[selectedOrder.livraison?.mode] || selectedOrder.livraison?.mode || '—'}
+                    {selectedOrder.livraison?.frais > 0 && (
+                      <span className="ml-1 font-medium text-slate-500">({selectedOrder.livraison.frais.toLocaleString()} F)</span>
+                    )}
+                    {selectedOrder.livraison?.frais === 0 && <span className="ml-1 font-medium text-emerald-500">(offerte)</span>}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Livraison prévue</p>
+                  <p className="font-bold text-slate-800 dark:text-slate-200">{selectedOrder.livraison?.datePrevue || '—'}</p>
+                </div>
+                {(selectedOrder.tags?.length ?? 0) > 0 && (
+                  <div className="col-span-2 flex flex-wrap items-center gap-1.5">
+                    <Tag className="w-3 h-3 text-slate-400" />
+                    {selectedOrder.tags.map((t: string) => (
+                      <span key={t} className="text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full">{t}</span>
+                    ))}
+                  </div>
+                )}
+                {selectedOrder.notes && (
+                  <div className="col-span-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl p-2.5">
+                    <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider mb-0.5">Notes</p>
+                    <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{selectedOrder.notes}</p>
+                  </div>
+                )}
+              </div>
+            </details>
             {selectedOrder.status === 'VALIDATED' && (
               <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900/40 rounded-3xl p-4 flex items-center justify-between text-emerald-800 dark:text-emerald-400 mt-2 mb-2">
                 <span className="text-xs font-bold uppercase tracking-wider">Marge Nette (Bénéfice FBO)</span>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCustomersStore } from '../store/slices/customersSlice';
 import { useOrdersStore } from '../store/slices/ordersSlice';
 import { Card } from '../components/ui/Card';
@@ -70,6 +71,7 @@ export const ClientsView: React.FC = () => {
     }, 60_000);
     return () => clearInterval(interval);
   }, []);
+  const navigate = useNavigate();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1); // 1-12
 
@@ -566,6 +568,19 @@ export const ClientsView: React.FC = () => {
                 <MessageCircle className="w-4 h-4" />
                 Écrire WhatsApp
               </a>
+              <button
+                type="button"
+                onClick={() => {
+                  // Pont vers OrdersView : le modal s'ouvrira avec ce client pré-sélectionné
+                  sessionStorage.setItem('fcf-new-order-customer', selectedClient.id);
+                  setIsDetailOpen(false);
+                  navigate('/orders');
+                }}
+                className="flex-1 py-3 px-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                Passer commande
+              </button>
             </div>
 
             {/* Tap Navigation Switches inside Drawer */}
