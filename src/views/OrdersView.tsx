@@ -130,8 +130,9 @@ export const OrdersView: React.FC = () => {
       };
 
     // Submit Draft
-    const handleCreateOrder = (e: React.FormEvent) => {
+    const handleCreateOrder = async (e: React.FormEvent) => {
       e.preventDefault();
+      try {
       if (!orderCustomer) {
         setOrderFormError('Veuillez sélectionner un client.');
         return;
@@ -202,7 +203,12 @@ export const OrdersView: React.FC = () => {
         return;
       }
 
-      addOrder(orderData);
+      await addOrder(orderData);
+      } catch (err) {
+        console.error('[handleCreateOrder] Echec creation commande:', err);
+        setOrderFormError("Erreur lors de la création de la commande. Vérifie ta connexion puis réessaie.");
+        return;
+      }
 
       setIsNewOrderOpen(false);
       resetForm();

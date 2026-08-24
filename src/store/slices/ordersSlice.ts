@@ -3,7 +3,7 @@ import { Order, OrderStatut, OrderItem, OrderType, OrderCanal, OrderPaiement, Or
 import { useAuthStore } from './authSlice';
 import { useSyncStore } from './syncSlice';
 import { db } from '../../lib/firebase';
-import { collection, doc, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { getPaths, handleFirestoreError, OperationType } from '../../lib/firestoreService';
 import { useBudgetStore } from './budgetSlice';
 
@@ -17,7 +17,10 @@ const DEFAULT_LIVRAISON: Livraison = {
 
 function generateRefCommande(existingOrders: Order[]): string {
   const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
-  const sequence = (existingOrders.filter(o => o.refCommande.startsWith(`CMD-${today}`)).length + 1).toString().padStart(3, '0');
+  // Garde anti-crash : les commandes antérieures au système de référence
+  // peuvent avoir un refCommande absent -> startsWith levait un TypeError
+  // qui empêchait TOUTE création de commande (échec silencieux).
+  const sequence = (existingOrders.filter(o => typeof o.refCommande === 'string' && o.refCommande.startsWith(`CMD-${today}`)).length + 1).toString().padStart(3, '0');
   return `CMD-${today}-${sequence}`;
 }
 
@@ -120,6 +123,7 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
       }
     } catch (err) {
       // Offline: queue for sync
+      console.error('[addOrder] Ecriture Firestore impossible, mise en file de sync:', err);
       addToSyncQueue({
         id: 'sync_' + Math.random().toString(36).substr(2, 9),
         type: 'ORDER',
@@ -264,7 +268,10 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
 
     const paths = getPaths(user.uid);
     const unsub = onSnapshot(
-      query(collection(db, paths.orders), orderBy('date', 'desc')),
+      // Pas de orderBy serveur : Firestore exclut silencieusement les documents
+      // sans le champ trié (vieilles commandes sans 'date' -> invisibles).
+      // La vue trie déjà côté client par date décroissante.
+      collection(db, paths.orders),
       (snap) => {
         const data = snap.docs.map((d) => ({ ...d.data(), id: d.id } as Order));
         set({ orders: data });
