@@ -84,6 +84,15 @@ service cloud.firestore {
              data.createdAt is string;
     }
 
+    function isValidDailyLog(data, userId) {
+      return data.userId == userId &&
+             data.date is string && data.date.size() == 10 &&
+             data.consumedProduct is bool &&
+             data.trained is bool &&
+             data.contactsAdded is number &&
+             data.createdAt is string;
+    }
+
     // --- Match Rules ---
     match /users/{userId} {
       allow get: if isOwner(userId);
@@ -123,6 +132,13 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId) && isValidId(productId) && isValidProduct(incoming(), userId);
         allow update: if isOwner(userId) && isValidProduct(incoming(), userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /dailyLogs/{logId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(logId) && isValidDailyLog(incoming(), userId);
+        allow update: if isOwner(userId) && isValidDailyLog(incoming(), userId);
         allow delete: if isOwner(userId);
       }
     }

@@ -63,16 +63,23 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
 
     let unsubscribeOther: (() => void) | undefined;
 
+    // UID déjà initialisé : les 6 listeners Firestore ne sont (re)créés que si
+    // l'identité change. Sans cela, chaque set() du authSlice (save profil,
+    // changement de thème...) détruisait et recréait tous les abonnements.
+    let initializedUid: string | null | undefined = undefined;
+
     // Check auth readiness
     const checkAuthReady = () => {
-      const { isAuthReady } = useAuthStore.getState();
-      if (isAuthReady) {
-        setIsAuthReady(true);
-        if (unsubscribeOther) {
-          unsubscribeOther();
-        }
-        unsubscribeOther = initOtherStores();
+      const { isAuthReady, user } = useAuthStore.getState();
+      if (!isAuthReady) return;
+      setIsAuthReady(true);
+      const uid = user?.uid ?? null;
+      if (uid === initializedUid) return;
+      initializedUid = uid;
+      if (unsubscribeOther) {
+        unsubscribeOther();
       }
+      unsubscribeOther = initOtherStores();
     };
 
     // Initial check

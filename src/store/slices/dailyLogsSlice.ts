@@ -49,6 +49,7 @@ export const useDailyLogsStore = create<DailyLogsState>((set, get) => ({
       ...existing,
       ...partial,
       id,
+      userId: user.uid,
       updatedAt: now,
     };
 

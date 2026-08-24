@@ -17,9 +17,10 @@ interface SyncState {
   isSimulatedOffline: boolean;
   syncQueue: SyncTask[];
   isSyncing: boolean;
-  // Computed
+  // Computed - champ dérivé maintenu par applyPatch (ne jamais setter directement)
   isOfflineMode: boolean;
   // Actions
+  applyPatch: (patch: Partial<Pick<SyncState, 'isOnline' | 'isSimulatedOffline'>>) => void;
   setIsOnline: (online: boolean) => void;
   toggleSimulatedOffline: () => void;
   addToSyncQueue: (task: SyncTask) => void;
@@ -40,11 +41,24 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     return !get().isOnline || get().isSimulatedOffline;
   },
 
-  setIsOnline: (online) => set({ isOnline: online }),
+  // Point d'entrée unique pour modifier isOnline/isSimulatedOffline :
+  // recalcule isOfflineMode à chaque mutation (les getters JS figés après set()
+  // rendaient la valeur obsolète dans tout l'UI et le garde-fou de triggerSync).
+  applyPatch: (patch) => {
+    const next: Partial<Pick<SyncState, 'isOnline' | 'isSimulatedOffline' | 'isOfflineMode'>> = { ...patch };
+    if ('isOnline' in next || 'isSimulatedOffline' in next) {
+      const { isOnline, isSimulatedOffline } = get();
+      next.isOfflineMode = !('isOnline' in next ? next.isOnline : isOnline)
+        || !('isSimulatedOffline' in next ? next.isSimulatedOffline : isSimulatedOffline);
+    }
+    set(next);
+  },
+
+  setIsOnline: (online) => get().applyPatch({ isOnline: online }),
 
   toggleSimulatedOffline: () => {
     const newValue = !get().isSimulatedOffline;
-    set({ isSimulatedOffline: newValue });
+    get().applyPatch({ isSimulatedOffline: newValue });
     try {
       localStorage.setItem('fcf-simulated-offline', newValue ? 'true' : 'false');
     } catch (e) {

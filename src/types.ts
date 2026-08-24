@@ -208,6 +208,7 @@ export interface DailyLog {
   boutiques: number;            // Boutiques à domicile
 
   // Métadonnées
+  userId: string;              // Propriétaire du document (règles Firestore)
   notes?: string;
   createdAt: string;
   updatedAt: string;

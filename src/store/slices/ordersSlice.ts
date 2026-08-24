@@ -93,9 +93,9 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
       delaiLivraison: ord.delaiLivraison,
     };
 
-    // Appliquer geste
-    const { profile } = useAuthStore.getState();
-    const currentGrade = { tauxRemise: 0.38 }; // Will be fetched from profile
+    // Appliquer geste avec le taux de remise RÉEL du grade du distributeur
+    // (l'ancien taux codé en dur 0.38 faussait gestes/marges pour grades != A)
+    const currentGrade = useAuthStore.getState().getCurrentGrade();
     const withGeste = applyGeste(newOrd, currentGrade);
 
     // Optimistic update
