@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BottomNav } from './BottomNav';
 import { PageHeader } from './PageHeader';
-import { useStore } from '../../store/useStore';
+import { useAuthStore } from '../../store/slices/authSlice';
+import { useSyncStore } from '../../store/slices/syncSlice';
+import { useThemeStore } from '../../store/slices/themeSlice';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, 
@@ -30,17 +32,8 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { 
-    themeMode, 
-    setThemeMode, 
-    profile,
-    isOfflineMode,
-    isSimulatedOffline,
-    toggleSimulatedOffline,
-    syncQueue,
-    isSyncing,
-    triggerSync
-  } = useStore();
+  const { themeMode, setThemeMode, profile } = useAuthStore();
+  const { isOfflineMode, isSimulatedOffline, toggleSimulatedOffline, syncQueue, isSyncing, triggerSync } = useSyncStore();
   const location = useLocation();
   const navigate = useNavigate();
   const [isSyncManagerOpen, setIsSyncManagerOpen] = useState(true);

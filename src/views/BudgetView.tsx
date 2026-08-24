@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { printCanvas } from '../lib/printHelper';
-import { useStore } from '../store/useStore';
+import { useBudgetStore } from '../store/slices/budgetSlice';
+import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
 import { BudgetEntry } from '../types';
@@ -20,7 +21,8 @@ import {
 } from 'lucide-react';
 
 export const BudgetView: React.FC = () => {
-  const { budget, addBudgetEntry, deleteBudgetEntry, profile } = useStore();
+  const { budget, addBudgetEntry, deleteBudgetEntry } = useBudgetStore();
+  const { profile } = useAuthStore();
 
   // Dialog controllers
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -81,13 +83,14 @@ export const BudgetView: React.FC = () => {
     }
 
     setFormError(null);
-    addBudgetEntry({
-      type: newType,
-      category: category as any,
-      amount,
-      date,
-      description
-    });
+        addBudgetEntry({
+          type: newType,
+          category: category as any,
+          amount,
+          date,
+          description,
+          createdAt: new Date().toISOString(),
+        });
 
     // Reset Form
     setAmount(0);

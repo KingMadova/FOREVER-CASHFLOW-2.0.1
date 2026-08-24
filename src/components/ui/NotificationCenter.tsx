@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useStore } from '../../store/useStore';
+import { useAgendaStore } from '../../store/slices/agendaSlice';
+import { useOrdersStore } from '../../store/slices/ordersSlice';
+import { useCustomersStore } from '../../store/slices/customersSlice';
 import { AgendaItem, Order, OrderStatus } from '../../types';
 import { 
   Bell, 
@@ -25,11 +27,10 @@ export const NotificationCenter: React.FC = () => {
   const { 
     agendaList, 
     toggleAgendaItemCompleted,
-    updateAgendaItem,
-    orders,
-    updateOrder,
-    customers
-  } = useStore();
+    updateAgendaItem
+  } = useAgendaStore();
+  const { orders, updateOrder } = useOrdersStore();
+  const { customers } = useCustomersStore();
   
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);

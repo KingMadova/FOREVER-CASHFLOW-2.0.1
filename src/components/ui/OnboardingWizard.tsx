@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useStore } from '../../store/useStore';
+import { useAuthStore } from '../../store/slices/authSlice';
 import { UserProfile, GRADES, GradeCode } from '../../types';
 import { 
   Sparkles, 
@@ -26,7 +26,7 @@ interface OnboardingWizardProps {
 }
 
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, isManualTrigger = false }) => {
-  const { profile, updateProfile } = useStore();
+  const { profile, updateProfile } = useAuthStore();
   const [step, setStep] = useState(1);
 
   // Profile temporary form state

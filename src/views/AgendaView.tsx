@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useStore } from '../store/useStore';
+import { useCustomersStore } from '../store/slices/customersSlice';
+import { useAgendaStore } from '../store/slices/agendaSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
 import { 
@@ -18,27 +19,16 @@ import {
   Search
 } from 'lucide-react';
 
-interface AgendaItem {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  type: 'FOLLOW_UP' | 'DELIVERY' | 'PRESENTATION' | 'OTHER';
-  contactName?: string;
-  contactPhone?: string;
-  location?: string;
-  notes?: string;
-  completed: boolean;
-}
+import { AgendaItem } from '../types';
 
 export const AgendaView: React.FC = () => {
+  const { customers } = useCustomersStore();
   const { 
-    customers,
     agendaList,
     addAgendaItem,
     deleteAgendaItem,
     toggleAgendaItemCompleted
-  } = useStore();
+  } = useAgendaStore();
 
   // State controllers for Adding Event
   const [isAddOpen, setIsAddOpen] = useState(false);

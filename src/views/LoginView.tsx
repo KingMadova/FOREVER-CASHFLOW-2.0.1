@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useStore } from '../store/useStore';
+import { useAuthStore } from '../store/slices/authSlice';
 import { LogIn, Leaf } from 'lucide-react';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
 export const LoginView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
-  const { login } = useStore();
+  const { login } = useAuthStore();
   const navigate = useNavigate();
 
   const handleLogin = async () => {

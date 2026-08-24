@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useStore } from '../store/useStore';
+import { useCustomersStore } from '../store/slices/customersSlice';
+import { useOrdersStore } from '../store/slices/ordersSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
 import { Customer, CustomerStatus, Order } from '../types';
@@ -19,7 +20,12 @@ import {
   Download,
   Star,
   TrendingUp,
-  ChevronDown
+  ChevronDown,
+  Cake,
+  Users,
+  MapPin as MapPinIcon,
+  Award,
+  ThumbsUp
 } from 'lucide-react';
 
 const cleanPhoneForWhatsApp = (phoneStr: string) => {
@@ -44,7 +50,8 @@ const cleanPhoneForWhatsApp = (phoneStr: string) => {
 };
 
 export const ClientsView: React.FC = () => {
-  const { customers, orders, addCustomer, updateCustomer, deleteCustomer } = useStore();
+  const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomersStore();
+  const { orders } = useOrdersStore();
   
   // States
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,13 +74,16 @@ export const ClientsView: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1); // 1-12
 
   // Input states
-  const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [newAddress, setNewAddress] = useState('');
-  const [newNotes, setNewNotes] = useState('');
-  const [notesSavedFeedback, setNotesSavedFeedback] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [newName, setNewName] = useState('');
+    const [newEmail, setNewEmail] = useState('');
+    const [newPhone, setNewPhone] = useState('');
+    const [newAddress, setNewAddress] = useState('');
+    const [newVille, setNewVille] = useState('');
+    const [newDateNaissance, setNewDateNaissance] = useState('');
+    const [newSourceProspection, setNewSourceProspection] = useState<'META_ADS' | 'RECOMMANDATION' | 'BOUCHE_OREILLE' | 'EVENEMENT' | 'AUTRE'>('AUTRE');
+    const [newNotes, setNewNotes] = useState('');
+    const [notesSavedFeedback, setNotesSavedFeedback] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Filtering list
   const clients = customers.filter(c => c.status === CustomerStatus.CLIENT);
@@ -85,28 +95,34 @@ export const ClientsView: React.FC = () => {
   });
 
   const handleAddSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName || !newPhone) return;
+      e.preventDefault();
+      if (!newName || !newPhone) return;
 
-    addCustomer({
-      name: newName,
-      email: newEmail,
-      phone: newPhone,
-      address: newAddress,
-      status: CustomerStatus.CLIENT,
-      pipelineStage: 'CLOSED_WON', // Won already as customer
-      lastContactDate: new Date().toISOString().split('T')[0],
-      notes: newNotes
-    });
+      addCustomer({
+        name: newName,
+        email: newEmail,
+        phone: newPhone,
+        address: newAddress,
+        ville: newVille,
+        dateNaissance: newDateNaissance,
+        sourceProspection: newSourceProspection,
+        status: CustomerStatus.CLIENT,
+        pipelineStage: 'CLOSED_WON', // Won already as customer
+        lastContactDate: new Date().toISOString().split('T')[0],
+        notes: newNotes
+      });
 
-    // Reset Form
-    setNewName('');
-    setNewEmail('');
-    setNewPhone('');
-    setNewAddress('');
-    setNewNotes('');
-    setIsAddOpen(false);
-  };
+      // Reset Form
+      setNewName('');
+      setNewEmail('');
+      setNewPhone('');
+      setNewAddress('');
+      setNewVille('');
+      setNewDateNaissance('');
+      setNewSourceProspection('AUTRE');
+      setNewNotes('');
+      setIsAddOpen(false);
+    };
 
   // Get orders specifically for a specific client
   const getClientOrders = (clientId: string) => {
@@ -428,29 +444,66 @@ export const ClientsView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1">Téléphone *</label>
-              <input
-                type="tel"
-                required
-                inputMode="tel"
-                value={newPhone}
-                onChange={(e) => setNewPhone(e.target.value)}
-                placeholder="ex. +242 06 xxx xxxx"
-                className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1">E-mail</label>
-              <input
-                type="email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="ex. marie@gmail.com"
-                className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-              />
-            </div>
-          </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 block mb-1">Téléphone *</label>
+                        <input
+                          type="tel"
+                          required
+                          inputMode="tel"
+                          value={newPhone}
+                          onChange={(e) => setNewPhone(e.target.value)}
+                          placeholder="ex. +242 06 xxx xxxx"
+                          className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 block mb-1">E-mail</label>
+                        <input
+                          type="email"
+                          value={newEmail}
+                          onChange={(e) => setNewEmail(e.target.value)}
+                          placeholder="ex. marie@gmail.com"
+                          className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 block mb-1">Ville</label>
+                        <input
+                          type="text"
+                          value={newVille}
+                          onChange={(e) => setNewVille(e.target.value)}
+                          placeholder="ex. Brazzaville"
+                          className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 block mb-1">Date Naissance</label>
+                        <input
+                          type="date"
+                          value={newDateNaissance}
+                          onChange={(e) => setNewDateNaissance(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 block mb-1">Source Prospection</label>
+                      <select
+                        value={newSourceProspection}
+                        onChange={(e) => setNewSourceProspection(e.target.value as 'META_ADS' | 'RECOMMANDATION' | 'BOUCHE_OREILLE' | 'EVENEMENT' | 'AUTRE')}
+                        className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
+                      >
+                        <option value="META_ADS">📊 Meta Ads</option>
+                        <option value="RECOMMANDATION">🤝 Recommandation</option>
+                        <option value="BOUCHE_OREILLE">👄 Bouche-à-oreille</option>
+                        <option value="EVENEMENT">🎪 Événement</option>
+                        <option value="AUTRE">➕ Autre</option>
+                      </select>
+                    </div>
 
           <div>
             <label className="text-xs font-bold text-slate-500 block mb-1">Adresse de livraison</label>
@@ -533,50 +586,86 @@ export const ClientsView: React.FC = () => {
             </div>
 
             {/* TAB CONTENT: INFO */}
-            {activeTab === 'INFO' && (
-              <div className="space-y-4">
-                <div className="space-y-3 bg-slate-50 dark:bg-[#2a2a2e]/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="text-slate-400 font-bold w-20 shrink-0">Téléphone:</span>
-                    <span className="text-slate-900 dark:text-slate-100 font-bold">{selectedClient.phone}</span>
-                  </div>
-                  {selectedClient.email && (
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-slate-400 font-bold w-20 shrink-0">E-mail:</span>
-                      <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedClient.email}</span>
-                    </div>
-                  )}
-                  {selectedClient.address && (
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-slate-400 font-bold w-20 shrink-0">Adresse:</span>
-                      <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedClient.address}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="text-slate-400 font-bold w-20 shrink-0">Membre depuis:</span>
-                    <span className="text-slate-600 dark:text-slate-400 font-medium">{selectedClient.createdAt}</span>
-                  </div>
-                </div>
+                        {activeTab === 'INFO' && (
+                          <div className="space-y-4">
+                            <div className="space-y-3 bg-slate-50 dark:bg-[#2a2a2e]/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-slate-400 font-bold w-20 shrink-0">Téléphone:</span>
+                                <span className="text-slate-900 dark:text-slate-100 font-bold">{selectedClient.phone}</span>
+                              </div>
+                              {selectedClient.email && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-slate-400 font-bold w-20 shrink-0">E-mail:</span>
+                                  <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedClient.email}</span>
+                                </div>
+                              )}
+                              {selectedClient.ville && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-slate-400 font-bold w-20 shrink-0">
+                                    <MapPinIcon className="w-3.5 h-3.5" /> Ville:
+                                  </span>
+                                  <span className="text-slate-800 dark:text-slate-200 font-semibold truncate">{selectedClient.ville}</span>
+                                </div>
+                              )}
+                              {selectedClient.address && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-slate-400 font-bold w-20 shrink-0">Adresse:</span>
+                                  <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedClient.address}</span>
+                                </div>
+                              )}
+                              {selectedClient.dateNaissance && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-slate-400 font-bold w-20 shrink-0">
+                                    <Cake className="w-3.5 h-3.5" /> Anniv.:
+                                  </span>
+                                  <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedClient.dateNaissance}</span>
+                                </div>
+                              )}
+                              {selectedClient.sourceProspection && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-slate-400 font-bold w-20 shrink-0">
+                                    <Users className="w-3.5 h-3.5" /> Source:
+                                  </span>
+                                  <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedClient.sourceProspection}</span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-slate-400 font-bold w-20 shrink-0">Membre depuis:</span>
+                                <span className="text-slate-600 dark:text-slate-400 font-medium">{selectedClient.createdAt}</span>
+                              </div>
+                            </div>
 
-                <div className="p-4 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 rounded-2xl">
-                  <h4 className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Indicateurs de valeur</h4>
-                  <div className="grid grid-cols-2 gap-4 mt-3">
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">Volume Total</p>
-                      <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
-                        {getClientTotalSpendAndCC(selectedClient.id).cc.toFixed(3)} CC
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">Chiffre d'Affaires</p>
-                      <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
-                        {getClientTotalSpendAndCC(selectedClient.id).spent.toLocaleString()} F
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+                            <div className="p-4 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 rounded-2xl">
+                              <h4 className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Indicateurs de valeur</h4>
+                              <div className="grid grid-cols-2 gap-4 mt-3">
+                                <div>
+                                  <p className="text-[10px] text-slate-400 font-bold uppercase">Volume Total</p>
+                                  <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
+                                    {getClientTotalSpendAndCC(selectedClient.id).cc.toFixed(3)} CC
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-slate-400 font-bold uppercase">Chiffre d'Affaires</p>
+                                  <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
+                                    {getClientTotalSpendAndCC(selectedClient.id).spent.toLocaleString()} F
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-slate-400 font-bold uppercase">PV Total</p>
+                                  <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
+                                    {getClientTotalSpendAndCC(selectedClient.id).cc * 135} PV
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-slate-400 font-bold uppercase">BV Total</p>
+                                  <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
+                                    {getClientTotalSpendAndCC(selectedClient.id).cc.toFixed(3)} BV
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
             {/* TAB CONTENT: ORDERS */}
             {activeTab === 'ORDERS' && (

@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { useStore } from '../store/useStore';
+import { useDailyLogsStore } from '../store/slices/dailyLogsSlice';
+import { useOrdersStore } from '../store/slices/ordersSlice';
+import { useCustomersStore } from '../store/slices/customersSlice';
 import { DailyLog } from '../types';
 import {
   CheckCircle, Circle, ChevronLeft, ChevronRight,
@@ -138,7 +140,9 @@ const Counter: React.FC<{
 );
 
 export const TrackerView: React.FC = () => {
-  const { dailyLogs, getDailyLog, saveDailyLog, orders, customers } = useStore();
+  const { dailyLogs, getDailyLog, saveDailyLog } = useDailyLogsStore();
+  const { orders } = useOrdersStore();
+  const { customers } = useCustomersStore();
 
   const [selectedDate, setSelectedDate] = useState(today());
   const [activeTab, setActiveTab] = useState<'today' | 'week' | 'month'>('today');

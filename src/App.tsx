@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { StoreProvider, useStore } from './store/useStore';
+import { StoreProvider } from './store/StoreProvider';
+import { useAuthStore } from './store/slices/authSlice';
 import { Layout } from './components/ui/Layout';
 import { PWAInstallPrompt } from './components/ui/PWAInstallPrompt';
 
@@ -19,7 +20,7 @@ import { LoginView } from './views/LoginView';
 import { SignupView } from './views/SignupView';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useStore();
+  const { isAuthenticated } = useAuthStore();
   const location = useLocation();
 
   if (!isAuthenticated) {
@@ -30,7 +31,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useStore();
+  const { isAuthenticated } = useAuthStore();
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />;

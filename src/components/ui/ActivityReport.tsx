@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { printCanvas } from '../../lib/printHelper';
-import { useStore } from '../../store/useStore';
+import { useOrdersStore } from '../../store/slices/ordersSlice';
+import { useBudgetStore } from '../../store/slices/budgetSlice';
+import { useAuthStore } from '../../store/slices/authSlice';
 import { Card } from './Card';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -27,7 +29,9 @@ import {
 } from 'lucide-react';
 
 export const ActivityReport: React.FC = () => {
-  const { orders, budget, profile } = useStore();
+  const { orders } = useOrdersStore();
+  const { budget } = useBudgetStore();
+  const { profile } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'monthly' | 'yearly'>('monthly');
 
   // Year & Month Selection
@@ -984,21 +988,21 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
         
         {/* Document Corporate Header */}
         <div className="flex justify-between items-center border-b border-slate-300 pb-5">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">
-              RAPPORT DE PERFORMANCE D'ACTIVITÉ
-            </h1>
-            <p className="text-slate-500 text-xs mt-1">
-              Statistiques officielles d'exploitation FBO
-            </p>
-          </div>
-          <div className="text-right">
-            <span className="text-xs font-mono font-bold text-slate-400 block">ID PROJET: {profile.id || 'N/A'}</span>
-            <span className="inline-block bg-amber-500/10 border border-amber-500/20 text-slate-900 font-extrabold text-[10px] uppercase tracking-widest px-2.5 py-1 rounded">
-              Partenaire Forever Living Products
-            </span>
-          </div>
-        </div>
+                  <div>
+                    <h1 className="text-2xl font-black tracking-tight text-slate-900">
+                      RAPPORT DE PERFORMANCE D'ACTIVITÉ
+                    </h1>
+                    <p className="text-slate-500 text-xs mt-1">
+                      Statistiques officielles d'exploitation FBO
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-mono font-bold text-slate-400 block">ID PROJET: {profile.fboId || 'N/A'}</span>
+                    <span className="inline-block bg-amber-500/10 border border-amber-500/20 text-slate-900 font-extrabold text-[10px] uppercase tracking-widest px-2.5 py-1 rounded">
+                      Partenaire Forever Living Products
+                    </span>
+                  </div>
+                </div>
 
         {/* FBO Identity Info */}
         <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 border border-slate-100 rounded-xl">

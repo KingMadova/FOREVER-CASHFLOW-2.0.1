@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useStore } from '../store/useStore';
+import { useProductsStore } from '../store/slices/productsSlice';
+import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
 import { Product, GRADES } from '../types';
 import { 
@@ -31,7 +32,8 @@ interface CustomPack {
 }
 
 export const ProjectionView: React.FC = () => {
-  const { products, profile } = useStore();
+  const { products } = useProductsStore();
+  const { profile } = useAuthStore();
 
   // 1. Projection calculator state
   const [targetMargin, setTargetMargin] = useState<number>(500000); // en FCFA

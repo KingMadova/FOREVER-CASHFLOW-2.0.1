@@ -16,7 +16,9 @@ import {
   LayoutDashboard
 } from 'lucide-react';
 import { ThemeMode, GRADES } from '../../types';
-import { useStore } from '../../store/useStore';
+import { useAuthStore } from '../../store/slices/authSlice';
+import { useSyncStore } from '../../store/slices/syncSlice';
+import { useThemeStore } from '../../store/slices/themeSlice';
 import { NotificationCenter } from './NotificationCenter';
 
 interface PageHeaderProps {
@@ -25,17 +27,8 @@ interface PageHeaderProps {
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({ title, showBack = false }) => {
-  const { 
-    themeMode, 
-    setThemeMode, 
-    profile,
-    isOfflineMode,
-    isSimulatedOffline,
-    toggleSimulatedOffline,
-    syncQueue,
-    isSyncing,
-    triggerSync
-  } = useStore();
+  const { themeMode, setThemeMode, profile } = useAuthStore();
+  const { isOfflineMode, isSimulatedOffline, toggleSimulatedOffline, syncQueue, isSyncing, triggerSync } = useSyncStore();
   const navigate = useNavigate();
   const location = useLocation();
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useStore } from '../store/useStore';
+import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
 import { GRADES, GradeCode } from '../types';
 import { 
@@ -65,7 +65,7 @@ export const ProfileView: React.FC = () => {
   const { 
     profile, 
     updateProfile
-  } = useStore();
+  } = useAuthStore();
 
   const [profileSaved, setProfileSaved] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(profile.photoUrl || '');

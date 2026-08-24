@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useStore } from '../store/useStore';
+import { useAuthStore } from '../store/slices/authSlice';
+import { useCustomersStore } from '../store/slices/customersSlice';
+import { useOrdersStore } from '../store/slices/ordersSlice';
+import { useBudgetStore } from '../store/slices/budgetSlice';
+import { useProductsStore } from '../store/slices/productsSlice';
+import { useSyncStore } from '../store/slices/syncSlice';
+import { useThemeStore } from '../store/slices/themeSlice';
+import { useBackupStore } from '../store/slices/backupSlice';
 import { Card } from '../components/ui/Card';
 import { ActivityReport } from '../components/ui/ActivityReport';
 import { 
@@ -22,22 +29,15 @@ import {
 export const SettingsView: React.FC = () => {
   const { 
     profile,
-    themeMode,
-    setThemeMode,
-    isOfflineMode,
-    isSimulatedOffline,
-    toggleSimulatedOffline,
-    syncQueue,
-    isSyncing,
-    triggerSync,
-    logout,
-    customers,
-    orders,
-    budget,
-    importBackupData,
-    hardResetData,
-    purgePhantomProducts
-  } = useStore();
+    logout
+  } = useAuthStore();
+  const { themeMode, setThemeMode } = useThemeStore();
+  const { isOfflineMode, isSimulatedOffline, toggleSimulatedOffline, syncQueue, isSyncing, triggerSync } = useSyncStore();
+  const { customers } = useCustomersStore();
+  const { orders } = useOrdersStore();
+  const { budget } = useBudgetStore();
+  const { importBackupData, hardResetData } = useBackupStore();
+  const { purgePhantomProducts } = useProductsStore();
 
   const navigate = useNavigate();
   const [systemFeedback, setSystemFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);

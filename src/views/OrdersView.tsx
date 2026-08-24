@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { printCanvas } from '../lib/printHelper';
-import { useStore } from '../store/useStore';
+import { useOrdersStore, createOrderFromCart } from '../store/slices/ordersSlice';
+import { useCustomersStore } from '../store/slices/customersSlice';
+import { useProductsStore } from '../store/slices/productsSlice';
+import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
-import { Order, OrderStatus, Product, GRADES, CustomerStatus, OrderItem } from '../types';
+import { Order, OrderStatut, OrderStatus, Product, GRADES, CustomerStatus, OrderItem, OrderType, OrderCanal, OrderPaiement, OrderGeste, LivraisonMode } from '../types';
 import { 
   ShoppingBag, 
   Plus, 
@@ -20,11 +23,19 @@ import {
   ShoppingCart,
   ChevronRight,
   Download,
-  Edit2
+  Edit2,
+  Truck,
+  MapPin,
+  CreditCard,
+  Star,
+  Tag
 } from 'lucide-react';
 
 export const OrdersView: React.FC = () => {
-  const { orders, customers, products, addOrder, updateOrder, deleteOrder, profile } = useStore();
+  const { orders, addOrder, updateOrder, deleteOrder } = useOrdersStore();
+  const { customers } = useCustomersStore();
+  const { products } = useProductsStore();
+  const { profile } = useAuthStore();
 
   // Dialog / State controllers
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
@@ -35,7 +46,7 @@ export const OrdersView: React.FC = () => {
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
   // Filter lists
-  const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatut>('ALL');
 
   // NEW ORDER DRAFT STATE
   const [orderCustomer, setOrderCustomer] = useState('');
@@ -47,6 +58,16 @@ export const OrdersView: React.FC = () => {
 
   const [orderFormError, setOrderFormError] = useState<string | null>(null);
   const [productSearchError, setProductSearchError] = useState<string | null>(null);
+
+  // Nouveaux champs pour commande complète
+  const [orderType, setOrderType] = useState<OrderType>('UNITE');
+  const [orderCanal, setOrderCanal] = useState<OrderCanal>('WHATSAPP');
+  const [orderPaiement, setOrderPaiement] = useState<OrderPaiement>('ESPECES');
+  const [orderGeste, setOrderGeste] = useState<OrderGeste>('AUCUN');
+  const [livraisonMode, setLivraisonMode] = useState<LivraisonMode>('DOMICILE');
+  const [livraisonDatePrevue, setLivraisonDatePrevue] = useState(new Date().toISOString().split('T')[0]);
+  const [orderTags, setOrderTags] = useState<string>('');
+  const [orderNotes, setOrderNotes] = useState('');
 
   // Cart elements for new FLP Order
   const [invoiceItems, setInvoiceItems] = useState<{ product: Product; quantity: number }[]>([]);
@@ -89,96 +110,103 @@ export const OrdersView: React.FC = () => {
     setInvoiceItems(updated);
   };
 
-  // Submit Draft
-  const handleCreateOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orderCustomer) {
-      setOrderFormError('Veuillez sélectionner un client.');
-      return;
-    }
-
-    if (invoiceItems.length === 0) {
-      setOrderFormError('Veuillez ajouter au moins un produit à la commande.');
-      return;
-    }
-
-    setOrderFormError(null);
-
-    const selectedCust = customers.find(c => c.id === orderCustomer);
-    if (!selectedCust) return;
-
-    // Build the list of order items
-    const parsedItems: OrderItem[] = invoiceItems.map(item => {
-      // Recalculate based on custom discount from 5% to 15% (which reduces Retail price, or margin accordingly)
-      const retailPrice = item.product.prixRetail;
-      const appliedPrice = applyDiscount ? retailPrice * (1 - discountPercent / 100) : retailPrice;
-
-      return {
-        productId: item.product.id,
-        productName: item.product.name,
-        quantity: item.quantity,
-        unitPrice: Math.round(appliedPrice),
-        unitCC: item.product.unitCC,
-        isDiscounted: applyDiscount
+  const resetForm = () => {
+        setOrderCustomer('');
+        setCustomerSearchQuery('');
+        setApplyDiscount(false);
+        setDiscountPercent(5);
+        setInvoiceItems([]);
+        setOrderFormError(null);
+        setIsEditMode(false);
+        setEditingOrderId(null);
+        setOrderType('UNITE');
+        setOrderCanal('WHATSAPP');
+        setOrderPaiement('ESPECES');
+        setOrderGeste('AUCUN');
+        setLivraisonMode('DOMICILE');
+        setLivraisonDatePrevue(new Date().toISOString().split('T')[0]);
+        setOrderTags('');
+        setOrderNotes('');
       };
-    });
 
-    const totalRetail = parsedItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
-    const totalCC = parsedItems.reduce((sum, item) => sum + (item.unitCC * item.quantity), 0);
+    // Submit Draft
+    const handleCreateOrder = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!orderCustomer) {
+        setOrderFormError('Veuillez sélectionner un client.');
+        return;
+      }
 
-    // Marge FLP is calculated based on FBO Grade Discount on true retail price.
-    // Cost = total True Retail * (1 - grade discount rate). The buy cost is fixed regardless of discounts granted.
-    const totalTrueRetail = invoiceItems.reduce((sum, item) => sum + (item.product.prixRetail * item.quantity), 0);
-    const totalCost = totalTrueRetail * (1 - currentGrade.tauxRemise);
-    const totalMargin = totalRetail - totalCost;
+      if (invoiceItems.length === 0) {
+        setOrderFormError('Veuillez ajouter au moins un produit à la commande.');
+        return;
+      }
 
-    const resetForm = () => {
-      setOrderCustomer('');
-      setCustomerSearchQuery('');
-      setApplyDiscount(false);
-      setDiscountPercent(5);
-      setInvoiceItems([]);
       setOrderFormError(null);
-      setIsEditMode(false);
-      setEditingOrderId(null);
-    };
 
-    if (isEditMode && editingOrderId) {
-      // Mise a jour de la commande existante
-      const existing = orders.find(o => o.id === editingOrderId);
-      if (!existing) return;
-      updateOrder({
-        ...existing,
+      const selectedCust = customers.find(c => c.id === orderCustomer);
+      if (!selectedCust) return;
+
+      // Build the list of order items
+      const parsedItems: OrderItem[] = invoiceItems.map(item => {
+        const retailPrice = item.product.prixRetail;
+        const appliedPrice = applyDiscount ? retailPrice * (1 - discountPercent / 100) : retailPrice;
+
+        return {
+          productId: item.product.id,
+          productName: item.product.name,
+          quantity: item.quantity,
+          unitPrice: Math.round(appliedPrice),
+          unitCC: item.product.unitCC,
+          unitPV: item.product.unitPV,
+          isDiscounted: applyDiscount
+        };
+      });
+
+      // Use the helper to create complete order with all fields
+      const orderData = createOrderFromCart({
         customerId: selectedCust.id,
         customerName: selectedCust.name,
         items: parsedItems,
-        totalRetail,
-        totalCost: Math.round(totalCost),
-        totalMargin: Math.round(totalMargin),
-        totalCC,
-        discountPercent: applyDiscount ? discountPercent : undefined
+        type: orderType,
+        canal: orderCanal,
+        paiement: orderPaiement,
+        geste: orderGeste,
+        livraisonMode,
+        datePrevueLivraison: livraisonDatePrevue,
+        distributeurId: profile.fboId || '',
+        tags: orderTags.split(',').map(t => t.trim()).filter(Boolean),
+        notes: orderNotes,
+        profileGrade: currentGrade,
       });
+
+      if (isEditMode && editingOrderId) {
+        // Mise à jour de la commande existante
+        const existing = orders.find(o => o.id === editingOrderId);
+        if (!existing) return;
+        updateOrder({
+          ...existing,
+          ...orderData,
+          id: editingOrderId,
+          customerId: selectedCust.id,
+          customerName: selectedCust.name,
+          items: parsedItems,
+          totalRetail: orderData.totalRetail,
+          totalCost: Math.round(orderData.totalCost),
+          totalMargin: Math.round(orderData.totalMargin),
+          totalCC: orderData.totalCC,
+          discountPercent: applyDiscount ? discountPercent : undefined
+        });
+        setIsNewOrderOpen(false);
+        resetForm();
+        return;
+      }
+
+      addOrder(orderData);
+
       setIsNewOrderOpen(false);
       resetForm();
-      return;
-    }
-
-    addOrder({
-      customerId: selectedCust.id,
-      customerName: selectedCust.name,
-      date: new Date().toISOString().split('T')[0],
-      items: parsedItems,
-      status: OrderStatus.PENDING,
-      totalRetail,
-      totalCost: Math.round(totalCost),
-      totalMargin: Math.round(totalMargin),
-      totalCC,
-      discountPercent: applyDiscount ? discountPercent : undefined
-    });
-
-    setIsNewOrderOpen(false);
-    resetForm();
-  };
+    };
 
   const handleUpdateStatus = (ord: Order, nextStatus: OrderStatus) => {
     const updatedOrd = { ...ord, status: nextStatus };
@@ -233,38 +261,92 @@ export const OrdersView: React.FC = () => {
     await printCanvas('invoice_printable_canvas');
   };
 
-  const handleExportOrdersCSV = () => {
-    // Columns headers
-    const headers = ['Ref Commande', 'Date', 'Nom Client', 'Statut', 'Articles', 'Sous-Total Brut (FCFA)', 'Marge Directe (FCFA)', 'Volume (CC)'];
+    const handleExportOrdersCSV = () => {
+    // Columns headers - TOUS les champs Notion/Obsidian
+    const headers = [
+      'ID',
+      'Ref Commande',
+      'Date',
+      'Date Validée',
+      'Nom Client',
+      'Statut',
+      'Type',
+      'Canal',
+      'Paiement',
+      'Geste',
+      'Geste Montant (FCFA)',
+      'Livraison Mode',
+      'Livraison Frais (FCFA)',
+      'Livraison Date Prévue',
+      'Livraison Date Réelle',
+      'Délai Livraison (jours)',
+      'Articles',
+      'Sous-Total Brut (FCFA)',
+      'Marge Directe (FCFA)',
+      'Volume (CC)',
+      'Volume (PV)',
+      'Volume (BV)',
+      'Tags',
+      'Satisfaction (1-5)',
+      'Note Satisfaction',
+      'Date Satisfaction',
+      'Recommandation',
+      'Recommandation Client ID',
+      'Distributeur ID',
+      'Notes'
+    ];
     
     // Rows
     const rows = [...orders]
       .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .map(o => {
         const itemsStr = o.items.map(it => `${it.quantity}x ${it.productName}`).join(' | ');
-        const statusLabel = o.status === OrderStatus.VALIDATED ? 'VALIDÉE' : o.status === OrderStatus.PENDING ? 'EN ATTENTE' : 'ANNULÉE';
+        const statusLabel = o.status === OrderStatus.VALIDATED ? 'VALIDÉE' : o.status === OrderStatus.PENDING ? 'EN ATTENTE' : o.status === OrderStatus.CANCELLED ? 'ANNULÉE' : o.status === OrderStatus.PAYE ? 'PAYÉE' : o.status === OrderStatus.LIVRE ? 'LIVRÉE' : o.status === OrderStatus.RETOUR ? 'RETOUR' : o.status === OrderStatus.REMPLACEMENT ? 'REMPLACEMENT' : o.status;
+        const livraison = o.livraison || { mode: '', frais: 0, datePrevue: '', dateReelle: '' };
         return [
           o.id,
+          o.refCommande || '',
           o.date,
+          o.validatedAt || '',
           o.customerName,
           statusLabel,
+          o.type || 'UNITE',
+          o.canal || 'WHATSAPP',
+          o.paiement || 'ESPECES',
+          o.geste || 'AUCUN',
+          o.gesteMontant || 0,
+          livraison.mode || '',
+          livraison.frais || 0,
+          livraison.datePrevue || '',
+          livraison.dateReelle || '',
+          o.delaiLivraison || '',
           itemsStr,
           o.totalRetail,
           o.totalMargin,
-          o.totalCC
+          o.totalCC.toFixed(3),
+          (o.totalPV || Math.round((o.totalCC || 0) * 135)).toString(),
+          (o.totalBV || o.totalCC || 0).toFixed(3),
+          (o.tags || []).join(', '),
+          o.satisfaction || '',
+          o.satisfactionNote || '',
+          o.satisfactionDate || '',
+          o.recommandation ? 'OUI' : 'NON',
+          o.recommandationClientId || '',
+          o.distributeurId || '',
+          o.notes || ''
         ];
       });
-      
+    
     // Build CSV Content
     // Excel-friendly UTF-8 BOM + semicolon-separated values
     const csvContent = "\uFEFF" + 
       [headers, ...rows]
         .map(row => row.map(val => {
           const str = String(val ?? '').replace(/"/g, '""');
-          return `"${str}"`;
+          return '"' + str + '"';
         }).join(';'))
         .join('\n');
-        
+    
     // Create download link
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -764,37 +846,162 @@ export const OrdersView: React.FC = () => {
           </div>
 
           {/* Live Preview stats */}
-          <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 rounded-2xl text-xs space-y-1 font-sans">
-            <div className="flex justify-between">
-              <span className="text-slate-400 font-bold">Total Brut Retail:</span>
-              <span className="text-slate-800 dark:text-slate-200 font-bold">
-                {invoiceItems.reduce((acc, slot) => acc + (slot.product.prixRetail * slot.quantity), 0).toLocaleString()} F
-              </span>
-            </div>
-            {applyDiscount && (
-              <div className="flex justify-between text-emerald-600 font-bold">
-                <span>Remise Appliquée ({discountPercent}%):</span>
-                <span>
-                  -{Math.round(invoiceItems.reduce((acc, slot) => acc + (slot.product.prixRetail * slot.quantity), 0) * (discountPercent / 100)).toLocaleString()} F
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between border-t border-amber-200/50 dark:border-amber-800/20 pt-2 mt-1">
-              <span className="text-slate-400 font-bold">Total CC Accumulé:</span>
-              <span className="text-blue-500 font-black">
-                {invoiceItems.reduce((acc, slot) => acc + (slot.product.unitCC * slot.quantity), 0).toFixed(3)} CC
-              </span>
-            </div>
-          </div>
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 rounded-2xl text-xs space-y-1 font-sans">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400 font-bold">Total Brut Retail:</span>
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">
+                          {invoiceItems.reduce((acc, slot) => acc + (slot.product.prixRetail * slot.quantity), 0).toLocaleString()} F
+                        </span>
+                      </div>
+                      {applyDiscount && (
+                        <div className="flex justify-between text-emerald-600 font-bold">
+                          <span>Remise Appliquée ({discountPercent}%):</span>
+                          <span>
+                            -{Math.round(invoiceItems.reduce((acc, slot) => acc + (slot.product.prixRetail * slot.quantity), 0) * (discountPercent / 100)).toLocaleString()} F
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between border-t border-amber-200/50 dark:border-amber-800/20 pt-2 mt-1">
+                        <span className="text-slate-400 font-bold">Total CC Accumulé:</span>
+                        <span className="text-blue-500 font-black">
+                          {invoiceItems.reduce((acc, slot) => acc + (slot.product.unitCC * slot.quantity), 0).toFixed(3)} CC
+                        </span>
+                      </div>
+                    </div>
 
-          <button
-            type="submit"
-            className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all text-sm mt-4"
-          >
-            {isEditMode ? 'ENREGISTRER LES MODIFICATIONS' : 'CONFIRMER LE BON DE COMMANDE'}
-          </button>
-        </form>
-      </Drawer>
+                    {/* === NOUVEAUX CHAMPS COMMANDE COMPLÈTE === */}
+                      <div className="space-y-3 bg-slate-50 dark:bg-slate-800/30 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-850">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <Tag className="w-3.5 h-3.5 text-amber-500" />
+                          Détails Commande (Notion/Obsidian)
+                        </h4>
+            
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Type de commande */}
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Type</label>
+                            <select
+                              value={orderType}
+                              onChange={(e) => setOrderType(e.target.value as OrderType)}
+                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            >
+                              <option value="UNITE">📦 Unité(s)</option>
+                              <option value="PACK">🎁 Pack (Clean 9, Vital 5...)</option>
+                              <option value="KIT">🛠 Kit Personnalisé</option>
+                            </select>
+                          </div>
+
+                          {/* Canal acquisition */}
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Canal</label>
+                            <select
+                              value={orderCanal}
+                              onChange={(e) => setOrderCanal(e.target.value as OrderCanal)}
+                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            >
+                              <option value="WHATSAPP">💬 WhatsApp</option>
+                              <option value="META_ADS">📊 Meta Ads</option>
+                              <option value="RECOMMANDATION">🤝 Recommandation</option>
+                              <option value="BOUCHE_OREILLE">👄 Bouche-à-oreille</option>
+                              <option value="EVENEMENT">🎪 Événement</option>
+                              <option value="AUTRE">➕ Autre</option>
+                            </select>
+                          </div>
+
+                          {/* Mode paiement */}
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Paiement</label>
+                            <select
+                              value={orderPaiement}
+                              onChange={(e) => setOrderPaiement(e.target.value as OrderPaiement)}
+                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            >
+                              <option value="ESPECES">💵 Espèces</option>
+                              <option value="AIRTEL">📱 Airtel Money</option>
+                              <option value="MTN">📱 MTN Money</option>
+                              <option value="MIXTE">💵+📱 Mixte</option>
+                              <option value="VIREMENT">🏦 Virement</option>
+                              <option value="AUTRE">➕ Autre</option>
+                            </select>
+                          </div>
+
+                          {/* Geste commercial */}
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Geste</label>
+                            <select
+                              value={orderGeste}
+                              onChange={(e) => setOrderGeste(e.target.value as OrderGeste)}
+                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            >
+                              <option value="AUCUN">❌ Aucun</option>
+                              <option value="CLEAN9_-7K">🧴 Clean 9 -7 166 FCFA</option>
+                              <option value="LIVRAISON_GRATUITE">🚚 Livraison offerte</option>
+                              <option value="FIELDS_OFFERT">🌿 Fields of Greens offert</option>
+                              <option value="REMISE_5">🏷️ Remise 5% (Client Priv.)</option>
+                              <option value="AUTRE">➕ Autre</option>
+                            </select>
+                          </div>
+
+                          {/* Livraison mode */}
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Livraison</label>
+                            <select
+                              value={livraisonMode}
+                              onChange={(e) => setLivraisonMode(e.target.value as LivraisonMode)}
+                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            >
+                              <option value="DOMICILE">🏠 Domicile</option>
+                              <option value="POINT_RELAIS">📍 Point relais</option>
+                              <option value="MAIN_PROPRE">🤝 Main propre</option>
+                              <option value="RETRAIT_BOUTIQUE">🏪 Retrait boutique</option>
+                            </select>
+                          </div>
+
+                          {/* Date prévue livraison */}
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Date livraison prévue</label>
+                            <input
+                              type="date"
+                              value={livraisonDatePrevue}
+                              onChange={(e) => setLivraisonDatePrevue(e.target.value)}
+                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            />
+                          </div>
+
+                          {/* Tags */}
+                          <div className="sm:col-span-2">
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Tags (séparés par virgules)</label>
+                            <input
+                              type="text"
+                              value={orderTags}
+                              onChange={(e) => setOrderTags(e.target.value)}
+                              placeholder="ex: clean9, nouveau-client, meta-ads-janvier"
+                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            />
+                          </div>
+
+                          {/* Notes */}
+                          <div className="sm:col-span-2">
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Notes</label>
+                            <textarea
+                              value={orderNotes}
+                              onChange={(e) => setOrderNotes(e.target.value)}
+                              placeholder="Notes internes (non visibles client)..."
+                              rows={2}
+                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all text-sm mt-4"
+                      >
+                        {isEditMode ? 'ENREGISTRER LES MODIFICATIONS' : 'CONFIRMER LE BON DE COMMANDE'}
+                      </button>
+                    </form>
+                  </Drawer>
 
       {/* 5. DRAWER: DETAILED ORDER BON DE VENTE & PRINTABLE INVOICE SHEET */}
       <Drawer

@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '../components/ui/Card';
-import { useStore } from '../store/useStore';
+import { useAuthStore } from '../store/slices/authSlice';
+import { useCustomersStore } from '../store/slices/customersSlice';
+import { useOrdersStore } from '../store/slices/ordersSlice';
+import { useBudgetStore } from '../store/slices/budgetSlice';
+import { useDailyLogsStore } from '../store/slices/dailyLogsSlice';
 import { 
   TrendingUp, 
   DollarSign, 
@@ -15,7 +19,12 @@ import {
   Target,
   Pencil,
   Flame,
-  Zap
+  Zap,
+  Award,
+  BarChart3,
+  Filter,
+  Tag,
+  Funnel
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -30,7 +39,11 @@ import { useNavigate } from 'react-router-dom';
 import { GRADES } from '../types';
 
 export const DashboardView: React.FC = () => {
-  const { orders, customers, budget, profile, updateProfile, getDailyLog, dailyLogs } = useStore();
+  const { orders } = useOrdersStore();
+  const { customers } = useCustomersStore();
+  const { budget } = useBudgetStore();
+  const { profile, updateProfile } = useAuthStore();
+  const { getDailyLog, dailyLogs } = useDailyLogsStore();
   const navigate = useNavigate();
 
   // Sales Goal inputs and states
@@ -190,41 +203,84 @@ export const DashboardView: React.FC = () => {
 
   const activities = getRecentActivities();
 
-  // Widget G4 : score du jour + streak
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayLog = getDailyLog(todayStr);
-  const checksDone = todayLog ? [
-    todayLog.consumedProduct, todayLog.trained,
-    todayLog.statusMorning, todayLog.statusNoon, todayLog.statusEvening
-  ].filter(Boolean).length : 0;
-  const countersDone = todayLog ? [
-    (todayLog.contactsAdded || 0) >= 5,
-    (todayLog.conversationsStarted || 0) >= 100,
-  ].filter(Boolean).length : 0;
-  const dayScore = checksDone + countersDone;
-  const dayScorePct = Math.round((dayScore / 7) * 100);
+  // Calculate new KPIs
+    const totalPVThisMonth = Math.round(totalCCThisMonth * 135);
+    const totalBVThisMonth = totalCCThisMonth;
+    const totalPVLastMonth = Math.round(totalCCLastMonth * 135);
+    const totalBVLastMonth = totalCCLastMonth;
 
-  const streak = (() => {
-    let count = 0;
-    const d = new Date(todayStr + 'T00:00:00');
-    while (true) {
-      const ds = d.toISOString().split('T')[0];
-      const l = getDailyLog(ds);
-      if (!l || (!l.consumedProduct && !l.trained && !(l.contactsAdded && l.contactsAdded > 0))) break;
-      count++; d.setDate(d.getDate() - 1);
-    }
-    return count;
-  })();
+    const pvChange = calculateChange(totalPVThisMonth, totalPVLastMonth);
+    const bvChange = calculateChange(totalBVThisMonth, totalBVLastMonth);
 
-  // CC du mois depuis les logs
-  const nowDate = new Date();
-  const monthStart = `${nowDate.getFullYear()}-${String(nowDate.getMonth()+1).padStart(2,'0')}-01`;
-  const monthContacts = dailyLogs
-    .filter(l => l.date >= monthStart)
-    .reduce((s, l) => s + (l.contactsAdded || 0), 0);
-  const monthPresentations = dailyLogs
-    .filter(l => l.date >= monthStart)
-    .reduce((s, l) => s + (l.oneToOne||0) + ((l.miniConferences||0)*3) + ((l.conferences||0)*5) + ((l.boutiques||0)*5), 0);
+    // Stats par canal
+    const ordersByCanal = useMemo(() => {
+      const acc: Record<string, { count: number; cc: number; margin: number }> = {};
+      thisMonthOrders.filter(o => o.status === 'VALIDATED').forEach(o => {
+        const canal = o.canal || 'WHATSAPP';
+        if (!acc[canal]) acc[canal] = { count: 0, cc: 0, margin: 0 };
+        acc[canal].count++;
+        acc[canal].cc += o.totalCC;
+        acc[canal].margin += o.totalMargin;
+      });
+      return acc;
+    }, [thisMonthOrders]);
+
+    // Stats par type
+    const ordersByType = useMemo(() => {
+      const acc: Record<string, { count: number; cc: number }> = {};
+      thisMonthOrders.filter(o => o.status === 'VALIDATED').forEach(o => {
+        const type = o.type || 'UNITE';
+        if (!acc[type]) acc[type] = { count: 0, cc: 0 };
+        acc[type].count++;
+        acc[type].cc += o.totalCC;
+      });
+      return acc;
+    }, [thisMonthOrders]);
+
+    // Tags populaires
+    const topTags = useMemo(() => {
+      const tagCounts: Record<string, number> = {};
+      thisMonthOrders.filter(o => o.status === 'VALIDATED' && o.tags).forEach(o => {
+        o.tags.forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+      });
+      return Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    }, [thisMonthOrders]);
+
+    // Widget G4 : score du jour + streak
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayLog = getDailyLog(todayStr);
+    const checksDone = todayLog ? [
+      todayLog.consumedProduct, todayLog.trained,
+      todayLog.statusMorning, todayLog.statusNoon, todayLog.statusEvening
+    ].filter(Boolean).length : 0;
+    const countersDone = todayLog ? [
+      (todayLog.contactsAdded || 0) >= 5,
+      (todayLog.conversationsStarted || 0) >= 100,
+    ].filter(Boolean).length : 0;
+    const dayScore = checksDone + countersDone;
+    const dayScorePct = Math.round((dayScore / 7) * 100);
+
+    const streak = (() => {
+      let count = 0;
+      const d = new Date(todayStr + 'T00:00:00');
+      while (true) {
+        const ds = d.toISOString().split('T')[0];
+        const l = getDailyLog(ds);
+        if (!l || (!l.consumedProduct && !l.trained && !(l.contactsAdded && l.contactsAdded > 0))) break;
+        count++; d.setDate(d.getDate() - 1);
+      }
+      return count;
+    })();
+
+    // CC du mois depuis les logs
+    const nowDate = new Date();
+    const monthStart = `${nowDate.getFullYear()}-${String(nowDate.getMonth()+1).padStart(2,'0')}-01`;
+    const monthContacts = dailyLogs
+      .filter(l => l.date >= monthStart)
+      .reduce((s, l) => s + (l.contactsAdded || 0), 0);
+    const monthPresentations = dailyLogs
+      .filter(l => l.date >= monthStart)
+      .reduce((s, l) => s + (l.oneToOne||0) + ((l.miniConferences||0)*3) + ((l.conferences||0)*5) + ((l.boutiques||0)*5), 0);
 
   return (
     <div className="space-y-6" id="dashboard_view_container">
