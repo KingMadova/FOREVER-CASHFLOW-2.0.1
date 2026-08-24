@@ -75,27 +75,32 @@ export const BudgetView: React.FC = () => {
   const totalRevenueAllTime = budget.filter(b => b.type === 'REVENUE').reduce((s, b) => s + b.amount, 0);
   const totalExpenseAllTime = budget.filter(b => b.type === 'EXPENSE').reduce((s, b) => s + b.amount, 0);
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (amount <= 0) {
-      setFormError('Veuillez entrer un montant supérieur à 0.');
-      return;
+    try {
+      if (amount <= 0) {
+        setFormError('Veuillez entrer un montant supérieur à 0.');
+        return;
+      }
+
+      setFormError(null);
+      await addBudgetEntry({
+        type: newType,
+        category: category as any,
+        amount,
+        date,
+        description,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Reset Form
+      setAmount(0);
+      setDescription('');
+      setIsAddOpen(false);
+    } catch (err) {
+      console.error('[handleAddSubmit] Echec ajout transaction:', err);
+      setFormError("Erreur d'enregistrement. Vérifie ta connexion puis réessaie.");
     }
-
-    setFormError(null);
-        addBudgetEntry({
-          type: newType,
-          category: category as any,
-          amount,
-          date,
-          description,
-          createdAt: new Date().toISOString(),
-        });
-
-    // Reset Form
-    setAmount(0);
-    setDescription('');
-    setIsAddOpen(false);
   };
 
   const handlePrintBudget = async () => {

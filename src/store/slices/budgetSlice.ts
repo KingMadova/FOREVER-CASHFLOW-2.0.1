@@ -70,7 +70,9 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
 
     const paths = getPaths(user.uid);
     const unsub = onSnapshot(
-      query(collection(db, paths.budget), orderBy('date', 'desc')),
+      // Pas de orderBy serveur : Firestore exclut silencieusement les documents
+      // sans le champ trié. La vue trie déjà côté client par date décroissante.
+      collection(db, paths.budget),
       (snap) => {
         const data = snap.docs.map((d) => ({ ...d.data(), id: d.id } as BudgetEntry));
         set({ budget: data });
