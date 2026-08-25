@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomersStore } from '../store/slices/customersSlice';
+import { useProductsStore } from '../store/slices/productsSlice';
 import { useOrdersStore } from '../store/slices/ordersSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
 import { Customer, CustomerStatus, Order } from '../types';
 import { computePurchaseFollowUp, purchaseAnchorDate } from '../lib/postPurchaseService';
+import { motion } from 'motion/react';
+import { computeConversionStats } from '../lib/conversionService';
 import { 
   Search, 
   UserPlus, 
@@ -53,7 +56,8 @@ const cleanPhoneForWhatsApp = (phoneStr: string) => {
 
 export const ClientsView: React.FC = () => {
   const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomersStore();
-  const { orders } = useOrdersStore();
+  const { products } = useProductsStore();
+  const { orders, updateOrder } = useOrdersStore();
   
   // States
   const [searchTerm, setSearchTerm] = useState('');
@@ -132,6 +136,29 @@ export const ClientsView: React.FC = () => {
     return orders.filter(o => o.customerId === clientId);
   };
 
+  // #6 Statut VIP : >= 3 achats valides OU >= 100 000 F cumulés
+  const isVipClient = (clientId: string): boolean => {
+    const validated = getClientOrders(clientId).filter(o => o.status === 'VALIDATED');
+    if (validated.length >= 3) return true;
+    const total = validated.reduce((s, o) => s + o.totalRetail, 0);
+    return total >= 100000;
+  };
+
+  // #4 Produits à recommander après un Clean 9 : Vital5 si pas déjà pris récemment
+  const getRecommendedProductIds = (clientId: string): string[] => {
+    const validated = getClientOrders(clientId)
+      .filter(o => o.status === 'VALIDATED')
+      .sort((a, b) => (b.validatedAt || b.date).localeCompare(a.validatedAt || a.date));
+    const tookClean9 = validated.some(o => o.items.some(i => /clean ?9/i.test(i.productName)));
+    if (!tookClean9) return [];
+    const tookVital5Recently = validated.slice(0, 3).some(o => o.items.some(i => /vital ?5/i.test(i.productName)));
+    if (!tookVital5Recently) {
+      const vital5 = products.find(pr => /vital ?5/i.test(pr.name));
+      if (vital5) return [vital5.id];
+    }
+    return [];
+  };
+
   const getClientTotalSpendAndCC = (clientId: string) => {
     const clientOrders = getClientOrders(clientId).filter(o => o.status === 'VALIDATED');
     const spent = clientOrders.reduce((sum, o) => sum + o.totalRetail, 0);
@@ -164,7 +191,10 @@ export const ClientsView: React.FC = () => {
     .filter(r => r.count > 0)
     .sort((a, b) => b.spent - a.spent);
 
-  const isVip = (clientId: string) => vipRanking.findIndex(r => r.client.id === clientId) < 3 && vipRanking.some(r => r.client.id === clientId);
+  const isVip = (clientId: string) =>
+    // Top 3 du mois OU VIP vie entière (#6 : >= 3 achats ou >= 100k F cumulés)
+    (vipRanking.findIndex(r => r.client.id === clientId) < 3 && vipRanking.some(r => r.client.id === clientId)) ||
+    isVipClient(clientId);
 
   const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
   const periodLabel = `${MONTHS_FR[selectedMonth - 1]} ${selectedYear}`;
@@ -546,7 +576,7 @@ export const ClientsView: React.FC = () => {
           setIsDetailOpen(false);
           setShowDeleteConfirm(false);
         }}
-        title={selectedClient?.name || 'Fiche Client'}
+        title={(isVipClient(selectedClient?.id || '') ? '🏆 ' : '') + (selectedClient?.name || 'Fiche Client')}
       >
         {selectedClient && (
           <div className="space-y-6">
@@ -572,12 +602,17 @@ export const ClientsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  // Pont vers OrdersView : le modal s'ouvrira avec ce client pré-sélectionné
+                  // Pont vers OrdersView : client pré-sélectionné + produits recommandés
                   sessionStorage.setItem('fcf-new-order-customer', selectedClient.id);
+                  const recos = getRecommendedProductIds(selectedClient.id);
+                  if (recos.length > 0) {
+                    sessionStorage.setItem('fcf-new-order-products', JSON.stringify(recos));
+                  }
                   setIsDetailOpen(false);
                   navigate('/orders');
                 }}
                 className="flex-1 py-3 px-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                title={getRecommendedProductIds(selectedClient.id).length > 0 ? 'Avec recommandation pré-chargée' : 'Nouvelle commande pour ce client'}
               >
                 <ShoppingBag className="w-4 h-4" />
                 Passer commande
@@ -761,7 +796,13 @@ export const ClientsView: React.FC = () => {
                           { key: 'J+10', label: 'Réachat', dayOffset: 10 },
                         ];
                         return (
-                          <div key={o.id} className="relative">
+                          <motion.div
+                            key={o.id}
+                            className="relative"
+                            initial={{ opacity: 0, x: -12 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: 0.05 }}
+                          >
                             {/* Point sur la timeline */}
                             <div className={`absolute -left-6 top-1 w-[19px] h-[19px] rounded-full border-2 border-white dark:border-[#1f1f22] ${
                               fu.milestone === 'DONE' ? 'bg-slate-300 dark:bg-slate-600' : 'bg-amber-500'
@@ -808,12 +849,89 @@ export const ClientsView: React.FC = () => {
                                   💡 {fu.title} : {fu.message}
                                 </p>
                               )}
+
+                              {/* #1 Notation satisfaction au jalon J+7 */}
+                              {fu.daysSince >= 5 && fu.daysSince <= 14 && (
+                                <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">
+                                    Satisfaction client {o.satisfactionLevel ? '·' : '(à noter)'}
+                                  </p>
+                                  <div className="flex items-center gap-1.5">
+                                    {([
+                                      { level: 'LOW', emoji: '😞', label: 'Déçu', on: 'bg-rose-100 text-rose-600 ring-rose-300' },
+                                      { level: 'MID', emoji: '😐', label: 'Moyen', on: 'bg-amber-100 text-amber-600 ring-amber-300' },
+                                      { level: 'HIGH', emoji: '😍', label: 'Ravi', on: 'bg-emerald-100 text-emerald-600 ring-emerald-300' },
+                                    ] as const).map(opt => {
+                                      const selected = o.satisfactionLevel === opt.level;
+                                      return (
+                                        <button
+                                          key={opt.level}
+                                          onClick={async () => {
+                                            await updateOrder({
+                                              ...o,
+                                              satisfactionLevel: selected ? undefined : opt.level,
+                                              satisfactionDate: new Date().toISOString(),
+                                            });
+                                          }}
+                                          className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer active:scale-95 ring-1 ${
+                                            selected ? `${opt.on} font-black` : 'bg-slate-50 dark:bg-slate-800/50 text-slate-400 ring-transparent hover:ring-slate-200'
+                                          }`}
+                                          title={`Noter : ${opt.label}`}
+                                        >
+                                          {opt.emoji} {opt.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       })}
                     </div>
                   )}
+
+                  {/* #3 Stats réachat & satisfaction (global, calculé sur tous les clients) */}
+                  {(() => {
+                    const cs = computeConversionStats(orders, customers);
+                    if (cs.totalValidated < 2) return null;
+                    return (
+                      <div className="bg-slate-900 dark:bg-[#161619] rounded-2xl p-4 mt-2">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                          📈 Performance réseau (tous clients)
+                        </h4>
+                        <div className="grid grid-cols-2 gap-2.5 text-center">
+                          <div className="bg-white/5 rounded-xl py-2.5">
+                            <p className="text-lg font-black text-emerald-400">{cs.conversionRate}%</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Taux de réachat</p>
+                          </div>
+                          <div className="bg-white/5 rounded-xl py-2.5">
+                            <p className="text-lg font-black text-amber-400">{cs.clean9ToVital5Rate}%</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Clean 9 → Vital5</p>
+                          </div>
+                          <div className="bg-white/5 rounded-xl py-2.5">
+                            <p className="text-sm font-black text-white">{cs.repeatCustomers}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Clients fidèles</p>
+                          </div>
+                          <div className="bg-white/5 rounded-xl py-2.5">
+                            <p className="text-sm font-black text-white">{cs.avgOrdersPerCustomer}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Achats / client</p>
+                          </div>
+                        </div>
+                        {(cs.satisfactionBreakdown.LOW + cs.satisfactionBreakdown.MID + cs.satisfactionBreakdown.HIGH) > 0 && (
+                          <div className="mt-3 pt-3 border-t border-white/10">
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Satisfactions notées</p>
+                            <div className="flex gap-2">
+                              <span className="text-[10px] font-bold bg-rose-500/15 text-rose-300 px-2 py-1 rounded-lg">😞 {cs.satisfactionBreakdown.LOW}</span>
+                              <span className="text-[10px] font-bold bg-amber-500/15 text-amber-300 px-2 py-1 rounded-lg">😐 {cs.satisfactionBreakdown.MID}</span>
+                              <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-300 px-2 py-1 rounded-lg">😍 {cs.satisfactionBreakdown.HIGH}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}

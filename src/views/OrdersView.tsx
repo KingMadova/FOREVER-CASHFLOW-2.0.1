@@ -11,7 +11,9 @@ import {
   ShoppingBag, 
   Plus, 
   Trash2, 
-  Printer, 
+  Printer,
+  Share2,
+  Info, 
   UserCheck, 
   FileText, 
   Layers, 
@@ -115,8 +117,8 @@ export const OrdersView: React.FC = () => {
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [isProductSuggestionsOpen, setIsProductSuggestionsOpen] = useState(false);
 
-  // Pont depuis la fiche client : "Passer commande" pré-sélectionne le client
-  // et ouvre directement le modal de création.
+  // Pont depuis la fiche client/prospect : "Passer commande" pré-sélectionne le client,
+  // peut pré-charger des produits (recommandation) et ouvre le modal.
   useEffect(() => {
     const presetId = sessionStorage.getItem('fcf-new-order-customer');
     if (!presetId) return;
@@ -126,6 +128,19 @@ export const OrdersView: React.FC = () => {
       setOrderCustomer(cust.id);
       setCustomerSearchQuery(cust.name);
     }
+    // Produits recommandés pré-chargés (ex: Vital5 après un Clean 9)
+    try {
+      const presetProductsRaw = sessionStorage.getItem('fcf-new-order-products');
+      if (presetProductsRaw) {
+        sessionStorage.removeItem('fcf-new-order-products');
+        const ids: string[] = JSON.parse(presetProductsRaw);
+        const preloaded = ids
+          .map(id => products.find(pr => pr.id === id))
+          .filter((pr): pr is Product => !!pr)
+          .map(pr => ({ product: pr, quantity: 1 }));
+        if (preloaded.length > 0) setInvoiceItems(preloaded);
+      }
+    } catch { /* ignore */ }
     setIsNewOrderOpen(true);
   }, []);
 
@@ -341,6 +356,42 @@ export const OrdersView: React.FC = () => {
 
   const handlePrint = async () => {
     await printCanvas('invoice_printable_canvas');
+  };
+
+  // #5 Partager la facture au client (Web Share, fallback WhatsApp)
+  const handleShareInvoice = async () => {
+    if (!selectedOrder) return;
+    const cust = customers.find(c => c.id === selectedOrder.customerId);
+    const ref = selectedOrder.refCommande || selectedOrder.id;
+    const lines = selectedOrder.items
+      .map(i => `• ${i.quantity}× ${i.productName} — ${(i.unitPrice * i.quantity).toLocaleString()} F`)
+      .join('\n');
+    const paidLine = selectedOrder.amountPaid != null && selectedOrder.amountPaid !== selectedOrder.totalRetail
+      ? `Montant réglé : ${selectedOrder.amountPaid.toLocaleString()} F\n`
+      : '';
+    const text =
+      `🧾 *${profile.companyName || profile.name}* — Facture ${ref}\n` +
+      `Client : ${selectedOrder.customerName}\n` +
+      `${lines}\n` +
+      `*Total : ${selectedOrder.totalRetail.toLocaleString()} F*\n` +
+      paidLine +
+      `Émise le ${selectedOrder.date}` +
+      (selectedOrder.status === 'VALIDATED' ? ` · Payée le ${selectedOrder.validatedAt ? selectedOrder.validatedAt.split('T')[0] : selectedOrder.date}\n` : '\n') +
+      `\nMerci pour ta confiance 🙏 ${profile.companyPhone ? `— ${profile.companyPhone}` : ''}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `Facture ${ref}`, text });
+        return;
+      }
+      // Fallback : ouvrir WhatsApp avec le texte prérempli
+      let phone = (cust?.phone || '').replace(/[^0-9]/g, '');
+      if (phone.startsWith('00')) phone = phone.substring(2);
+      if (phone.length === 8 || (phone.length === 9 && /^[456]/.test(phone))) phone = '242' + phone.replace(/^[456]/, '');
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+    } catch (err) {
+      console.warn('[share] annulé ou impossible:', err);
+    }
   };
 
     const handleExportOrdersCSV = () => {
@@ -1234,6 +1285,12 @@ export const OrdersView: React.FC = () => {
               )}
             </div>
 
+            {/* #9 Bandeau aperçu : rappelle que la facture s'imprime en blanc */}
+            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/60 rounded-2xl px-3 py-2 text-[10px] text-slate-500 dark:text-slate-400 print:hidden">
+              <Info className="w-3.5 h-3.5 shrink-0" />
+              Aperçu de la facture — elle sera imprimée / partagée sur fond blanc, avec les coordonnées et dates officielles.
+            </div>
+
             {/* Printable Frame Area (Professionally Styled for PDF/Print) */}
             <div 
               className="border border-slate-200 rounded-lg p-10 bg-white text-slate-900 shadow-sm print:shadow-none print:border-none print:p-0 print:m-0 mx-auto" 
@@ -1474,6 +1531,17 @@ export const OrdersView: React.FC = () => {
                   >
                     <Printer className="w-4 h-4" />
                     Imprimer / PDF
+                  </button>
+                  <button
+                    onClick={handleShareInvoice}
+                    className={`p-3 rounded-2xl font-black active:scale-95 transition-all cursor-pointer flex items-center justify-center ${
+                      selectedOrder.status === 'VALIDATED'
+                        ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                    }`}
+                    title={selectedOrder.status === 'VALIDATED' ? 'Envoyer la facture au client (WhatsApp)' : "Aperçu texte — valide la commande pour l'envoi officiel"}
+                  >
+                    <Share2 className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => setShowDeleteConfirm(true)}

@@ -10,6 +10,10 @@ import {
   type RelanceInfo
 } from '../../lib/relanceService';
 import {
+  getActivePurchaseFollowUps,
+  purchaseAnchorDate
+} from '../../lib/postPurchaseService';
+import {
   canNotifyNatively,
   getNativePermission,
   wasPromptDismissed,
@@ -172,8 +176,12 @@ export const NotificationCenter: React.FC = () => {
   // 3. RELANCES PROSPECTS (règles J+N par étape du pipeline)
   const activeRelances = getActiveRelances(customers);
 
+  // 4. SUIVIS POST-ACHAT (J+3 démarrage / J+7 satisfaction / J+10 réachat)
+  const purchaseFollowUps = getActivePurchaseFollowUps(orders, customers);
+  const duePurchaseFollowUps = purchaseFollowUps.filter(f => f.urgency === 'today' || f.urgency === 'due');
+
   // Total active alerts count
-  const alertsCount = followUpAlarms.length + deliveryAlarms.length + pendingOrders.length + activeRelances.length;
+  const alertsCount = followUpAlarms.length + deliveryAlarms.length + pendingOrders.length + activeRelances.length + duePurchaseFollowUps.length;
 
   // ===== NOTIFICATIONS NATIVES OS =====
   const [nativePerm, setNativePerm] = useState(getNativePermission());
@@ -433,6 +441,7 @@ export const NotificationCenter: React.FC = () => {
               {[
                 { key: 'all', label: 'Toutes', count: alertsCount },
                 { key: 'relances', label: 'Relances', count: activeRelances.length },
+                { key: 'purchases', label: 'Achats', count: duePurchaseFollowUps.length },
                 { key: 'followups', label: 'Suivis', count: followUpAlarms.length },
                 { key: 'deadlines', label: 'Délais', count: deliveryAlarms.length + pendingOrders.length },
               ].map(tab => (
@@ -499,6 +508,7 @@ export const NotificationCenter: React.FC = () => {
               {/* If empty tab state */}
               {((activeTab === 'all' && alertsCount === 0) ||
                 (activeTab === 'relances' && activeRelances.length === 0) ||
+                (activeTab === 'purchases' && duePurchaseFollowUps.length === 0) ||
                 (activeTab === 'followups' && followUpAlarms.length === 0) ||
                 (activeTab === 'deadlines' && (deliveryAlarms.length + pendingOrders.length) === 0)) && (
                 <div className="p-8 text-center flex flex-col items-center justify-center gap-2 select-none min-h-[14rem]">
@@ -511,6 +521,8 @@ export const NotificationCenter: React.FC = () => {
                   <p className="text-[10px] text-slate-500 leading-relaxed max-w-[240px]">
                     {activeTab === 'relances'
                       ? "Aucun prospect à relancer — ton pipeline est chaud et frais. 🔥"
+                      : activeTab === 'purchases'
+                        ? "Aucun suivi post-achat dû — tes clients sont accompagnés comme il se doit. ✨"
                       : activeTab === 'followups'
                         ? "Tous vos rendez-vous clients et appels de prospection sont à jour."
                         : activeTab === 'deadlines'
@@ -603,6 +615,50 @@ export const NotificationCenter: React.FC = () => {
                             <ChevronRight className="w-3 h-3" />
                           </button>
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* A-ter. SUIVIS POST-ACHAT (J+3 / J+7 / J+10) */}
+              {(activeTab === 'all' || activeTab === 'purchases') && duePurchaseFollowUps.map(fu => {
+                const cust = fu.customer;
+                const phone = cust?.phone || '';
+                const isDueNow = fu.urgency === 'due';
+                return (
+                  <div
+                    key={`notify_purchase_${fu.order.id}`}
+                    className={`p-3.5 hover:bg-slate-50/70 dark:hover:bg-[#25252a]/40 transition-colors relative border-l-4 ${
+                      isDueNow ? 'border-l-emerald-500 bg-emerald-500/5' : 'border-l-violet-400 bg-violet-500/5'
+                    }`}
+                    id={`notify_purchase_row_${fu.order.id}`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-white text-sm shadow-sm ${
+                        isDueNow
+                          ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30'
+                          : 'bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-500/30'
+                      }`}>
+                        🛒
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md ${
+                            isDueNow ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
+                          }`}>
+                            {fu.milestone} · {fu.title}
+                          </span>
+                          <span className="text-[9px] font-bold text-slate-400">
+                            {cust?.name || fu.order.customerName}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-snug">
+                          {fu.message}
+                        </p>
+                        <p className="text-[9px] text-slate-400 mt-0.5">
+                          {fu.order.refCommande || fu.order.id} · achat le {purchaseAnchorDate(fu.order)}
+                        </p>
                       </div>
                     </div>
                   </div>

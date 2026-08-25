@@ -105,6 +105,8 @@ export interface Order {
   satisfaction?: 1 | 2 | 3 | 4 | 5;
   satisfactionNote?: string;
   satisfactionDate?: string;
+  satisfactionLevel?: 'LOW' | 'MID' | 'HIGH'; // 😞😐😍 noté au suivi J+7
+  convertedToOrderId?: string;                // #3 réachat : lien vers la commande suivante
   recommandation: boolean;
   recommandationClientId?: string;
   distributeurId: string;       // Par défaut = ton userId
