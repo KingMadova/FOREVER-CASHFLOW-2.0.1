@@ -5,6 +5,7 @@ import { useOrdersStore } from '../store/slices/ordersSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
 import { Customer, CustomerStatus, Order } from '../types';
+import { computePurchaseFollowUp, purchaseAnchorDate } from '../lib/postPurchaseService';
 import { 
   Search, 
   UserPlus, 
@@ -59,7 +60,7 @@ export const ClientsView: React.FC = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
-  const [activeTab, setActiveTab] = useState<'INFO' | 'ORDERS' | 'NOTES'>('INFO');
+  const [activeTab, setActiveTab] = useState<'INFO' | 'ORDERS' | 'HISTORY' | 'NOTES'>('INFO');
 
   // Période sélectionnée pour le rapport VIP
   // Recalculer la date courante dynamiquement pour détecter le changement de mois
@@ -585,7 +586,7 @@ export const ClientsView: React.FC = () => {
 
             {/* Tap Navigation Switches inside Drawer */}
             <div className="flex border-b border-slate-100 dark:border-slate-800 pb-2 gap-4">
-              {(['INFO', 'ORDERS', 'NOTES'] as const).map(tab => (
+              {(['INFO', 'ORDERS', 'HISTORY', 'NOTES'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -595,7 +596,7 @@ export const ClientsView: React.FC = () => {
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  {tab === 'INFO' ? 'Informations' : tab === 'ORDERS' ? 'Commandes' : 'Notes & Suivi'}
+                  {tab === 'INFO' ? 'Informations' : tab === 'ORDERS' ? 'Commandes' : tab === 'HISTORY' ? 'Historique' : 'Notes & Suivi'}
                 </button>
               ))}
             </div>
@@ -715,6 +716,107 @@ export const ClientsView: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* TAB CONTENT: HISTORY - historique achats + suivi post-achat */}
+            {activeTab === 'HISTORY' && selectedClient && (() => {
+              const validated = getClientOrders(selectedClient.id)
+                .filter(o => o.status === 'VALIDATED')
+                .sort((a, b) => (b.validatedAt || b.date).localeCompare(a.validatedAt || a.date));
+              const totalSpent = validated.reduce((s, o) => s + o.totalRetail, 0);
+              const totalMargin = validated.reduce((s, o) => s + o.totalMargin, 0);
+              return (
+                <div className="space-y-4">
+                  {/* Synthèse vie client */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-3 text-white shadow-sm">
+                      <p className="text-[8px] font-black uppercase tracking-wider opacity-80">Achats</p>
+                      <p className="text-lg font-black leading-tight">{validated.length}</p>
+                    </div>
+                    <div className="bg-slate-900 dark:bg-[#1a1a1d] rounded-2xl p-3 text-white">
+                      <p className="text-[8px] font-black uppercase tracking-wider text-slate-400">CA Total</p>
+                      <p className="text-base font-black text-amber-400">{totalSpent.toLocaleString()} F</p>
+                    </div>
+                    <div className="bg-emerald-600 rounded-2xl p-3 text-white shadow-sm">
+                      <p className="text-[8px] font-black uppercase tracking-wider opacity-75">Ma marge</p>
+                      <p className="text-base font-black">{totalMargin.toLocaleString()} F</p>
+                    </div>
+                  </div>
+
+                  {validated.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-xs text-slate-400">Aucun achat validé pour l'instant.</p>
+                      <p className="text-[10px] text-slate-400/70 mt-1">L'historique et le suivi post-achat s'afficheront après la première vente.</p>
+                    </div>
+                  ) : (
+                    /* Timeline verticale : chaque achat avec son suivi J+N */
+                    <div className="relative pl-6 space-y-5">
+                      <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-amber-400 via-slate-300 to-transparent dark:via-slate-700" />
+                      {validated.map(o => {
+                        const fu = computePurchaseFollowUp(o, customers);
+                        const anchor = purchaseAnchorDate(o);
+                        const milestones = [
+                          { key: 'J0', label: 'Achat', dayOffset: 0, done: true },
+                          { key: 'J+3', label: 'Démarrage produit', dayOffset: 3 },
+                          { key: 'J+7', label: 'Satisfaction', dayOffset: 7 },
+                          { key: 'J+10', label: 'Réachat', dayOffset: 10 },
+                        ];
+                        return (
+                          <div key={o.id} className="relative">
+                            {/* Point sur la timeline */}
+                            <div className={`absolute -left-6 top-1 w-[19px] h-[19px] rounded-full border-2 border-white dark:border-[#1f1f22] ${
+                              fu.milestone === 'DONE' ? 'bg-slate-300 dark:bg-slate-600' : 'bg-amber-500'
+                            }`} />
+                            <div className="border border-slate-200/60 dark:border-slate-800 rounded-2xl p-3 bg-white dark:bg-[#232326]">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <span className="text-[10px] font-bold text-slate-500">
+                                  🧾 {o.refCommande || '—'} · {anchor}
+                                </span>
+                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+                                  {fu.daysSince <= 14 ? `J+${fu.daysSince}` : 'clôturé'}
+                                </span>
+                              </div>
+                              <p className="text-xs font-black text-slate-900 dark:text-slate-100 mt-1">
+                                {o.items.length} produit(s) · <span className="text-amber-600 dark:text-amber-400">{o.totalRetail.toLocaleString()} F</span>
+                              </p>
+
+                              {/* Jalons de suivi */}
+                              <div className="grid grid-cols-4 gap-1.5 mt-2.5">
+                                {milestones.map(m => {
+                                  const reached = fu.daysSince >= m.dayOffset;
+                                  const isCurrent = !reached && m.dayOffset - fu.daysSince === 1;
+                                  const isActiveWindow = fu.daysSince >= m.dayOffset && fu.daysSince <= m.dayOffset + 3;
+                                  const color =
+                                    m.key === 'J0' || reached
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-900'
+                                      : isCurrent
+                                        ? 'bg-amber-500 text-white border-amber-500 animate-pulse'
+                                        : isActiveWindow
+                                          ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-200/60 dark:border-amber-900'
+                                          : 'bg-slate-50 dark:bg-slate-800/50 text-slate-400 border-slate-200/60 dark:border-slate-700';
+                                  return (
+                                    <div key={m.key} className={`rounded-lg border px-1 py-1.5 text-center ${color}`}>
+                                      <p className="text-[9px] font-black">{m.key}</p>
+                                      <p className="text-[7px] font-bold leading-tight truncate">{m.label}</p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Conseil du moment */}
+                              {fu.urgency !== 'done' && (
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2 italic leading-snug">
+                                  💡 {fu.title} : {fu.message}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* TAB CONTENT: NOTES */}
             {activeTab === 'NOTES' && (

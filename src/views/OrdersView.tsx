@@ -1272,12 +1272,21 @@ export const OrdersView: React.FC = () => {
                   <h4 className="font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1 mb-2">Facturé à</h4>
                   <div className="space-y-0.5 text-slate-700">
                     <p className="font-bold text-slate-900">{selectedOrder.customerName}</p>
-                    <p className="italic text-slate-500">
-                      Achat validé le {selectedOrder.validatedAt || selectedOrder.date}
-                      {selectedOrder.validatedAt && selectedOrder.validatedAt !== selectedOrder.date && (
-                        <span className="text-xs text-slate-400 ml-1">(créé le {selectedOrder.date})</span>
-                      )}
-                    </p>
+                    {(() => {
+                      const cust = customers.find(c => c.id === selectedOrder.customerId);
+                      return (
+                        <>
+                          {(cust?.address || cust?.ville) && (
+                            <p>{[cust?.address, cust?.ville].filter(Boolean).join(', ')}</p>
+                          )}
+                          {cust?.phone && <p className="font-mono text-[10px]">{cust.phone}</p>}
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div className="mt-2 pt-1.5 border-t border-slate-100 space-y-0.5">
+                    <p className="flex justify-between"><span className="font-bold text-slate-400 uppercase text-[9px] tracking-wider">Émise le</span><span className="text-slate-700">{selectedOrder.date}</span></p>
+                    <p className="flex justify-between"><span className="font-bold text-slate-400 uppercase text-[9px] tracking-wider">Payée le</span><span className={`font-bold ${selectedOrder.status === 'VALIDATED' ? 'text-emerald-600' : 'text-slate-400'}`}>{selectedOrder.status === 'VALIDATED' ? (selectedOrder.validatedAt ? selectedOrder.validatedAt.split('T')[0] : selectedOrder.date) : '— en attente —'}</span></p>
                   </div>
                 </div>
               </div>
