@@ -53,7 +53,7 @@ export function computeConversionStats(orders: Order[], customers: Customer[]): 
       const later = list.slice(i + 1);
       if (later.length === 0) continue;          // dernier achat : pas encore d'opportunité mesurable
       opportunityCount++;
-      if (later.length > 0) convertedCount++;    // il y a un réachat après
+      convertedCount++;                          // il y a au moins un réachat après
 
       const o = list[i];
       if (isClean9(o)) {

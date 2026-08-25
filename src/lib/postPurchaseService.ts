@@ -102,7 +102,6 @@ export function computePurchaseFollowUp(order: Order, customers: Customer[]): Pu
     };
   }
 
-  const remainingDays = current.offset - daysSince;
   return {
     order,
     customer,

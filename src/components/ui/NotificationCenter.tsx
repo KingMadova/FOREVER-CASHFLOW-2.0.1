@@ -222,12 +222,15 @@ export const NotificationCenter: React.FC = () => {
   };
 
   // Envoi natif anti-spam : les relances EN RETARD partent en notification OS,
-  // max une par prospect et par jour.
+  // max une par prospect et par jour. Dépend d'un ref (pas du tableau) pour ne
+  // tourner qu'une fois par session quand les données sont prêtes.
   const notifiedRef = useRef(false);
+  const activeRelancesRef = useRef(activeRelances);
+  activeRelancesRef.current = activeRelances;
   useEffect(() => {
     if (!canNotifyNatively() || !isAuthenticated) return;
     if (notifiedRef.current) return; // une seule passe par session
-    const lateOnes = activeRelances.filter(r => r.urgency === 'late' && r.customer.status !== ('CLIENT' as any));
+    const lateOnes = activeRelancesRef.current.filter(r => r.urgency === 'late' && r.customer.status !== ('CLIENT' as any));
     if (lateOnes.length === 0) return;
     notifiedRef.current = true;
 
@@ -240,8 +243,9 @@ export const NotificationCenter: React.FC = () => {
           {
             body: `${r.label} · ${stageLabel(r.customer.pipelineStage)}. Tape pour ouvrir la fiche.`,
             tag: key,
+            data: { url: '/prospects' },
             requireInteraction: false,
-          },
+          } as NotificationOptions & { data?: { url?: string } },
         );
         if (sent) markNotifiedToday(key);
       }
@@ -249,10 +253,31 @@ export const NotificationCenter: React.FC = () => {
         await showNativeNotification('🔔 Relances en attente', {
           body: `${lateOnes.length - 3} autres prospects attendent une relance.`,
           tag: 'fcf-relance-more',
+          data: { url: '/prospects' },
         });
       }
+
+      // Parité : suivis post-achat dus aujourd'hui (J+3/J+7/J+10) -> 1 notif groupée
+      try {
+        const { getActivePurchaseFollowUps } = await import('../../lib/postPurchaseService');
+        const duePurchases = getActivePurchaseFollowUps(
+          useOrdersStore.getState().orders,
+          customers,
+        ).filter(f => f.urgency === 'today' || f.urgency === 'due');
+        if (duePurchases.length > 0) {
+          const names = duePurchases.slice(0, 2).map(f => f.order.customerName).join(', ');
+          await showNativeNotification('🛒 Suivi client à faire', {
+            body: `${duePurchases.length} achat(s) à suivre aujourd'hui : ${names}${duePurchases.length > 2 ? '…' : ''}`,
+            tag: 'fcf-purchase-followup',
+            data: { url: '/clients' },
+          });
+        }
+      } catch (err) {
+        console.warn('[nativeNotif] suivi achats:', err);
+      }
     })();
-  }, [activeRelances]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Clic sur notification -> focus app (géré via focus event du SW)
   useEffect(() => {

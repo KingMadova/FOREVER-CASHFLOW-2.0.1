@@ -867,9 +867,12 @@ export const ClientsView: React.FC = () => {
                                         <button
                                           key={opt.level}
                                           onClick={async () => {
+                                            // Note 1-5 et niveau LOW/MID/HIGH restent synchronisés
+                                            const levelToStars: Record<string, 1 | 2 | 3 | 4 | 5> = { LOW: 1, MID: 3, HIGH: 5 };
                                             await updateOrder({
                                               ...o,
                                               satisfactionLevel: selected ? undefined : opt.level,
+                                              satisfaction: selected ? undefined : levelToStars[opt.level],
                                               satisfactionDate: new Date().toISOString(),
                                             });
                                           }}

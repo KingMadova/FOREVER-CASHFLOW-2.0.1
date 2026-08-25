@@ -88,9 +88,10 @@ export function getActiveRelances(customers: Customer[]): RelanceInfo[] {
     .map(computeRelance)
     .filter((r): r is RelanceInfo => r !== null)
     .sort((a, b) => {
-      const order: Record<RelanceUrgency, number> = { late: 0, due: 1, today: 2, ok: 3 };
-      if (order[a.urgency] !== order[b.urgency]) return order[a.urgency] - order[b.urgency];
-      return a.daysSinceContact - b.daysSinceContact ? a.customer.lastContactDate.localeCompare(b.customer.lastContactDate) : 0;
+      const rank: Record<RelanceUrgency, number> = { late: 0, due: 1, today: 2, ok: 3 };
+      if (rank[a.urgency] !== rank[b.urgency]) return rank[a.urgency] - rank[b.urgency];
+      // À urgence égale : le contact le plus ancien en premier (ISO dates se comparent lexicalement)
+      return a.customer.lastContactDate.localeCompare(b.customer.lastContactDate);
     });
 }
 
