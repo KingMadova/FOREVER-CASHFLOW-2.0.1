@@ -2,13 +2,28 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAgendaStore } from '../../store/slices/agendaSlice';
 import { useOrdersStore } from '../../store/slices/ordersSlice';
 import { useCustomersStore } from '../../store/slices/customersSlice';
-import { AgendaItem, Order, OrderStatus } from '../../types';
-import { 
-  Bell, 
-  Check, 
-  Clock, 
-  Phone, 
-  MessageCircle, 
+import { useAuthStore } from '../../store/slices/authSlice';
+import { AgendaItem, Order, OrderStatus, Customer } from '../../types';
+import {
+  getActiveRelances,
+  stageLabel,
+  type RelanceInfo
+} from '../../lib/relanceService';
+import {
+  canNotifyNatively,
+  getNativePermission,
+  wasPromptDismissed,
+  markPromptAnswered,
+  showNativeNotification,
+  alreadyNotifiedToday,
+  markNotifiedToday,
+} from '../../lib/nativeNotificationService';
+import {
+  Bell,
+  Check,
+  Clock,
+  Phone,
+  MessageCircle,
   CalendarDays,
   X,
   ChevronRight,
@@ -18,7 +33,9 @@ import {
   AlertTriangle,
   ShoppingBag,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  UserPlus,
+  BellRing
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -30,7 +47,8 @@ export const NotificationCenter: React.FC = () => {
     updateAgendaItem
   } = useAgendaStore();
   const { orders, updateOrder } = useOrdersStore();
-  const { customers } = useCustomersStore();
+  const { customers, updateCustomer } = useCustomersStore();
+  const { isAuthenticated } = useAuthStore();
   
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
@@ -151,8 +169,107 @@ export const NotificationCenter: React.FC = () => {
   // - Pending Orders (representing a transactional deadline that needs FBO validation within e.g. 72h)
   const pendingOrders = orders.filter(order => order.status === OrderStatus.PENDING);
 
+  // 3. RELANCES PROSPECTS (règles J+N par étape du pipeline)
+  const activeRelances = getActiveRelances(customers);
+
   // Total active alerts count
-  const alertsCount = followUpAlarms.length + deliveryAlarms.length + pendingOrders.length;
+  const alertsCount = followUpAlarms.length + deliveryAlarms.length + pendingOrders.length + activeRelances.length;
+
+  // ===== NOTIFICATIONS NATIVES OS =====
+  const [nativePerm, setNativePerm] = useState(getNativePermission());
+  const [showPermCard, setShowPermCard] = useState(false);
+
+  useEffect(() => {
+    // Proposer la carte de permission une seule fois : si support ET pas encore
+    // accordé ET pas déjà refusé in-app.
+    if (getNativePermission() === 'default' && !wasPromptDismissed()) {
+      const t = setTimeout(() => setShowPermCard(true), 4000); // laisse l'app s'ouvrir d'abord
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  const handleEnableNative = async () => {
+    try {
+      const perm = await Notification.requestPermission();
+      setNativePerm(perm as any);
+      markPromptAnswered(perm === 'granted' ? 'granted' : 'denied');
+      setShowPermCard(false);
+      if (perm === 'granted') {
+        playNotificationChime(true);
+        await showNativeNotification('Forever CashFlow', {
+          body: 'Notifications activées — tes relances prospects arriveront ici 🔔',
+          tag: 'fcf-welcome',
+        });
+      }
+    } catch (err) {
+      console.error('[nativeNotif] demande permission:', err);
+      markPromptAnswered('dismissed');
+      setShowPermCard(false);
+    }
+  };
+
+  const handleDeclineNative = () => {
+    markPromptAnswered('dismissed');
+    setShowPermCard(false);
+  };
+
+  // Envoi natif anti-spam : les relances EN RETARD partent en notification OS,
+  // max une par prospect et par jour.
+  const notifiedRef = useRef(false);
+  useEffect(() => {
+    if (!canNotifyNatively() || !isAuthenticated) return;
+    if (notifiedRef.current) return; // une seule passe par session
+    const lateOnes = activeRelances.filter(r => r.urgency === 'late' && r.customer.status !== ('CLIENT' as any));
+    if (lateOnes.length === 0) return;
+    notifiedRef.current = true;
+
+    (async () => {
+      for (const r of lateOnes.slice(0, 3)) { // max 3 notifs d'un coup
+        const key = `relance_${r.customer.id}`;
+        if (alreadyNotifiedToday(key)) continue;
+        const sent = await showNativeNotification(
+          `🔔 Relance : ${r.customer.name}`,
+          {
+            body: `${r.label} · ${stageLabel(r.customer.pipelineStage)}. Tape pour ouvrir la fiche.`,
+            tag: key,
+            requireInteraction: false,
+          },
+        );
+        if (sent) markNotifiedToday(key);
+      }
+      if (lateOnes.length > 3) {
+        await showNativeNotification('🔔 Relances en attente', {
+          body: `${lateOnes.length - 3} autres prospects attendent une relance.`,
+          tag: 'fcf-relance-more',
+        });
+      }
+    })();
+  }, [activeRelances]);
+
+  // Clic sur notification -> focus app (géré via focus event du SW)
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onFocus = () => { /* l'app reprend le focus quand on tape la notif */ };
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'NOTIF_CLICK') {
+        navigate('/prospects');
+      }
+    });
+    return () => navigator.serviceWorker.removeEventListener('message', onFocus);
+  }, [navigate]);
+
+  // Action "Contacté aujourd'hui" depuis le centre d'alertes
+  const handleMarkContacted = async (relance: RelanceInfo) => {
+    try {
+      await updateCustomer({
+        ...relance.customer,
+        lastContactDate: todayStr,
+      });
+      playNotificationChime(true);
+    } catch (err) {
+      console.error('markContacted failed:', err);
+    }
+  };
 
   // Track initial count to sound chime on increase
   const [prevCount, setPrevCount] = useState(0);
@@ -315,6 +432,7 @@ export const NotificationCenter: React.FC = () => {
             <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex gap-1.5" id="notification_tab_group">
               {[
                 { key: 'all', label: 'Toutes', count: alertsCount },
+                { key: 'relances', label: 'Relances', count: activeRelances.length },
                 { key: 'followups', label: 'Suivis', count: followUpAlarms.length },
                 { key: 'deadlines', label: 'Délais', count: deliveryAlarms.length + pendingOrders.length },
               ].map(tab => (
@@ -333,11 +451,54 @@ export const NotificationCenter: React.FC = () => {
               ))}
             </div>
 
+            {/* 2-bis. CARTE PERMISSION NOTIFICATIONS NATIVES (une seule fois) */}
+            {isOpen && showPermCard && nativePerm === 'default' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="border-b border-slate-100 dark:border-slate-800 overflow-hidden"
+              >
+                <div className="m-3 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950 p-4 relative overflow-hidden">
+                  <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-amber-500/20 blur-xl" />
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/40">
+                      <BellRing className="w-5 h-5 text-slate-950" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-[13px] font-black text-white leading-tight">
+                        Ne rate plus aucune vente
+                      </h4>
+                      <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                        Reçois tes relances prospects directement sur ton téléphone,
+                        même app fermée. Comme une vraie application.
+                      </p>
+                      <div className="flex items-center gap-2 mt-3">
+                        <button
+                          onClick={handleEnableNative}
+                          className="py-2 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-[11px] font-black active:scale-95 transition-all cursor-pointer shadow-lg shadow-amber-500/30"
+                        >
+                          Activer
+                        </button>
+                        <button
+                          onClick={handleDeclineNative}
+                          className="py-2 px-3 text-slate-400 hover:text-slate-200 text-[11px] font-bold active:scale-95 transition-all cursor-pointer"
+                        >
+                          Plus tard
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* 3. DYNAMIC NOTIFICATION ROWS */}
             <div className="max-h-[50vh] sm:max-h-84 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 flex-1" id="notification_dropdown_list">
-              
+
               {/* If empty tab state */}
               {((activeTab === 'all' && alertsCount === 0) ||
+                (activeTab === 'relances' && activeRelances.length === 0) ||
                 (activeTab === 'followups' && followUpAlarms.length === 0) ||
                 (activeTab === 'deadlines' && (deliveryAlarms.length + pendingOrders.length) === 0)) && (
                 <div className="p-8 text-center flex flex-col items-center justify-center gap-2 select-none min-h-[14rem]">
@@ -348,14 +509,105 @@ export const NotificationCenter: React.FC = () => {
                     Aucune alerte en attente !
                   </h4>
                   <p className="text-[10px] text-slate-500 leading-relaxed max-w-[240px]">
-                    {activeTab === 'followups' 
-                      ? "Tous vos rendez-vous clients et appels de prospection sont à jour." 
-                      : activeTab === 'deadlines' 
-                        ? "Aucune commande en suspens ni livraison en retard pour le moment." 
-                        : "Parfait ! Vos suivis d'activité, rendez-vous et commandes sont impeccablement gérés."}
+                    {activeTab === 'relances'
+                      ? "Aucun prospect à relancer — ton pipeline est chaud et frais. 🔥"
+                      : activeTab === 'followups'
+                        ? "Tous vos rendez-vous clients et appels de prospection sont à jour."
+                        : activeTab === 'deadlines'
+                          ? "Aucune commande en suspens ni livraison en retard pour le moment."
+                          : "Parfait ! Vos suivis d'activité, rendez-vous et commandes sont impeccablement gérés."}
                   </p>
                 </div>
               )}
+
+              {/* A-bis. RELANCES PROSPECTS — design premium */}
+              {(activeTab === 'all' || activeTab === 'relances') && activeRelances.map(r => {
+                const isLate = r.urgency === 'late';
+                const isDue = r.urgency === 'due';
+                const phone = r.customer.phone || '';
+                return (
+                  <div
+                    key={`notify_relance_${r.customer.id}`}
+                    className={`p-3.5 hover:bg-slate-50/70 dark:hover:bg-[#25252a]/40 transition-colors relative border-l-4 ${
+                      isLate ? 'border-l-rose-500 bg-rose-500/5' : isDue ? 'border-l-amber-400 bg-amber-500/5' : 'border-l-sky-400'
+                    }`}
+                    id={`notify_relance_row_${r.customer.id}`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      {/* Avatar initiales */}
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-xs ${
+                        isLate
+                          ? 'bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-sm shadow-rose-500/30'
+                          : isDue
+                            ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30'
+                            : 'bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-sm shadow-sky-500/30'
+                      }`}>
+                        {r.customer.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md ${
+                            isLate ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                              : isDue ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
+                          }`}>
+                            {r.label}
+                          </span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                            {stageLabel(r.customer.pipelineStage)}
+                          </span>
+                        </div>
+
+                        <p className="text-[13px] font-bold text-slate-900 dark:text-slate-100 mt-1 truncate">
+                          {r.customer.name}
+                        </p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          Dernier contact : {r.customer.lastContactDate || 'jamais'} · il y a {r.daysSinceContact > 900 ? '?' : r.daysSinceContact} j
+                        </p>
+
+                        {/* Actions rapides */}
+                        <div className="flex items-center gap-1.5 mt-2">
+                          <a
+                            href={`https://wa.me/${(() => {
+                              let c = phone.replace(/[^0-9]/g, '');
+                              if (c.startsWith('00')) c = c.substring(2);
+                              if (c.length === 9 && (c.startsWith('05') || c.startsWith('06'))) return '242' + c.substring(1);
+                              if ((c.length === 9 || c.length === 8)) return '242' + c.replace(/^[456]/, '');
+                              return c;
+                            })()}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => handleMarkContacted(r)}
+                            className="py-1.5 px-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-black flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                            title="Relancer sur WhatsApp (marque contacté)"
+                          >
+                            <MessageCircle className="w-3 h-3" />
+                            WhatsApp
+                          </a>
+                          <a
+                            href={`tel:${phone}`}
+                            onClick={() => handleMarkContacted(r)}
+                            className="py-1.5 px-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-black flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                            title="Appeler (marque contacté)"
+                          >
+                            <Phone className="w-3 h-3" />
+                            Appeler
+                          </a>
+                          <button
+                            onClick={() => navigate('/prospects')}
+                            className="py-1.5 px-2 text-slate-400 hover:text-amber-500 rounded-lg text-[10px] font-bold flex items-center gap-0.5 active:scale-95 transition-all cursor-pointer"
+                            title="Ouvrir le pipeline prospects"
+                          >
+                            Fiche
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
 
               {/* LIST ITEMS */}
 
