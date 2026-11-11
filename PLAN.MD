@@ -284,6 +284,47 @@ Chaque lot doit être réalisé sur une branche de travail dédiée ou une branc
 
 **Objectif :** disposer d'une base vérifiable avant toute modification.
 
+### Résultats du Lot 0 — vérification distante (2026-11-12)
+
+**Statut : PARTIELLEMENT EFFECTUÉ — les vérifications nécessitant un clone et une exécution locale restent bloquées.**
+
+#### Vérifications réalisées sur GitHub
+
+- [x] Dépôt confirmé : `KingMadova/FOREVER-CASHFLOW-2.0.1`.
+- [x] Branche par défaut : `main`.
+- [x] Liste des branches vérifiée : seule la branche `main` est actuellement exposée.
+- [x] Commit de référence : `955745d237cf1c1dc1e0c8553896604d32e85d1e` (`docs: ajouter le plan de refonte UIArc et Yekola Business`).
+- [x] Fichier `PLAN.MD` présent sur `main`.
+- [x] État du déploiement Vercel associé au commit de référence : `success`, description GitHub « Deployment has completed ».
+- [x] Fichiers de configuration, manifeste PWA, règles Firestore, scripts npm et lockfile inspectés à distance.
+
+#### Anomalies et points d'attention découverts
+
+1. **État Git local inconnu :** l'API GitHub ne permet pas de voir les modifications non commitées présentes sur le poste de travail. Aucun état de working tree ne peut donc être certifié.
+2. **Build et TypeScript non exécutés :** aucun environnement de clone/exécution locale n'est disponible dans cette session. Le statut Vercel réussi confirme le déploiement, mais ne remplace pas une exécution indépendante de `npm run build` et `npm run lint`.
+3. **Aucun script de test :** `package.json` expose `dev`, `build`, `preview`, `clean` et `lint`, mais pas de script `test`. Les fichiers de configuration Vitest et Playwright recherchés ne sont pas présents à la racine.
+4. **Le script `lint` n'est pas un linter :** il exécute `tsc --noEmit`, donc une vérification TypeScript.
+5. **Métadonnées du lockfile incohérentes :** `package.json` déclare le paquet `forever-cashflow`, tandis que l'entrée racine de `package-lock.json` déclare `react-example`. À vérifier avec `npm install --package-lock-only` ou `npm ci` dans un clone, sans régénérer le lockfile avant d'avoir établi la référence.
+6. **Dépendance Vite déclarée deux fois :** Vite apparaît dans `dependencies` et `devDependencies`. À nettoyer uniquement après vérification de l'environnement de build et des usages de déploiement.
+7. **Configuration des alias :** Vite et TypeScript déclarent actuellement `@` vers la racine du dépôt (`.` / `./*`). Ne pas les faire pointer automatiquement vers `src` : cela casserait potentiellement les imports existants. Toute évolution doit être précédée d'un inventaire des imports.
+8. **Variables d'environnement à clarifier :** le README demande `API_KEY`, alors que `.env.example` documente `GEMINI_API_KEY` et `APP_URL`. Ne pas afficher ni copier de secrets ; vérifier les noms réellement lus par le code et le fournisseur de déploiement.
+9. **Métadonnées linguistiques et PWA :** `index.html` indique `lang="en"` et un thème `#0f172a`, tandis que le manifeste Vite déclare `theme_color: #f59e0b` et `background_color: #09090b`. À harmoniser pendant la refonte, pas dans ce lot de préparation.
+10. **Automatisation CI :** le répertoire `.github/workflows` n'a pas été trouvé. Le déploiement Vercel est le seul statut distant identifié pour le commit de référence ; aucune suite de tests automatisés n'a été confirmée.
+
+#### Vérifications encore nécessaires sur le poste de travail
+
+- [ ] Confirmer branche, commit et état `git status --short` local.
+- [ ] Vérifier version de Node.js et npm.
+- [ ] Exécuter `npm ci` sans modifier le lockfile.
+- [ ] Exécuter `npm run lint` et conserver la sortie complète.
+- [ ] Exécuter `npm run build` et conserver la sortie complète.
+- [ ] Démarrer l'application et vérifier les parcours critiques.
+- [ ] Capturer les écrans de référence desktop et mobile.
+- [ ] Identifier les variables d'environnement requises sans divulguer leurs valeurs.
+- [ ] Vérifier les fonctions PWA, hors ligne, impression et synchronisation dans le navigateur.
+
+**Décision :** ne pas installer UIArc et ne pas modifier les fichiers applicatifs tant que ces vérifications locales n'ont pas établi une base reproductible. Le Lot 0 ne peut pas être déclaré terminé sur la seule base d'une lecture distante.
+
 - [ ] Confirmer la branche de travail et le commit de référence.
 - [ ] Vérifier l'état Git et les éventuels changements non commités.
 - [ ] Installer les dépendances dans l'environnement prévu.
@@ -499,7 +540,7 @@ Ces largeurs sont des repères de test, pas des limites rigides de conception.
 | Lot | Statut | Notes |
 |---|---|---|
 | Audit statique initial | Effectué | Lecture du code distant ; pas encore de build/test local |
-| Lot 0 — Préparation | À faire | Établir la référence exécutable |
+| Lot 0 — Préparation | Partiellement effectué | État GitHub et configurations inspectés ; build, tests et working tree locaux à vérifier |
 | Lot 1 — Design system | À faire | UIArc, tokens, thèmes, composants |
 | Lot 2 — Shell et navigation | À faire | Desktop et mobile |
 | Lot 3 — Dashboard | À faire | Poste de pilotage |
