@@ -311,6 +311,24 @@ Chaque lot doit être réalisé sur une branche de travail dédiée ou une branc
 9. **Métadonnées linguistiques et PWA :** `index.html` indique `lang="en"` et un thème `#0f172a`, tandis que le manifeste Vite déclare `theme_color: #f59e0b` et `background_color: #09090b`. À harmoniser pendant la refonte, pas dans ce lot de préparation.
 10. **Automatisation CI :** le répertoire `.github/workflows` n'a pas été trouvé. Le déploiement Vercel est le seul statut distant identifié pour le commit de référence ; aucune suite de tests automatisés n'a été confirmée.
 
+#### Résultats transmis depuis le poste Windows — 2026-11-12
+
+- [x] Branche locale rapportée : `main`.
+- [x] `git status --short` ne retourne aucune ligne : working tree propre au moment du relevé.
+- [x] Commit local : `454939158317a7d37acecb741f0314909789ab49`.
+- [x] Node.js : `v22.22.3`.
+- [x] npm : `10.9.8`.
+- [ ] `npm ci` : échec pendant le téléchargement/extraction des paquets.
+  - Le journal montre des archives corrompues depuis `registry.npmmirror.com` (`zlib: unexpected end of file`, `TAR_ENTRY_INVALID checksum failure`).
+  - Erreur finale TLS : `ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC`.
+  - Des opérations de nettoyage ont aussi échoué avec `EPERM`, probablement parce que certains dossiers étaient verrouillés par un processus Windows.
+- [ ] `npm run lint` : non exécuté réellement, car `tsc` n'est pas disponible après l'installation échouée.
+- [ ] `npm run build` : non exécuté réellement, car `vite` n'est pas disponible après l'installation échouée.
+
+**Écart local/distant à noter :** le commit local communiqué est antérieur au commit documentaire qui a créé ce `PLAN.MD`. Le working tree est propre, mais le clone local n'est pas à jour avec la documentation ajoutée sur GitHub. Ne pas faire de pull ou de reset avant d'avoir vérifié les commits distants et les éventuelles conventions locales.
+
+**Diagnostic provisoire :** l'échec observé est d'abord un problème d'accès au registre npm / transfert TLS et d'intégrité du cache, pas une preuve d'une erreur dans le code de l'application. Les avertissements `EPERM` indiquent en plus un possible verrouillage de fichiers sous Windows. Le build et le contrôle TypeScript restent inconnus.
+
 #### Vérifications encore nécessaires sur le poste de travail
 
 - [ ] Confirmer branche, commit et état `git status --short` local.
@@ -540,7 +558,7 @@ Ces largeurs sont des repères de test, pas des limites rigides de conception.
 | Lot | Statut | Notes |
 |---|---|---|
 | Audit statique initial | Effectué | Lecture du code distant ; pas encore de build/test local |
-| Lot 0 — Préparation | Partiellement effectué | État GitHub et configurations inspectés ; build, tests et working tree locaux à vérifier |
+| Lot 0 — Préparation | En cours — installation bloquée | Working tree local propre et versions relevées ; npm ci échoue sur le registre miroir/TLS, build et TypeScript non vérifiés |
 | Lot 1 — Design system | À faire | UIArc, tokens, thèmes, composants |
 | Lot 2 — Shell et navigation | À faire | Desktop et mobile |
 | Lot 3 — Dashboard | À faire | Poste de pilotage |
