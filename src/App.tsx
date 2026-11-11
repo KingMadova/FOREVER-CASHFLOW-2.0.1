@@ -4,6 +4,7 @@ import { StoreProvider } from './store/StoreProvider';
 import { useAuthStore } from './store/slices/authSlice';
 import { Layout } from './components/ui/Layout';
 import { PWAInstallPrompt } from './components/ui/PWAInstallPrompt';
+import { PWAUpdatePrompt } from './components/ui/PWAUpdatePrompt';
 
 // View Imports - lazy loading pour le code-splitting (un chunk par vue)
 const DashboardView = lazy(() => import('./views/DashboardView').then(m => ({ default: m.DashboardView })));
@@ -68,6 +69,7 @@ export default function App() {
           </Routes>
         </Suspense>
         <PWAInstallPrompt />
+        <PWAUpdatePrompt />
       </BrowserRouter>
     </StoreProvider>
   );
