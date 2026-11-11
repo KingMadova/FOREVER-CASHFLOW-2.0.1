@@ -64,7 +64,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
         setStep(1); // Default to start
       }
     }
-  }, [isOpen, profile]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]); // init à l'ouverture uniquement (sinon les snapshots Firestore effacent la saisie)
 
   if (!isOpen) return null;
 

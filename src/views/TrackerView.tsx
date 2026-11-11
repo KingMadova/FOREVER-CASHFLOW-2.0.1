@@ -3,6 +3,7 @@ import { useDailyLogsStore } from '../store/slices/dailyLogsSlice';
 import { useOrdersStore } from '../store/slices/ordersSlice';
 import { useCustomersStore } from '../store/slices/customersSlice';
 import { DailyLog } from '../types';
+import { isCountedOrder, orderAccountingDate } from '../lib/orderStats';
 import {
   CheckCircle, Circle, ChevronLeft, ChevronRight,
   Flame, Target, Users, MessageCircle, Presentation,
@@ -222,8 +223,8 @@ export const TrackerView: React.FC = () => {
       s + (l.oneToOne || 0) + ((l.miniConferences || 0) * 3) + ((l.conferences || 0) * 5) + ((l.boutiques || 0) * 5), 0);
     // CC vendus ce mois (VALIDATED orders)
     const ccSold = orders.filter(o => {
-      if (o.status !== 'VALIDATED') return false;
-      const d = o.validatedAt || o.date;
+      if (!isCountedOrder(o)) return false;
+      const d = orderAccountingDate(o);
       return d >= monthStart && d <= monthEnd;
     }).reduce((s, o) => s + o.totalCC, 0);
     // Partenaires recrutés ce mois (prospects convertis)

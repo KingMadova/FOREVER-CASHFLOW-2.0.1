@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { printCanvas } from '../lib/printHelper';
+import { isCountedOrder } from '../lib/orderStats';
+import { SortSelect } from '../components/ui/SortSelect';
+import { useSortPref, sortList, ORDER_SORT_OPTIONS, orderComparators } from '../lib/sortHelper';
 import { useOrdersStore, createOrderFromCart, calculateLivraisonFrais } from '../store/slices/ordersSlice';
 import { useCustomersStore } from '../store/slices/customersSlice';
 import { useProductsStore } from '../store/slices/productsSlice';
@@ -86,6 +89,7 @@ export const OrdersView: React.FC = () => {
 
   // Filter lists
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatut>('ALL');
+  const [orderSort, setOrderSort] = useSortPref('fcf-sort-orders', ORDER_SORT_OPTIONS, 'date_desc');
 
   // NEW ORDER DRAFT STATE
   const [orderCustomer, setOrderCustomer] = useState('');
@@ -148,6 +152,7 @@ export const OrdersView: React.FC = () => {
     if (statusFilter === 'ALL') return true;
     return o.status === statusFilter;
   });
+  const sortedOrders = sortList(filteredOrders, orderSort, orderComparators);
 
   // Calculate prices based on FBO profile grade & discount logic
   const currentGrade = GRADES.find(g => g.code === profile.grade) || GRADES[1]; // default Animateur (38%)
@@ -430,8 +435,7 @@ export const OrdersView: React.FC = () => {
     ];
     
     // Rows
-    const rows = [...orders]
-      .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    const rows = sortList(orders, orderSort, orderComparators)
       .map(o => {
         const itemsStr = o.items.map(it => `${it.quantity}x ${it.productName}`).join(' | ');
         const statusLabel = o.status === OrderStatus.VALIDATED ? 'VALIDÉE' : o.status === OrderStatus.PENDING ? 'EN ATTENTE' : o.status === OrderStatus.CANCELLED ? 'ANNULÉE' : o.status === OrderStatus.PAYE ? 'PAYÉE' : o.status === OrderStatus.LIVRE ? 'LIVRÉE' : o.status === OrderStatus.RETOUR ? 'RETOUR' : o.status === OrderStatus.REMPLACEMENT ? 'REMPLACEMENT' : o.status;
@@ -532,7 +536,8 @@ export const OrdersView: React.FC = () => {
         <span className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-left">
           Registre des Commandes ({filteredOrders.length})
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <SortSelect options={ORDER_SORT_OPTIONS} value={orderSort} onChange={setOrderSort} id="orders_sort_select" />
           <button
             onClick={handleExportOrdersCSV}
             className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
@@ -559,7 +564,7 @@ export const OrdersView: React.FC = () => {
             <p className="text-sm text-slate-400">Aucune commande enregistrée dans cette catégorie.</p>
           </Card>
         ) : (
-          filteredOrders.map(ord => (
+          sortedOrders.map(ord => (
             <Card
               key={ord.id}
               className="hoverable active:scale-98 flex items-center justify-between gap-3 text-left p-4 rounded-3xl"
@@ -1619,19 +1624,19 @@ export const OrdersView: React.FC = () => {
             <div className="p-3 border border-slate-200 rounded-xl">
               <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Total de Ventes Brut</span>
               <p className="text-base font-bold text-slate-900 mt-1 font-mono">
-                {orders.reduce((sum, o) => sum + (o.status === OrderStatus.VALIDATED ? o.totalRetail : 0), 0).toLocaleString()} F
+                {orders.reduce((sum, o) => sum + (isCountedOrder(o) ? o.totalRetail : 0), 0).toLocaleString()} F
               </p>
             </div>
             <div className="p-3 border border-slate-200 rounded-xl">
               <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Marge Directe Confirmée</span>
               <p className="text-base font-bold text-emerald-600 mt-1 font-mono">
-                +{orders.reduce((sum, o) => sum + (o.status === OrderStatus.VALIDATED ? o.totalMargin : 0), 0).toLocaleString()} F
+                +{orders.reduce((sum, o) => sum + (isCountedOrder(o) ? o.totalMargin : 0), 0).toLocaleString()} F
               </p>
             </div>
             <div className="p-3 border border-slate-200 rounded-xl bg-slate-50">
               <span className="text-[9px] font-black text-slate-500 uppercase block tracking-wider">Volume d'Activité</span>
               <p className="text-base font-bold text-blue-600 mt-1 font-mono">
-                {orders.reduce((sum, o) => sum + (o.status === OrderStatus.VALIDATED ? o.totalCC : 0), 0).toFixed(3)} CC
+                {orders.reduce((sum, o) => sum + (isCountedOrder(o) ? o.totalCC : 0), 0).toFixed(3)} CC
               </p>
             </div>
           </div>
@@ -1655,8 +1660,7 @@ export const OrdersView: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
                 {orders.length > 0 ? (
-                  [...orders]
-                    .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  sortList(orders, orderSort, orderComparators)
                     .map((o, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50">
                         <td className="p-2.5 font-bold uppercase">#{o.id.split('_')[1]?.toUpperCase() || o.id}</td>

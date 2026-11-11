@@ -41,12 +41,18 @@ export const printCanvas = async (canvasId: string, customTitle?: string): Promi
   const dateStr = new Date().toISOString().split('T')[0];
   const docTitle = `FCF_${pageTitle}_${dateStr}`;
 
+  // Le navigateur propose document.title (page parente) comme nom de fichier PDF
+  const originalTitle = document.title;
+  document.title = docTitle;
+  const restoreTitle = () => { document.title = originalTitle; };
+
+  // Iframe hors écran mais avec une VRAIE taille (width/height 0 => PDF vierge)
   const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;opacity:0;';
+  iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:none;pointer-events:none;';
   document.body.appendChild(iframe);
 
   const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-  if (!iframeDoc) { document.body.removeChild(iframe); return; }
+  if (!iframeDoc) { document.body.removeChild(iframe); restoreTitle(); return; }
 
   iframeDoc.open();
   iframeDoc.write(`<!DOCTYPE html>
@@ -87,23 +93,33 @@ export const printCanvas = async (canvasId: string, customTitle?: string): Promi
     .text-blue-600 { color: #2563eb !important; }
   </style>
 </head>
-<body>${clone.outerHTML}</body>
+<body><div id="fcf_print_root">${clone.outerHTML}</div></body>
 </html>`);
   iframeDoc.close();
 
-  await new Promise<void>(resolve => {
-    // Attendre que les fonts soient chargées
-    setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
+  const win = iframe.contentWindow;
+  if (!win) { document.body.removeChild(iframe); restoreTitle(); return; }
 
-      const cleanup = () => {
-        try { document.body.removeChild(iframe); } catch {}
-        window.removeEventListener('afterprint', cleanup);
-      };
-      window.addEventListener('afterprint', cleanup);
-      setTimeout(cleanup, 4000);
+  // Attendre polices + rendu avant d'imprimer
+  try { await (win.document as any).fonts?.ready; } catch {}
+  await new Promise(r => setTimeout(r, 600));
+
+  await new Promise<void>(resolve => {
+    let done = false;
+    const cleanup = () => {
+      if (done) return;
+      done = true;
+      restoreTitle();
+      try { document.body.removeChild(iframe); } catch {}
+      window.removeEventListener('afterprint', cleanup);
+      win.removeEventListener('afterprint', cleanup);
       resolve();
-    }, 800);
+    };
+    window.addEventListener('afterprint', cleanup);
+    win.addEventListener('afterprint', cleanup);
+    win.focus();
+    win.print();
+    // Fallback long (iOS n'émet pas afterprint) — ne pas retirer l'iframe pendant l'aperçu
+    setTimeout(cleanup, 60000);
   });
 };

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { printCanvas } from '../lib/printHelper';
+import { SortSelect } from '../components/ui/SortSelect';
+import { useSortPref, sortList, BUDGET_SORT_OPTIONS, budgetComparators } from '../lib/sortHelper';
 import { useBudgetStore } from '../store/slices/budgetSlice';
 import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
@@ -27,6 +29,7 @@ export const BudgetView: React.FC = () => {
 
   // Dialog controllers
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [budgetSort, setBudgetSort] = useSortPref('fcf-sort-budget', BUDGET_SORT_OPTIONS, 'date_desc');
   const [newType, setNewType] = useState<'REVENUE' | 'EXPENSE'>('EXPENSE');
   const [editingId, setEditingId] = useState<string | null>(null); // #1 mode édition
 
@@ -145,8 +148,7 @@ export const BudgetView: React.FC = () => {
     const headers = ['Date', 'Type (Entree/Sortie)', 'Categorie', 'Description', 'Montant (FCFA)'];
     
     // Rows
-    const rows = [...budget]
-      .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    const rows = sortList(budget, budgetSort, budgetComparators)
       .map(b => [
         b.date,
         b.type === 'REVENUE' ? 'Entree' : 'Sortie',
@@ -297,7 +299,8 @@ export const BudgetView: React.FC = () => {
           <h3 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-left">
             Historique des Mouvements
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <SortSelect options={BUDGET_SORT_OPTIONS} value={budgetSort} onChange={setBudgetSort} id="budget_sort_select" />
             <button
               onClick={handleExportCSV}
               className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
@@ -322,7 +325,7 @@ export const BudgetView: React.FC = () => {
             <p className="text-sm text-slate-400">Aucun flux noté dans la caisse.</p>
           </Card>
         ) : (
-          [...budget].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(b => (
+          sortList(budget, budgetSort, budgetComparators).map(b => (
             <Card
               key={b.id}
               className="hoverable active:scale-98 flex items-center justify-between gap-3 text-left p-4 rounded-3xl"
@@ -610,8 +613,7 @@ export const BudgetView: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
               {budget.length > 0 ? (
-                [...budget]
-                  .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                sortList(budget, budgetSort, budgetComparators)
                   .map((b, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50">
                       <td className="p-2.5 font-sans">{b.date}</td>

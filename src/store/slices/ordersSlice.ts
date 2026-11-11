@@ -6,6 +6,7 @@ import { db } from '../../lib/firebase';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { getPaths, handleFirestoreError, OperationType } from '../../lib/firestoreService';
 import { useBudgetStore } from './budgetSlice';
+import { isCountedStatus, localDateISO } from '../../lib/orderStats';
 
 const PV_PER_CC = 135; // 1 CC = 135 PV (ratio FLP standard)
 
@@ -143,7 +144,13 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
     const paths = getPaths(user.uid);
     try {
       const oldOrd = get().orders.find((o) => o.id === updated.id);
-      
+
+      // Date de validation réelle : posée au passage vers VALIDATED/PAYE (jamais écrasée ensuite)
+      let validatedAt = updated.validatedAt;
+      if (isCountedStatus(updated.status) && !(oldOrd && isCountedStatus(oldOrd.status))) {
+        validatedAt = localDateISO();
+      }
+
       // Recalculer délai livraison si dateReelle changée
       let delaiLivraison = updated.delaiLivraison;
       if (updated.livraison.dateReelle && updated.date) {
@@ -162,6 +169,7 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
         ...updated,
         livraison,
         delaiLivraison,
+        validatedAt,
       };
 
       await updateDoc(doc(db, paths.orders, updated.id), { ...toSave });
@@ -197,7 +205,7 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
             await useBudgetStore.getState().updateBudgetEntry({
               ...entry,
               amount: updated.totalMargin,
-              date: updated.date,
+              date: validatedAt || updated.date,
               description: `Marge sur commande ${updated.refCommande} - ${updated.customerName}`,
               orderId: updated.id,
             });
@@ -207,7 +215,7 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
             type: 'REVENUE',
             category: 'Vente Directe FBO',
             amount: updated.totalMargin,
-            date: updated.date,
+            date: validatedAt || updated.date,
             description: `Marge sur commande ${updated.refCommande} - ${updated.customerName}`,
             createdAt: new Date().toISOString(),
             orderId: updated.id,

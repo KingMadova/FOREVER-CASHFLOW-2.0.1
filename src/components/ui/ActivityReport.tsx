@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { printCanvas } from '../../lib/printHelper';
+import { isCountedOrder, orderAccountingDate } from '../../lib/orderStats';
+import { SortSelect } from './SortSelect';
+import { useSortPref, sortList, ORDER_SORT_OPTIONS, orderComparators } from '../../lib/sortHelper';
 import { useOrdersStore } from '../../store/slices/ordersSlice';
 import { useBudgetStore } from '../../store/slices/budgetSlice';
 import { useAuthStore } from '../../store/slices/authSlice';
@@ -48,6 +51,7 @@ export const ActivityReport: React.FC = () => {
   const [exportYear, setExportYear] = useState<number>(currentYear);
   const [exportMonth, setExportMonth] = useState<number>(currentMonthNum);
   const [exportFormat, setExportFormat] = useState<'pdf' | 'csv' | 'txt'>('pdf');
+  const [reportSort, setReportSort] = useSortPref('fcf-sort-report', ORDER_SORT_OPTIONS, 'date_desc');
 
   // Printable Canvas dataset state (updated dynamically on download/print action)
   const [printData, setPrintData] = useState<{
@@ -116,7 +120,7 @@ export const ActivityReport: React.FC = () => {
 
   // --- MONTHLY DATA AGGREGATION ---
   const activeOrdersThisMonth = orders.filter(o => 
-    o.status === 'VALIDATED' && isDateInMonthAndYear(o.date, selectedMonth, selectedYear)
+    isCountedOrder(o) && isDateInMonthAndYear(orderAccountingDate(o), selectedMonth, selectedYear)
   );
 
   const monthlyRetailSales = activeOrdersThisMonth.reduce((acc, o) => acc + o.totalRetail, 0);
@@ -150,7 +154,7 @@ export const ActivityReport: React.FC = () => {
 
   // --- YEARLY DATA AGGREGATION ---
   const activeOrdersThisYear = orders.filter(o => 
-    o.status === 'VALIDATED' && isDateInYear(o.date, selectedYear)
+    isCountedOrder(o) && isDateInYear(orderAccountingDate(o), selectedYear)
   );
 
   const yearlyRetailSales = activeOrdersThisYear.reduce((acc, o) => acc + o.totalRetail, 0);
@@ -170,7 +174,7 @@ export const ActivityReport: React.FC = () => {
 
   // Monthly table generator for Yearly view
   const monthlySummaryList = months.map(m => {
-    const ordersInM = orders.filter(o => o.status === 'VALIDATED' && isDateInMonthAndYear(o.date, m.value, selectedYear));
+    const ordersInM = orders.filter(o => isCountedOrder(o) && isDateInMonthAndYear(orderAccountingDate(o), m.value, selectedYear));
     const budgetInM = budget.filter(b => isDateInMonthAndYear(b.date, m.value, selectedYear));
 
     const sales = ordersInM.reduce((acc, o) => acc + o.totalRetail, 0);
@@ -240,15 +244,15 @@ Date de génération : ${new Date().toLocaleString()}`;
     const monthLabel = months.find(m => m.value === month)?.label || '';
 
     // Calculate details for specific chosen period
-    const targetOrders = orders.filter(o => {
-      if (o.status !== 'VALIDATED') return false;
-      const d = new Date(o.date);
+    const targetOrders = sortList(orders.filter(o => {
+      if (!isCountedOrder(o)) return false;
+      const d = new Date(orderAccountingDate(o));
       if (isYearly) {
         return d.getFullYear() === year;
       } else {
         return d.getFullYear() === year && (d.getMonth() + 1) === month;
       }
-    });
+    }), reportSort, orderComparators);
 
     const targetBudget = budget.filter(b => {
       const d = new Date(b.date);
@@ -277,8 +281,8 @@ Date de génération : ${new Date().toLocaleString()}`;
     // Generate monthly list for specified Year
     const targetMonthlySummaryList = months.map(m => {
       const ordersInM = orders.filter(o => {
-        if (o.status !== 'VALIDATED') return false;
-        const d = new Date(o.date);
+        if (!isCountedOrder(o)) return false;
+        const d = new Date(orderAccountingDate(o));
         return d.getFullYear() === year && (d.getMonth() + 1) === m.value;
       });
       const budgetInM = budget.filter(b => {
@@ -900,6 +904,12 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
                     </select>
                   </div>
                 </div>
+              </div>
+
+              {/* 1b. Tri des commandes dans le rapport exporté */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black text-amber-500 uppercase tracking-wider block">Trier les commandes par</span>
+                <SortSelect options={ORDER_SORT_OPTIONS} value={reportSort} onChange={setReportSort} id="report_sort_select" />
               </div>
 
               {/* 2. Format options with interactive buttons */}

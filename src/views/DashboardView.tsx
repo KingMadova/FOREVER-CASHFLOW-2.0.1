@@ -36,6 +36,7 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
+import { isCountedOrder, orderAccountingDate } from '../lib/orderStats';
 import { GRADES } from '../types';
 
 export const DashboardView: React.FC = () => {
@@ -89,7 +90,7 @@ export const DashboardView: React.FC = () => {
 
   // Filter items in current month — utilise validatedAt pour les commandes validées
   const thisMonthOrders = orders.filter(o => {
-    const dateStr = o.status === 'VALIDATED' ? (o.validatedAt || o.date) : o.date;
+    const dateStr = orderAccountingDate(o);
     const oDate = new Date(dateStr);
     return oDate.getMonth() === currentMonth && oDate.getFullYear() === currentYear;
   });
@@ -101,25 +102,25 @@ export const DashboardView: React.FC = () => {
   const lastYear = lastMonthDate.getFullYear();
 
   const lastMonthOrders = orders.filter(o => {
-    const dateStr = o.status === 'VALIDATED' ? (o.validatedAt || o.date) : o.date;
+    const dateStr = orderAccountingDate(o);
     const oDate = new Date(dateStr);
     return oDate.getMonth() === lastMonth && oDate.getFullYear() === lastYear;
   });
 
   const totalCCThisMonth = thisMonthOrders
-    .filter(o => o.status === 'VALIDATED')
+    .filter(isCountedOrder)
     .reduce((sum, o) => sum + o.totalCC, 0);
 
   const totalCCLastMonth = lastMonthOrders
-    .filter(o => o.status === 'VALIDATED')
+    .filter(isCountedOrder)
     .reduce((sum, o) => sum + o.totalCC, 0);
 
   const totalMarginThisMonth = thisMonthOrders
-    .filter(o => o.status === 'VALIDATED')
+    .filter(isCountedOrder)
     .reduce((sum, o) => sum + o.totalMargin, 0);
 
   const totalMarginLastMonth = lastMonthOrders
-    .filter(o => o.status === 'VALIDATED')
+    .filter(isCountedOrder)
     .reduce((sum, o) => sum + o.totalMargin, 0);
 
   // Helper to calculate percentage change
@@ -157,8 +158,8 @@ export const DashboardView: React.FC = () => {
   const chartData = last7Days.map(date => {
     const dayLabel = date.toLocaleDateString('fr-FR', { weekday: 'short' });
     const dayOrders = orders.filter(o => {
-      const oDate = new Date(o.date);
-      return oDate.toDateString() === date.toDateString() && o.status === 'VALIDATED';
+      const oDate = new Date(orderAccountingDate(o) + 'T00:00:00');
+      return oDate.toDateString() === date.toDateString() && isCountedOrder(o);
     });
 
     return {
@@ -215,7 +216,7 @@ export const DashboardView: React.FC = () => {
     // Stats par canal
     const ordersByCanal = useMemo(() => {
       const acc: Record<string, { count: number; cc: number; margin: number }> = {};
-      thisMonthOrders.filter(o => o.status === 'VALIDATED').forEach(o => {
+      thisMonthOrders.filter(isCountedOrder).forEach(o => {
         const canal = o.canal || 'WHATSAPP';
         if (!acc[canal]) acc[canal] = { count: 0, cc: 0, margin: 0 };
         acc[canal].count++;
@@ -228,7 +229,7 @@ export const DashboardView: React.FC = () => {
     // Stats par type
     const ordersByType = useMemo(() => {
       const acc: Record<string, { count: number; cc: number }> = {};
-      thisMonthOrders.filter(o => o.status === 'VALIDATED').forEach(o => {
+      thisMonthOrders.filter(isCountedOrder).forEach(o => {
         const type = o.type || 'UNITE';
         if (!acc[type]) acc[type] = { count: 0, cc: 0 };
         acc[type].count++;
@@ -240,7 +241,7 @@ export const DashboardView: React.FC = () => {
     // Tags populaires
     const topTags = useMemo(() => {
       const tagCounts: Record<string, number> = {};
-      thisMonthOrders.filter(o => o.status === 'VALIDATED' && o.tags).forEach(o => {
+      thisMonthOrders.filter(o => isCountedOrder(o) && o.tags).forEach(o => {
         o.tags.forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; });
       });
       return Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -416,7 +417,7 @@ export const DashboardView: React.FC = () => {
         const currentMonthName = MONTH_NAMES[currentMonth];
 
         const totalAmountThisMonth = thisMonthOrders
-          .filter(o => o.status === 'VALIDATED')
+          .filter(isCountedOrder)
           .reduce((sum, o) => sum + o.totalRetail, 0);
 
         const goalCC = profile.monthlyGoalCC || 0;

@@ -6,6 +6,9 @@ import { useOrdersStore } from '../store/slices/ordersSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
 import { Customer, CustomerStatus, Order } from '../types';
+import { SortSelect } from '../components/ui/SortSelect';
+import { isCountedOrder, orderAccountingDate, isInMonth } from '../lib/orderStats';
+import { useSortPref, sortList, cmpText, CLIENT_SORT_OPTIONS } from '../lib/sortHelper';
 import { computePurchaseFollowUp, purchaseAnchorDate } from '../lib/postPurchaseService';
 import { motion } from 'motion/react';
 import { computeConversionStats } from '../lib/conversionService';
@@ -61,6 +64,7 @@ export const ClientsView: React.FC = () => {
   
   // States
   const [searchTerm, setSearchTerm] = useState('');
+  const [clientSort, setClientSort] = useSortPref('fcf-sort-clients', CLIENT_SORT_OPTIONS, 'name_asc');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
@@ -138,7 +142,7 @@ export const ClientsView: React.FC = () => {
 
   // #6 Statut VIP : >= 3 achats valides OU >= 100 000 F cumulés
   const isVipClient = (clientId: string): boolean => {
-    const validated = getClientOrders(clientId).filter(o => o.status === 'VALIDATED');
+    const validated = getClientOrders(clientId).filter(isCountedOrder);
     if (validated.length >= 3) return true;
     const total = validated.reduce((s, o) => s + o.totalRetail, 0);
     return total >= 100000;
@@ -147,7 +151,7 @@ export const ClientsView: React.FC = () => {
   // #4 Produits à recommander après un Clean 9 : Vital5 si pas déjà pris récemment
   const getRecommendedProductIds = (clientId: string): string[] => {
     const validated = getClientOrders(clientId)
-      .filter(o => o.status === 'VALIDATED')
+      .filter(isCountedOrder)
       .sort((a, b) => (b.validatedAt || b.date).localeCompare(a.validatedAt || a.date));
     const tookClean9 = validated.some(o => o.items.some(i => /clean ?9/i.test(i.productName)));
     if (!tookClean9) return [];
@@ -160,7 +164,7 @@ export const ClientsView: React.FC = () => {
   };
 
   const getClientTotalSpendAndCC = (clientId: string) => {
-    const clientOrders = getClientOrders(clientId).filter(o => o.status === 'VALIDATED');
+    const clientOrders = getClientOrders(clientId).filter(isCountedOrder);
     const spent = clientOrders.reduce((sum, o) => sum + o.totalRetail, 0);
     const cc = clientOrders.reduce((sum, o) => sum + o.totalCC, 0);
     return { spent, cc };
@@ -169,11 +173,9 @@ export const ClientsView: React.FC = () => {
   // Commandes validées d un client sur le mois selectionne
   const getClientOrdersForMonth = (clientId: string) => {
     return orders.filter(o => {
-      if (o.status !== 'VALIDATED') return false;
+      if (!isCountedOrder(o)) return false;
       if (o.customerId !== clientId) return false;
-      const dateStr = o.validatedAt || o.date;
-      const d = new Date(dateStr);
-      return d.getFullYear() === selectedYear && (d.getMonth() + 1) === selectedMonth;
+      return isInMonth(orderAccountingDate(o), selectedYear, selectedMonth);
     });
   };
 
@@ -190,6 +192,31 @@ export const ClientsView: React.FC = () => {
     .map(c => ({ client: c, ...getClientMonthStats(c.id) }))
     .filter(r => r.count > 0)
     .sort((a, b) => b.spent - a.spent);
+
+  // ── Tri de la liste clients ──
+  const lastOrderDate = (clientId: string): string =>
+    getClientOrders(clientId)
+      .filter(isCountedOrder)
+      .reduce((m, o) => { const d = o.validatedAt || o.date; return d > m ? d : m; }, '');
+  // Clients sans commande : toujours en fin de liste
+  const lastCmp = (dir: 1 | -1) => (a: Customer, b: Customer): number => {
+    const da = lastOrderDate(a.id), db = lastOrderDate(b.id);
+    if (!da && !db) return cmpText(a.name, b.name);
+    if (!da) return 1;
+    if (!db) return -1;
+    return dir * da.localeCompare(db) || cmpText(a.name, b.name);
+  };
+  const clientComparators: Record<string, (a: Customer, b: Customer) => number> = {
+    name_asc:     (a, b) => cmpText(a.name, b.name),
+    name_desc:    (a, b) => cmpText(b.name, a.name),
+    month_desc:   (a, b) => getClientMonthStats(b.id).spent - getClientMonthStats(a.id).spent || cmpText(a.name, b.name),
+    total_desc:   (a, b) => getClientTotalSpendAndCC(b.id).spent - getClientTotalSpendAndCC(a.id).spent || cmpText(a.name, b.name),
+    last_desc:    lastCmp(-1),
+    last_asc:     lastCmp(1),
+    created_desc: (a, b) => (b.createdAt || '').localeCompare(a.createdAt || '') || cmpText(a.name, b.name),
+    created_asc:  (a, b) => (a.createdAt || '').localeCompare(b.createdAt || '') || cmpText(a.name, b.name),
+  };
+  const sortedClients = sortList(filteredClients, clientSort, clientComparators);
 
   const isVip = (clientId: string) =>
     // Top 3 du mois OU VIP vie entière (#6 : >= 3 achats ou >= 100k F cumulés)
@@ -363,6 +390,11 @@ export const ClientsView: React.FC = () => {
         />
       </div>
 
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{filteredClients.length} client{filteredClients.length > 1 ? 's' : ''}</span>
+        <SortSelect options={CLIENT_SORT_OPTIONS} value={clientSort} onChange={setClientSort} id="clients_sort_select" />
+      </div>
+
       {/* 3. Clients Listing Grid */}
       <div className="space-y-3" id="clients_listing_area">
         {filteredClients.length === 0 ? (
@@ -370,7 +402,7 @@ export const ClientsView: React.FC = () => {
             <p className="text-sm text-slate-400">Aucun client trouvé.</p>
           </Card>
         ) : (
-          filteredClients.map(c => {
+          sortedClients.map(c => {
             const { spent, cc } = getClientTotalSpendAndCC(c.id);
             const clientInitials = c.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
@@ -755,7 +787,7 @@ export const ClientsView: React.FC = () => {
             {/* TAB CONTENT: HISTORY - historique achats + suivi post-achat */}
             {activeTab === 'HISTORY' && selectedClient && (() => {
               const validated = getClientOrders(selectedClient.id)
-                .filter(o => o.status === 'VALIDATED')
+                .filter(isCountedOrder)
                 .sort((a, b) => (b.validatedAt || b.date).localeCompare(a.validatedAt || a.date));
               const totalSpent = validated.reduce((s, o) => s + o.totalRetail, 0);
               const totalMargin = validated.reduce((s, o) => s + o.totalMargin, 0);
@@ -1097,7 +1129,7 @@ export const ClientsView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {clients.filter(c => !vipRanking.some(r => r.client.id === c.id)).map(c => (
+                {sortList(clients.filter(c => !vipRanking.some(r => r.client.id === c.id)), clientSort, clientComparators).map(c => (
                   <tr key={c.id}>
                     <td className="client-name">{c.name}</td>
                     <td>{c.phone}</td>
