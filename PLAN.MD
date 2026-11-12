@@ -645,3 +645,12 @@ La refonte sera considérée comme terminée lorsque :
 - [ ] Vérifier les captures à 390 px et desktop (idéalement 1440 px).
 - [ ] Vérifier le comportement de la sidebar, du header, de la barre basse, des actions KPI et de l'édition des objectifs.
 - [ ] Corriger les écarts révélés par les captures avant de considérer le lot 2/3 comme validé.
+
+### Correctif du compteur animé après contrôle local — 2026-11-12
+
+- [x] Retour local reçu : `npm run lint` (script `tsc --noEmit`) signalait deux erreurs TS2322 dans `animated-counter.tsx`, sur les props `key` passées aux composants internes `Glyph` et `Column`.
+- [x] Cause isolée : les types de props locaux ne déclaraient pas explicitement le type spécial `React.Key`, alors que le typage JSX du projet le vérifiait dans ces appels.
+- [x] Correctif ciblé publié sur `feat/lot-1-design-system` : import de `Key` depuis React et ajout de `key?: Key` aux types de props de `Glyph` et `Column`.
+- [x] Aucun changement de rendu attendu, d'animation, de calcul ou de logique métier ; aucune dépendance ajoutée.
+- [x] Le propriétaire a confirmé que `npm run build` réussit déjà sur sa copie locale. Les avertissements d'imports mixtes et de chunk principal supérieur à 500 kB restent non bloquants et hors de ce correctif.
+- [ ] Récupérer le commit du correctif puis relancer `npm run lint` et `npm run build` pour confirmer le résultat sur le poste local.
