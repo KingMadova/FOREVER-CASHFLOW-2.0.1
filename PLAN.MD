@@ -591,8 +591,8 @@ Ces largeurs sont des repères de test, pas des limites rigides de conception.
 | Audit statique initial | Effectué | Lecture du code distant ; pas encore de build/test local |
 | Lot 0 — Préparation | Validé pour le socle et les contrôles locaux | Après correctifs : `npm run lint` réussi sans erreur et `npm run build` réussi ; avertissements Vite non bloquants sur imports mixtes et chunk principal > 500 kB consignés pour optimisation ultérieure |
 | Lot 1 — Design system | En cours — intégration et TypeScript validés | Tokens Yekola et composants Arc UI intégrés ; `npm run lint` et `npm run build` réussis après corrections ; showcase, notice de licence consolidée et validation visuelle restent à terminer |
-| Lot 2 — Shell et navigation | À faire | Desktop et mobile |
-| Lot 3 — Dashboard | En cours — première passe UI compilée | Le propriétaire a confirmé `npm run lint` sans erreur et `npm run build` réussi ; contrôles responsive et validation visuelle/fonctionnelle encore en attente |
+| Lot 2 — Shell et navigation | En cours — première passe visuelle publiée | Sidebar desktop, en-tête mobile, barre de navigation basse et zone de contenu compactés ; validation visuelle locale requise |
+| Lot 3 — Dashboard | En cours — seconde passe Arc UI publiée | KPI remplacés par Arc MetricCard + AnimatedCounter ; densité, surfaces et grille mobile resserrées ; validation visuelle et fonctionnelle locale requise |
 | Lot 4 — Prospects et clients | À faire | Gestion commerciale |
 | Lot 5 — Commandes et ventes | À faire | Parcours de vente |
 | Lot 6 — Projection et finances | À faire | Calculs et budget |
@@ -617,4 +617,30 @@ La refonte sera considérée comme terminée lorsque :
 - Le build de production est validé.
 - Le propriétaire a effectué sa validation visuelle et fonctionnelle finale.
 
-**État actuel au 2026-11-12 :** fondation UIArc et première passe visuelle du Dashboard intégrées sur `feat/lot-1-design-system`. Les lots restent en cours jusqu'aux vérifications TypeScript/build et à la validation visuelle et fonctionnelle sur le poste du propriétaire.
+**État actuel au 2026-11-12 :** fondation UIArc, composants Arc gratuits et seconde passe visuelle du shell/Dashboard publiés sur `feat/lot-1-design-system`. Le build et le contrôle TypeScript de cette seconde passe restent à exécuter localement ; la validation visuelle mobile/desktop et fonctionnelle demeure en attente.
+
+
+### Seconde passe visuelle — shell, navigation et Dashboard — 2026-11-12
+
+**Motif :** le propriétaire a signalé que la première passe ressemblait encore trop à un template générique, avec des espacements excessifs et une expérience mobile insuffisamment pensée comme une application.
+
+**Audit Arc UI / licence :**
+- [x] Consultation de la documentation et du dépôt public Arc UI (`kuratlielia/arc-library`).
+- [x] Vérification du registre : `metric-card`, `animated-counter`, `drawer` et `card` sont gratuits (MIT).
+- [x] Vérification que le bloc Arc `sidebar` est Pro ; il n'est donc pas intégré. La sidebar applicative reste un composant local stylé, sans dépendance payante.
+- [x] Aucun nouveau paquet npm ajouté ; `motion` est déjà présent dans le projet.
+
+**Modifications publiées sur la branche feature :**
+- [x] Ajout local des sources Arc `MetricCard` et `AnimatedCounter`, adaptées aux chemins et aux tokens déjà présents dans le projet. `MetricCard` accepte aussi `decimals` pour préserver l'affichage des CC à trois décimales.
+- [x] Remplacement des quatre cartes KPI maison du Dashboard par `MetricCard`.
+- [x] Recomposition de la grille KPI en quatre colonnes desktop, deux colonnes sur les écrans intermédiaires et petits écrans.
+- [x] Réduction des rayons, ombres, hauteurs et espacements ; suppression de l'effet « grandes cartes flottantes ».
+- [x] Refonte CSS du shell : sidebar plus étroite et plus dense, navigation active moins criarde, en-tête mobile compact, barre basse mobile plus proche d'une navigation native et contenu moins espacé.
+- [x] Ajout de tokens de compatibilité Arc pour les surfaces.
+- [x] Aucune modification volontaire des calculs, contrats de données, stores, routes ou services Firebase.
+
+**Validation restant à faire :**
+- [ ] Le propriétaire doit récupérer la branche et exécuter `npm run lint` puis `npm run build`.
+- [ ] Vérifier les captures à 390 px et desktop (idéalement 1440 px).
+- [ ] Vérifier le comportement de la sidebar, du header, de la barre basse, des actions KPI et de l'édition des objectifs.
+- [ ] Corriger les écarts révélés par les captures avant de considérer le lot 2/3 comme validé.
