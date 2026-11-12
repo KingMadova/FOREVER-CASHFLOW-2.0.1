@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './AgendaView.css';
 import { useCustomersStore } from '../store/slices/customersSlice';
 import { useAgendaStore } from '../store/slices/agendaSlice';
 import { Card } from '../components/ui/Card';
