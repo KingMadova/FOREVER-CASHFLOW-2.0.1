@@ -101,6 +101,7 @@ export const OrdersView: React.FC = () => {
   // Filter lists
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatut>('ALL');
   const [orderSort, setOrderSort] = useSortPref('fcf-sort-orders', ORDER_SORT_OPTIONS, 'date_desc');
+  const [ordersViewMode, setOrdersViewMode] = useState<'list' | 'kanban'>('list');
 
   // NEW ORDER DRAFT STATE
   const [orderCustomer, setOrderCustomer] = useState('');
@@ -164,6 +165,21 @@ export const OrdersView: React.FC = () => {
     return o.status === statusFilter;
   });
   const sortedOrders = sortList(filteredOrders, orderSort, orderComparators);
+
+  const orderStatusOptions: { value: 'ALL' | OrderStatus; label: string }[] = [
+    { value: 'ALL', label: 'Toutes' },
+    { value: OrderStatus.PENDING, label: 'En attente' },
+    { value: OrderStatus.VALIDATED, label: 'Validées' },
+    { value: OrderStatus.PAYE, label: 'Payées' },
+    { value: OrderStatus.LIVRE, label: 'Livrées' },
+    { value: OrderStatus.CANCELLED, label: 'Annulées' },
+    { value: OrderStatus.RETOUR, label: 'Retours' },
+    { value: OrderStatus.REMPLACEMENT, label: 'Remplacements' }
+  ];
+  const orderStatusLabel = (status: string) => ({ PENDING: 'En attente', VALIDATED: 'Validée', PAYE: 'Payée', LIVRE: 'Livrée', CANCELLED: 'Annulée', RETOUR: 'Retour', REMPLACEMENT: 'Remplacement' }[status] || status);
+  const orderStatusCount = (status: 'ALL' | OrderStatus) => status === 'ALL' ? orders.length : orders.filter(order => order.status === status).length;
+  const kanbanStatuses: OrderStatus[] = [OrderStatus.PENDING, OrderStatus.VALIDATED, OrderStatus.PAYE, OrderStatus.LIVRE, OrderStatus.CANCELLED, OrderStatus.RETOUR, OrderStatus.REMPLACEMENT];
+
 
   // Calculate prices based on FBO profile grade & discount logic
   const currentGrade = GRADES.find(g => g.code === profile.grade) || GRADES[1]; // default Animateur (38%)
@@ -509,37 +525,33 @@ export const OrdersView: React.FC = () => {
   return (
     <div className="orders-view" id="orders_view_container">
       
-      {/* 1. Header with Add Command Action */}
+      {/* 1. Orders workspace header */}
       <div className="orders-page-header">
         <div>
-          <h2 className="orders-page-title">Commandes & Facturation</h2>
-          <p className="orders-page-description">Suivez les ventes, les règlements et la facturation de votre réseau.</p>
+          <h2 className="orders-page-title">Commandes</h2>
+          <p className="orders-page-description">Créez, préparez et suivez chaque commande client jusqu'à sa livraison.</p>
         </div>
-        <button
-          onClick={() => setIsNewOrderOpen(true)}
-          className="orders-create-button"
-          id="order_add_btn" aria-label="Créer un bon de vente"
-        >
+        <button onClick={() => setIsNewOrderOpen(true)} className="orders-create-button" id="order_add_btn" aria-label="Créer une commande">
           <Plus className="w-4 h-4" />
-          CRÉER UN BON DE VENTE
+          NOUVELLE COMMANDE
         </button>
       </div>
 
-      {/* 2. Filter tabs for orders */}
+      {/* 2. Live status filters */}
       <div className="orders-filter-bar" id="orders_filter_group">
-        {(['ALL', OrderStatus.PENDING, OrderStatus.VALIDATED, OrderStatus.CANCELLED] as const).map(f => (
-          <button
-            key={f}
-            onClick={() => setStatusFilter(f)}
-            className={`orders-filter-button ${statusFilter === f ? 'is-active' : ''}`}
-          >
-            {f === 'ALL' ? 'Tout' : f === OrderStatus.PENDING ? 'En Attente' : f === OrderStatus.VALIDATED ? 'Validée' : 'Annulée'}
+        {orderStatusOptions.map(option => (
+          <button key={option.value} onClick={() => setStatusFilter(option.value)} className={`orders-filter-button ${statusFilter === option.value ? 'is-active' : ''}`}>
+            {option.label}<span>{orderStatusCount(option.value)}</span>
           </button>
         ))}
       </div>
 
-      {/* Export Toolbar */}
+      {/* View controls and export toolbar */}
       <div className="orders-toolbar">
+        <div className="orders-view-switch" role="group" aria-label="Mode d'affichage">
+          <button type="button" className={ordersViewMode === 'list' ? 'is-active' : ''} onClick={() => setOrdersViewMode('list')}>Liste</button>
+          <button type="button" className={ordersViewMode === 'kanban' ? 'is-active' : ''} onClick={() => setOrdersViewMode('kanban')}>Kanban</button>
+        </div>
         <span className="orders-count-label">
           Registre des Commandes ({filteredOrders.length})
         </span>
@@ -564,72 +576,50 @@ export const OrdersView: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Cards representing orders */}
-      <div className="orders-list" id="orders_mapping_area">
-        {filteredOrders.length === 0 ? (
-          <Card className="orders-empty text-center py-10">
-            <p className="text-sm text-slate-400">Aucune commande enregistrée dans cette catégorie.</p>
-          </Card>
-        ) : (
-          sortedOrders.map(ord => (
-            <Card
-              key={ord.id}
-              className="order-row hoverable active:scale-98 flex items-center justify-between gap-3 text-left p-4 rounded-3xl"
-              onClick={() => {
-                setSelectedOrder(ord);
-                setIsDetailOpen(true);
-              }}
-              id={`order_card_${ord.id}`}
-            >
+      {/* 3. List or status board */}
+      {ordersViewMode === 'list' ? (
+        <div className="orders-list" id="orders_mapping_area">
+          {filteredOrders.length === 0 ? (
+            <Card className="orders-empty text-center py-10"><p className="text-sm text-slate-400">Aucune commande dans cette vue.</p></Card>
+          ) : sortedOrders.map(ord => (
+            <Card key={ord.id} className="order-row hoverable flex items-center justify-between gap-3 text-left" onClick={() => { setSelectedOrder(ord); setIsDetailOpen(true); }} id={`order_card_${ord.id}`}>
               <div className="order-row-main flex-1 min-w-0">
                 <div className="order-row-meta flex items-center gap-2 flex-wrap">
-                  <span className="order-row-date">
-                    {ord.status === OrderStatus.VALIDATED ? (ord.validatedAt || ord.date) : ord.date}
-                  </span>
-                  <span className={`text-[8px] font-extrabold uppercase px-2 py-0.5 rounded ${
-                    ord.status === OrderStatus.VALIDATED 
-                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400' 
-                      : ord.status === OrderStatus.PENDING 
-                        ? 'bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400' 
-                        : 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400'
-                  }`}>
-                    {ord.status === 'VALIDATED' ? 'Facturé' : ord.status === 'PENDING' ? 'Brouillon' : 'Annulé'}
-                  </span>
-                  {ord.synced === false && (
-                    <span className="text-[8px] font-black uppercase py-0.5 px-1.5 rounded bg-red-100 text-red-600 dark:bg-red-950/70 dark:text-red-400 border border-red-200/30 tracking-wider flex items-center gap-1 select-none animate-pulse" title="Créé hors-ligne. En attente de synchronisation.">
-                      <span className="w-1 h-1 bg-red-500 rounded-full" />
-                      Hors-ligne
-                    </span>
-                  )}
+                  <span className="order-row-date">{ord.status === OrderStatus.VALIDATED ? (ord.validatedAt || ord.date) : ord.date}</span>
+                  <span className={`order-status-chip status-${String(ord.status).toLowerCase()}`}>{orderStatusLabel(ord.status)}</span>
+                  {ord.synced === false && <span className="order-offline-chip">Hors ligne · en attente de sync</span>}
                 </div>
-
-                <h3 className="order-row-customer font-bold text-slate-950 dark:text-slate-100 text-base mt-1 truncate">
-                  {ord.customerName}
-                </h3>
-
-                <p className="order-row-summary text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                  {ord.items.length} produit(s) • <span className="font-bold text-blue-500">{ord.totalCC.toFixed(3)} CC</span>
-                </p>
-
-                <div className="order-row-financials flex items-center gap-2 mt-1">
-                  <p className="order-row-total text-sm font-black text-amber-600 dark:text-amber-400">
-                    {ord.totalRetail.toLocaleString()} F
-                  </p>
-                  {ord.status === 'VALIDATED' && (
-                    <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
-                      +{ord.totalMargin.toLocaleString()} F marge
-                    </span>
-                  )}
-                </div>
+                <h3 className="order-row-customer">{ord.customerName}</h3>
+                <p className="order-row-summary">{ord.refCommande || ord.id} · {ord.items.length} article(s) · {ord.totalCC.toFixed(3)} CC</p>
+                <div className="order-row-financials"><strong className="order-row-total">{ord.totalRetail.toLocaleString('fr-FR')} FCFA</strong>{isCountedOrder(ord) && <span className="order-margin-chip">+{ord.totalMargin.toLocaleString('fr-FR')} FCFA marge</span>}</div>
               </div>
-
-              <div className="order-row-chevron flex items-center gap-1">
-                <ChevronRight className="w-5 h-5 text-slate-300" />
-              </div>
+              <div className="order-row-chevron"><ChevronRight className="w-5 h-5" /></div>
             </Card>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="orders-kanban-board" id="orders_kanban_board">
+          {kanbanStatuses.map(status => {
+            const columnOrders = sortedOrders.filter(order => order.status === status);
+            return (
+              <section className="orders-kanban-column" key={status}>
+                <header><strong>{orderStatusLabel(status)}</strong><span>{columnOrders.length}</span></header>
+                <div className="orders-kanban-cards">
+                  {columnOrders.length === 0 ? <p className="orders-kanban-empty">Aucune commande</p> : columnOrders.map(ord => (
+                    <button type="button" key={ord.id} className="orders-kanban-card" onClick={() => { setSelectedOrder(ord); setIsDetailOpen(true); }}>
+                      <span className="orders-kanban-ref">{ord.refCommande || ord.id}</span>
+                      <strong>{ord.customerName}</strong>
+                      <span>{ord.items.length} article(s) · {ord.paiement}</span>
+                      <b>{ord.totalRetail.toLocaleString('fr-FR')} FCFA</b>
+                      <small>{ord.date}</small>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
 
       {/* 4. DRAWER: ADD ORDER BON DE VENTE */}
       <Drawer
