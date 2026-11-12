@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
+import './ProfileView.css';
 import { GRADES, GradeCode } from '../types';
 import { 
   User, 
