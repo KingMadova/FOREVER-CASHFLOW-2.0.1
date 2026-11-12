@@ -810,7 +810,7 @@ Un incident Windows a toutefois été signalé pendant le pull : Git n'a pas ré
 - [x] Accès mobile à la lecture Ventes et au suivi des commandes/règlements.
 - [x] Topbar commune affichée sur toutes les tailles d'écran ; titre de page contextualisé.
 - [ ] Recherche globale clavier `⌘K` non implémentée dans ce lot.
-- [ ] Repli manuel de la sidebar desktop non implémenté dans ce lot.
+- [x] Sidebar desktop repliable de 232 px à 64 px, avec icônes seules et infobulles ; bloc utilisateur déplacé en pied de sidebar.
 
 **Rubrique Ventes :**
 - [x] Nouvelle route protégée `/sales` et vue dédiée.
