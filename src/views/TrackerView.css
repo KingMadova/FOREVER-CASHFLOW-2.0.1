@@ -5,11 +5,11 @@
 #tracker_view_container>div:nth-child(2){display:flex;gap:.3rem;padding:.25rem;border:1px solid var(--fcf-border);border-radius:.65rem;background:var(--fcf-surface-muted)}
 #tracker_view_container>div:nth-child(2) button{min-height:2.2rem;border-radius:.45rem;font-size:.68rem}
 #tracker_view_container>div:nth-child(2) button[class*="bg-white"]{border:1px solid var(--fcf-border);box-shadow:none;color:var(--fcf-brand-terracotta)}
-#tracker_view_container>div:nth-child(3){border-radius:.7rem;padding:.65rem .85rem}
-#tracker_view_container>div:nth-child(4){border:1px solid #3b342e;border-radius:.85rem;background:#2b211b}
-#tracker_view_container>div:nth-child(4) p.text-4xl{font-variant-numeric:tabular-nums}
+#tracker_view_container>div[class*="bg-white"]{border-radius:.7rem}
+#tracker_view_container>div[class*="bg-slate-900"]{border:1px solid #3b342e;border-radius:.85rem;background:#2b211b}
+#tracker_view_container>div[class*="bg-slate-900"] p.text-4xl{font-variant-numeric:tabular-nums}
 #tracker_view_container>div:nth-child(n+5)>p:first-child{margin-bottom:.45rem;color:var(--fcf-muted);font-size:.61rem;font-weight:850;letter-spacing:.09em}
 #tracker_view_container>div:nth-child(n+5) .rounded-2xl{border-radius:.7rem}
 #tracker_view_container button:focus-visible{outline:2px solid var(--fcf-brand-orange);outline-offset:2px}
-@media(min-width:1024px){#tracker_view_container{gap:.9rem}#tracker_view_container>div:nth-child(3){max-width:32rem;align-self:start}#tracker_view_container>div:nth-child(4){max-width:36rem}}
-@media(max-width:640px){#tracker_view_container{gap:.7rem}#tracker_view_container>div:first-child h1{font-size:1.05rem}#tracker_view_container>div:nth-child(4){border-radius:.75rem}}
+@media(min-width:1024px){#tracker_view_container{gap:.9rem}#tracker_view_container>div[class*="bg-white"]{max-width:32rem;align-self:start}}
+@media(max-width:640px){#tracker_view_container{gap:.7rem}#tracker_view_container>div:first-child h1{font-size:1.05rem}#tracker_view_container>div[class*="bg-slate-900"]{border-radius:.75rem}}
