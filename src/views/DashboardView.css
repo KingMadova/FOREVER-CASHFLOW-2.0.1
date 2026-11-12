@@ -313,3 +313,65 @@
     font-size: 0.58rem;
   }
 }
+
+/* Second-pass dashboard art direction: compact, data-led, app-like rather than template-like. */
+#dashboard_view_container { gap: .9rem; }
+#dashboard_view_container .dashboard-header {
+  padding: 1rem 1.1rem;
+  border-radius: .95rem;
+  box-shadow: none;
+  background: var(--fcf-surface);
+}
+#dashboard_view_container .dashboard-header h2 {
+  margin-top: .35rem;
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  letter-spacing: -.045em;
+}
+#dashboard_view_container .dashboard-header p { margin-top: .3rem; font-size: .76rem; line-height: 1.5; }
+#dashboard_view_container .dashboard-primary-action { min-height: 2.45rem; border-radius: .65rem; box-shadow: none; }
+#dashboard_view_container .dashboard-icon-action { min-height: 2.45rem; min-width: 2.45rem; width: 2.45rem; border-radius: .65rem; }
+#dashboard_view_container .dashboard-kpi-section { min-width: 0; }
+#dashboard_view_container .dashboard-section-heading { display: flex; align-items: end; justify-content: space-between; gap: .75rem; margin: .15rem 0 .55rem; }
+#dashboard_view_container .dashboard-section-heading h3 { margin: .12rem 0 0; color: var(--fcf-foreground); font-size: .95rem; font-weight: 750; letter-spacing: -.03em; }
+#dashboard_view_container .dashboard-eyebrow { color: var(--fcf-muted); font-size: .59rem; font-weight: 800; letter-spacing: .12em; }
+#dashboard_view_container .dashboard-period-label { color: var(--fcf-muted); font-size: .65rem; font-weight: 600; }
+#dashboard_view_container .dashboard-kpi-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .65rem; }
+#dashboard_view_container .dashboard-kpi-grid > article { border-radius: .9rem; padding: .85rem .9rem; box-shadow: none; border-color: var(--fcf-border); }
+#dashboard_view_container .dashboard-kpi-grid > article .top { margin-bottom: .7rem; }
+#dashboard_view_container .dashboard-kpi-grid > article .top > span { font-size: .68rem; font-weight: 650; }
+#dashboard_view_container .dashboard-kpi-grid > article .counter { font-size: clamp(1.15rem, 1.55vw, 1.55rem); font-weight: 700; }
+#dashboard_view_container .dashboard-kpi-grid > article p { font-size: .63rem; }
+#dashboard_view_container .dashboard-panel,
+#dashboard_view_container #monthly_sales_goals_section { border-radius: .95rem; box-shadow: none; }
+#dashboard_view_container #monthly_sales_goals_section { padding: 1rem; }
+#dashboard_view_container #monthly_sales_goals_section h3 { font-size: .9rem; }
+#dashboard_view_container .dashboard-performance-panel,
+#dashboard_view_container .dashboard-activity-panel { padding: 1rem; border-radius: .95rem; }
+#dashboard_view_container .dashboard-g4-card { border-radius: .95rem; box-shadow: none; padding: 1rem; }
+#dashboard_view_container .dashboard-activity-panel h3 { padding-bottom: .6rem; margin-bottom: .75rem; }
+@media (max-width: 900px) {
+  #dashboard_view_container .dashboard-kpi-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 640px) {
+  #dashboard_view_container { gap: .75rem; }
+  #dashboard_view_container .dashboard-header { padding: .85rem; border-radius: .85rem; gap: .7rem; }
+  #dashboard_view_container .dashboard-header h2 { font-size: 1.22rem; }
+  #dashboard_view_container .dashboard-header p { font-size: .7rem; max-width: 38rem; }
+  #dashboard_view_container .dashboard-header > div:last-child { grid-template-columns: minmax(0,1fr) 2.5rem; gap: .45rem; }
+  #dashboard_view_container .dashboard-primary-action { min-height: 2.5rem; font-size: .62rem; }
+  #dashboard_view_container .dashboard-kpi-grid { gap: .5rem; }
+  #dashboard_view_container .dashboard-kpi-grid > article { padding: .72rem; border-radius: .8rem; }
+  #dashboard_view_container .dashboard-kpi-grid > article .top { gap: .3rem; margin-bottom: .55rem; }
+  #dashboard_view_container .dashboard-kpi-grid > article .top > span { font-size: .63rem; }
+  #dashboard_view_container .dashboard-kpi-grid > article .counter { font-size: clamp(1rem, 5vw, 1.28rem); }
+  #dashboard_view_container .dashboard-kpi-grid > article p { font-size: .58rem; line-height: 1.35; }
+  #dashboard_view_container #monthly_sales_goals_section { padding: .85rem; }
+  #dashboard_view_container #monthly_sales_goals_section h3 { font-size: .82rem; }
+  #dashboard_view_container .dashboard-performance-panel,
+  #dashboard_view_container .dashboard-activity-panel { padding: .85rem; }
+}
+@media (max-width: 360px) {
+  #dashboard_view_container .dashboard-kpi-grid > article { padding: .62rem; }
+  #dashboard_view_container .dashboard-kpi-grid > article .counter { font-size: .96rem; }
+  #dashboard_view_container .dashboard-period-label { font-size: .58rem; }
+}
