@@ -740,3 +740,52 @@ La refonte sera considérée comme terminée lorsque :
 - [x] Bouton de création doté d'un nom accessible explicite, y compris lorsque son libellé visuel est masqué sur mobile.
 - [ ] Validation locale `npm run lint` / `npm run build` après récupération.
 - [ ] Contrôle visuel desktop et mobile à réaliser sur l'application exécutée.
+
+### Cahier des charges UI/UX approuvé — 2026-11-12
+
+Le propriétaire a transmis et validé une spécification détaillée couvrant le système commun, le Dashboard, les Clients, les Commandes et les Ventes.
+
+**Principes de conception retenus :**
+- Navigation responsive différenciée : sidebar desktop, rail tablette, tab bar mobile avec action centrale.
+- Interface dense, structurée et orientée action ; les changements de couleur seuls ne constituent plus une refonte acceptable.
+- Montants et chiffres alignés, chiffres tabulaires, tableaux compacts, filtres et actions contextuelles.
+- Palette Yekola Business conservée ; le dégradé or-orange est réservé aux accents et éléments de marque.
+- Icônes Lucide cohérentes, rayon maîtrisé, bordures fines et ombres minimales.
+- Les compositions mobile doivent être spécifiques au mobile, pas des réductions de la vue desktop.
+
+**Décision de séparation Commandes / Ventes :**
+- La navigation et l'architecture visuelle distingueront les deux rubriques.
+- La vue Commandes conservera les statuts et les règles de calcul déjà définis dans `Order`.
+- La vue Ventes pourra présenter une lecture commerciale dérivée des commandes comptabilisées et des montants déjà présents.
+- Le modèle actuel ne contient pas de registre de transactions/encaissements indépendant. Il ne faut donc pas simuler un historique de paiements, des règlements partiels ou des ventes comptoir comme s'ils étaient persistés. Toute création d'un véritable modèle de transaction et toute évolution Firestore/règles de sécurité feront l'objet d'un lot métier distinct et d'une validation explicite.
+
+**Limites de données relevées pendant l'audit :**
+- `Customer` contient nom, téléphone, e-mail, ville, adresse, statut Prospect/Client, notes et date de dernier contact. Il ne contient pas de distributeur référent, d'étiquettes libres, de statut Actif/Inactif ou de solde client calculé.
+- Les commandes possèdent `amountPaid?`, `paiement`, `status`, `totalRetail` et `validatedAt?`, mais aucun journal des mouvements de paiement.
+- Les fonctions d'import client, fusion de doublons, actions groupées annulables et scan de code-barres ne sont pas présentes dans les contrats et composants vérifiés. Ne pas afficher de commandes d'interface qui laisseraient croire que ces fonctions existent déjà.
+- Les vues enregistrées réellement livrées doivent s'appuyer sur des critères calculables avec les données existantes ; les vues « Impayés » et « À relancer » nécessitent des règles métier à confirmer.
+
+### Lot Clients — première refonte structurelle — 2026-11-12
+
+**Modifications publiées sur `feat/lot-1-design-system` :**
+- [x] Remplacement de la liste desktop en cartes par un tableau de portefeuille avec colonnes Client, Ville, Dernier achat, Segment, CA cumulé et Volume CC.
+- [x] Présentation mobile dédiée en lignes compactes avec identité, dernier achat et montants.
+- [x] Ajout de vues rapides Tous, VIP et Sans achat, calculées à partir des données existantes.
+- [x] Recherche étendue à la ville en plus du nom, téléphone et adresse.
+- [x] Conservation du tri existant, du calcul VIP, du rapport PDF VIP, des notes, de l'historique, des commandes liées et des liens d'appel/WhatsApp.
+- [x] Ajout d'une variante de Drawer latéral pour les fiches client : panneau à droite sur tablette/desktop et feuille basse sur smartphone.
+- [x] Nouveau monogramme produit FC et wordmark Forever CashFlow dans la sidebar, en SVG inline ; les icônes PWA, favicon et icônes d'installation existantes ne sont pas modifiées.
+- [x] Aucun changement aux types Customer/Order, stores, calculs, Firestore, routes ou dépendances.
+- [ ] Vérification locale `npm run lint` et `npm run build` après récupération.
+- [ ] Validation visuelle réelle du tableau desktop, des cartes mobiles et du Drawer sur les appareils ciblés.
+
+**Contrôle statique complémentaire :**
+- [x] La déclaration du filtre VIP a été replacée avant son utilisation pour éviter une référence à une constante non initialisée.
+- [x] Le Drawer conserve son comportement modal par défaut pour tous les autres écrans ; seule la fiche client demande explicitement la variante latérale.
+
+**Prochaine séquence :**
+1. Revoir la navigation commune pour refléter les rubriques Accueil, Clients, Commandes et Ventes, tout en conservant l'accès aux Prospects, au Journal G4, aux Rapports, au Budget, à l'Agenda et aux Paramètres.
+2. Repenser Commandes avec les statuts réellement supportés par `OrderStatut`; un Kanban ne doit pas inventer des états non présents.
+3. Créer la vue Ventes distincte comme lecture dérivée des commandes comptabilisées, puis définir séparément le besoin d'un vrai registre de transactions avant toute modification du modèle métier.
+4. Reprendre le Dashboard selon la composition détaillée du cahier des charges et les champs réellement disponibles.
+
