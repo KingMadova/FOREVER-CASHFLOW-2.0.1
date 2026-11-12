@@ -701,3 +701,16 @@ La refonte sera considérée comme terminée lorsque :
 **Travail publié dans cette session :** refonte visuelle de la feuille CSS du Dashboard et ajout d'une section de consultation des cinq commandes les plus récentes. Le tri est limité à l'affichage ; aucune donnée n'est modifiée. Les autres calculs et interactions du Dashboard sont conservés.
 
 **Statut :** première étape de la nouvelle direction publiée sur la branche feature ; contrôles locaux et revue responsive restent à faire.
+
+
+### Refonte CRM — structure des vues Prospects / Clients — 2026-11-12
+
+- [x] Ajout de classes structurelles explicites aux en-têtes, barres de recherche, filtres pipeline, sélecteur de période, synthèse VIP et listes.
+- [x] Refonte complète de la feuille CSS partagée : hiérarchie des titres, actions Yekola, filtres, surfaces, cartes, avatars, boutons de contact et adaptation mobile.
+- [x] Suppression de l'ancienne approche de simples surcharges CSS successives ; la feuille CRM devient une feuille cohérente et unique.
+- [x] Libellés accessibles ajoutés aux boutons d'ajout dont le texte visuel est masqué sur petit écran.
+- [x] Préservation des fonctions existantes : recherche, filtre pipeline, création, édition via drawer, suppression confirmée, conversion prospect-client, téléphone/WhatsApp/e-mail, tri mémorisé, classement VIP, période, calculs de commandes, PDF, notes, historique et commande préremplie.
+- [ ] Exécuter `npm run lint` et `npm run build` après récupération.
+- [ ] Vérifier les vues sur petit mobile, smartphone standard et desktop ; la validation visuelle locale n'est pas disponible à distance.
+
+**Statut :** refonte structurelle et visuelle publiée sur la branche feature ; validation technique et visuelle locale en attente.
