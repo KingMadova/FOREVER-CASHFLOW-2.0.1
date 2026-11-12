@@ -9,11 +9,13 @@ export const BottomNav: React.FC = () => {
 
   const openClient = () => {
     sessionStorage.setItem('fcf-open-new-client', '1');
+    window.dispatchEvent(new Event('fcf-open-new-client'));
     setActionsOpen(false);
     navigate('/clients');
   };
   const openOrder = () => {
     sessionStorage.setItem('fcf-open-new-order', '1');
+    window.dispatchEvent(new Event('fcf-open-new-order'));
     setActionsOpen(false);
     navigate('/orders');
   };
