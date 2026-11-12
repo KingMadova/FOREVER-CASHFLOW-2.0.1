@@ -838,3 +838,24 @@ Un incident Windows a toutefois été signalé pendant le pull : Git n'a pas ré
 1. Faire contrôler le dépôt Git local Windows avant récupération des nouveaux commits.
 2. Faire valider localement ce lot Navigation + Commandes + Ventes.
 3. Reprendre le Dashboard pour appliquer la composition opérationnelle demandée, puis poursuivre les écrans Budget/Agenda et les autres vues.
+
+### Validation locale et correctif de cohérence des statuts — 2026-11-12
+
+**Validation confirmée par le propriétaire sur le commit `ff3a2383a45bed6cf3b7e302fa1149270ec9655e` :**
+- [x] `npm run lint` : `tsc --noEmit` termine sans erreur.
+- [x] `npm run build` : Vite 6.4.6 compile 2 743 modules et termine avec succès en 21,85 s.
+- [x] Génération PWA réussie : 48 entrées précachées, service worker et Workbox générés.
+- [x] Les avertissements d'imports statiques/dynamiques mixtes restent non bloquants.
+- [x] Le bundle principal de 1 050,80 kB minifié (285,11 kB gzip) dépasse le seuil Vite de 500 kB ; optimisation reportée à un lot performance dédié.
+
+**Correctif UI publié après cette validation :**
+- [x] Inspection des statuts réels de commande dans `src/types.ts` : `PENDING`, `VALIDATED`, `PAYE`, `LIVRE`, `CANCELLED`, `RETOUR`, `REMPLACEMENT`.
+- [x] Correction du Dashboard : les activités récentes et la liste des commandes récentes affichent désormais le libellé correspondant à chacun des sept statuts.
+- [x] Ajout de tons visuels dédiés pour « Livrée », « Retour » et « Remplacement ».
+- [x] Aucun changement aux données, aux calculs, aux règles de comptabilisation ou aux transitions de statut.
+- [ ] Récupérer les commits de ce correctif puis relancer `npm run lint` et `npm run build`.
+- [ ] Validation visuelle responsive du Dashboard, des Clients, des Commandes et des Ventes.
+
+**État de validation à ne pas confondre :** le commit `ff3a238` est validé localement par le propriétaire. Les commits de correction publiés après `ff3a238` n'ont pas encore été exécutés localement ; ils restent à valider après récupération.
+
+**Prochaine étape :** poursuivre l'audit visuel et fonctionnel des vues CRM et du Dashboard sans toucher à la logique métier, puis valider chaque lot sur le poste local.
