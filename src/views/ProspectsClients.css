@@ -1,130 +1,60 @@
-/* Prospects — compact Executive Business Intelligence surface */
-#prospects_view_container {
-  display: flex;
-  flex-direction: column;
-  gap: .9rem;
+/* Yekola Business — CRM views: redesigned hierarchy and compact native-app rhythm. */
+#prospects_view_container,#clients_view_container{display:flex;flex-direction:column;gap:.85rem;min-width:0;color:var(--fcf-foreground)}
+#prospects_view_container .crm-page-header,#clients_view_container .crm-page-header{display:flex;align-items:center;justify-content:space-between;gap:.85rem;padding:.25rem 0 .8rem;border-bottom:1px solid var(--fcf-border)}
+#prospects_view_container .crm-page-header h2,#clients_view_container .crm-page-header h2{margin:0;color:var(--fcf-foreground);font-family:var(--font-display);font-size:1.18rem;font-weight:800;letter-spacing:-.04em}
+#prospects_view_container .crm-page-header p,#clients_view_container .crm-page-header p{margin:.2rem 0 0;color:var(--fcf-muted);font-size:.69rem}
+#prospect_add_new_btn,#client_add_btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;min-height:2.55rem;height:2.55rem;padding:0 .9rem;border:1px solid var(--fcf-brand-terracotta);border-radius:.7rem;background:var(--fcf-brand-terracotta);color:#fff;font-size:.66rem;font-weight:800;letter-spacing:.015em;white-space:nowrap;box-shadow:none}
+#prospect_add_new_btn:hover,#client_add_btn:hover{background:#a93b0c}
+#prospects_view_container .prospects-toolbar{display:flex;flex-direction:column;gap:.65rem}
+#prospects_view_container .prospects-search-wrap,#clients_view_container .clients-search-wrap{min-width:0}
+#prospect_search_input,#client_search_input{width:100%;height:2.7rem;padding:0 .85rem 0 2.7rem;border:1px solid var(--fcf-border);border-radius:.7rem;outline:none;background:var(--fcf-surface);color:var(--fcf-foreground);font-size:.74rem;box-shadow:none}
+#prospect_search_input:focus,#client_search_input:focus{border-color:var(--fcf-brand-orange);box-shadow:0 0 0 3px color-mix(in oklab,var(--fcf-brand-gold) 18%,transparent)}
+#prospects_view_container .prospect-stage-filters{margin-inline:0;padding:.05rem 0 .15rem;gap:.4rem}
+#prospects_view_container .prospect-stage-filters button{min-height:2.1rem;height:auto;padding:.45rem .75rem;border:1px solid var(--fcf-border);border-radius:999px;background:var(--fcf-surface);color:var(--fcf-muted);font-size:.64rem;font-weight:700;white-space:nowrap}
+#prospects_view_container .prospect-stage-filters button[class*="bg-amber-500"]{border-color:var(--fcf-brand-terracotta);background:var(--fcf-brand-terracotta);color:#fff}
+#prospects_view_container .prospects-list,#clients_view_container .clients-list{display:flex;flex-direction:column;gap:.5rem;min-width:0}
+#prospects_view_container .prospect-row,#clients_view_container .client-row{min-width:0;padding:.8rem .9rem;border:1px solid var(--fcf-border);border-radius:.8rem;background:var(--fcf-surface);box-shadow:none;transition:border-color 150ms ease,background 150ms ease}
+#prospects_view_container .prospect-row:hover,#clients_view_container .client-row:hover{border-color:color-mix(in oklab,var(--fcf-brand-orange) 55%,var(--fcf-border));background:color-mix(in oklab,var(--fcf-brand-gold) 3%,var(--fcf-surface));box-shadow:none}
+#prospects_view_container .prospect-row>div:first-child,#clients_view_container .client-row>div:first-child{min-width:0}
+#prospects_view_container .prospect-row h3,#clients_view_container .client-row h3{color:var(--fcf-foreground);font-size:.82rem;font-weight:750;letter-spacing:-.015em}
+#prospects_view_container .prospect-row p,#clients_view_container .client-row p{line-height:1.4}
+#prospects_view_container .prospect-row a,#clients_view_container .client-row a{width:2.3rem;height:2.3rem;border-radius:.65rem;box-shadow:none}
+#prospects_view_container .prospect-row>div:first-child>div:last-child,#clients_view_container .client-row>div:first-child>div:last-child{color:var(--fcf-muted)}
+#clients_view_container .clients-period-toolbar{display:flex;align-items:center;gap:.55rem}
+#clients_view_container .clients-period-toolbar>div:first-child{min-height:2.55rem;padding:.35rem .7rem;border:1px solid var(--fcf-border);border-radius:.7rem;background:var(--fcf-surface)}
+#clients_view_container .clients-period-toolbar select{color:var(--fcf-foreground);font-size:.68rem}
+#clients_view_container .clients-period-toolbar>button{min-height:2.55rem;padding:0 .75rem;border:1px solid color-mix(in oklab,var(--fcf-brand-gold) 60%,var(--fcf-border));border-radius:.7rem;background:color-mix(in oklab,var(--fcf-brand-gold) 14%,var(--fcf-surface));color:var(--fcf-brand-terracotta);font-size:.65rem;font-weight:750}
+#clients_view_container .clients-vip-summary{padding:.8rem .9rem;border:1px solid color-mix(in oklab,var(--fcf-brand-gold) 35%,var(--fcf-border));border-radius:.8rem;background:color-mix(in oklab,var(--fcf-brand-gold) 8%,var(--fcf-surface))}
+#clients_view_container .clients-vip-summary>div:first-child{margin-bottom:.35rem}
+#clients_view_container .clients-vip-summary>div:last-child{gap:1rem;flex-wrap:wrap}
+#clients_view_container .clients-list-toolbar{min-height:2rem;color:var(--fcf-muted)}
+#clients_view_container .clients-list-toolbar>span{font-size:.62rem;font-weight:800;letter-spacing:.08em}
+#clients_view_container .client-row>div:first-child>div:first-child{width:2.65rem;height:2.65rem;border:1px solid color-mix(in oklab,var(--fcf-brand-gold) 40%,var(--fcf-border));border-radius:.75rem;background:color-mix(in oklab,var(--fcf-brand-gold) 13%,var(--fcf-surface));color:var(--fcf-brand-terracotta)}
+#clients_view_container .client-row>div:first-child>div:last-child{gap:.25rem}
+#clients_view_container .client-row>div:last-child{gap:.4rem}
+#clients_view_container .client-row>div:last-child a{width:2.25rem;height:2.25rem;border-radius:.65rem}
+#clients_view_container .client-row>div:last-child svg:last-child{color:var(--fcf-muted)}
+#prospects_view_container #prospects_list_area>.text-center,#clients_view_container #clients_listing_area>.text-center{padding:2rem 1rem;border:1px dashed var(--fcf-border);border-radius:.85rem;background:var(--fcf-surface)}
+@media(max-width:640px){
+#prospects_view_container,#clients_view_container{gap:.7rem}
+#prospects_view_container .crm-page-header,#clients_view_container .crm-page-header{align-items:center;gap:.5rem;padding-bottom:.65rem}
+#prospects_view_container .crm-page-header h2,#clients_view_container .crm-page-header h2{font-size:1.02rem}
+#prospects_view_container .crm-page-header p,#clients_view_container .crm-page-header p{max-width:14rem;font-size:.62rem}
+#prospect_add_new_btn,#client_add_btn{width:2.55rem;min-width:2.55rem;padding:0;font-size:0}
+#prospect_add_new_btn svg,#client_add_btn svg{width:1.05rem;height:1.05rem}
+#prospects_view_container .prospect-stage-filters{margin-inline:-.65rem;padding-inline:.65rem}
+#prospects_view_container .prospect-row,#clients_view_container .client-row{padding:.7rem;gap:.5rem;border-radius:.75rem}
+#prospects_view_container .prospect-row>div:last-child,#clients_view_container .client-row>div:last-child{gap:.3rem}
+#prospects_view_container .prospect-row a,#clients_view_container .client-row a{width:2.05rem;height:2.05rem}
+#clients_view_container .clients-period-toolbar{align-items:stretch}
+#clients_view_container .clients-period-toolbar>div:first-child{flex:1;min-width:0}
+#clients_view_container .clients-period-toolbar>button{justify-content:center}
+#clients_view_container .clients-vip-summary>div:last-child{gap:.35rem .8rem}
+#clients_view_container .client-row>div:first-child>div:first-child{width:2.35rem;height:2.35rem}
 }
-#prospects_view_container > :first-child {
-  align-items: center;
-  padding: .15rem 0 .75rem;
-  border-bottom: 1px solid var(--fcf-border);
+@media(max-width:370px){
+#prospects_view_container .prospect-row,#clients_view_container .client-row{padding:.6rem}
+#prospects_view_container .prospect-row a,#clients_view_container .client-row a{width:1.9rem;height:1.9rem}
+#clients_view_container .clients-period-toolbar>button{padding-inline:.5rem;font-size:.58rem}
 }
-#prospects_view_container > :first-child h2,
-#clients_view_container > :first-child h2 {
-  font-size: 1.05rem;
-  line-height: 1.3;
-  letter-spacing: -.025em;
-}
-#prospects_view_container > :first-child p,
-#clients_view_container > :first-child p {
-  margin-top: .2rem;
-  color: var(--fcf-muted);
-}
-#prospect_add_new_btn,
-#client_add_btn {
-  min-height: 2.65rem;
-  height: 2.65rem;
-  border-radius: .75rem;
-  padding: .65rem .9rem;
-  background: var(--fcf-brand-gold);
-  color: #29231f;
-  box-shadow: none;
-  letter-spacing: .015em;
-}
-#prospect_add_new_btn:hover,
-#client_add_btn:hover { background: #ed9d12; }
-#prospect_search_input,
-#client_search_input {
-  height: 2.8rem;
-  border-radius: .75rem;
-  border-color: var(--fcf-border);
-  background: var(--fcf-surface);
-  box-shadow: none;
-}
-#prospects_view_container #prospects_list_area,
-#clients_view_container #clients_listing_area {
-  display: grid;
-  gap: .55rem;
-}
-#prospects_view_container #prospects_list_area > *,
-#clients_view_container #clients_listing_area > * {
-  margin-top: 0;
-}
-#prospects_view_container #prospects_list_area > [id^="prospect_card_"],
-#clients_view_container #clients_listing_area > [id^="client_card_"] {
-  min-width: 0;
-  padding: .8rem .9rem;
-  border: 1px solid var(--fcf-border);
-  border-radius: .9rem;
-  background: var(--fcf-surface);
-  box-shadow: var(--fcf-shadow-sm);
-  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
-}
-#prospects_view_container #prospects_list_area > [id^="prospect_card_"]:hover,
-#clients_view_container #clients_listing_area > [id^="client_card_"]:hover {
-  border-color: color-mix(in oklab, var(--fcf-brand-gold) 55%, var(--fcf-border));
-  box-shadow: 0 3px 12px rgb(41 35 31 / .06);
-}
-#prospects_view_container #prospects_list_area > [id^="prospect_card_"] h3,
-#clients_view_container #clients_listing_area > [id^="client_card_"] h3 {
-  font-size: .875rem;
-  letter-spacing: -.01em;
-}
-#prospects_view_container #prospects_list_area a,
-#clients_view_container #clients_listing_area a {
-  width: 2.35rem;
-  height: 2.35rem;
-  border-radius: .7rem;
-}
-#clients_view_container { display: flex; flex-direction: column; gap: .9rem; }
-#clients_view_container > :first-child {
-  align-items: center;
-  padding: .15rem 0 .75rem;
-  border-bottom: 1px solid var(--fcf-border);
-}
-#clients_view_container #clients_listing_area > [id^="client_card_"] > div:first-child > div:first-child {
-  width: 2.65rem;
-  height: 2.65rem;
-  border-radius: .8rem;
-  font-size: .8rem;
-}
-#clients_view_container #clients_listing_area > [id^="client_card_"] h3 { font-size: .875rem; }
-#clients_view_container #clients_listing_area > [id^="client_card_"] .text-\[10px\] { letter-spacing: .015em; }
-#clients_view_container > .relative input { height: 2.8rem; }
-#clients_view_container > .flex.items-center.gap-2.flex-wrap > div {
-  border-color: var(--fcf-border);
-  border-radius: .75rem;
-}
-@media (max-width: 640px) {
-  #prospects_view_container,
-  #clients_view_container { gap: .75rem; }
-  #prospects_view_container > :first-child,
-  #clients_view_container > :first-child { align-items: flex-start; }
-  #prospect_add_new_btn,
-  #client_add_btn {
-    width: 2.65rem;
-    min-width: 2.65rem;
-    padding: 0;
-    justify-content: center;
-    font-size: 0;
-    gap: 0;
-  }
-  #prospect_add_new_btn svg,
-  #client_add_btn svg { width: 1.1rem; height: 1.1rem; }
-  #prospects_view_container #prospects_list_area > [id^="prospect_card_"],
-  #clients_view_container #clients_listing_area > [id^="client_card_"] {
-    padding: .7rem;
-    gap: .55rem;
-  }
-  #prospects_view_container #prospects_list_area a,
-  #clients_view_container #clients_listing_area a {
-    width: 2.15rem;
-    height: 2.15rem;
-  }
-  #clients_view_container > .flex.items-center.gap-2.flex-wrap { align-items: stretch; }
-  #clients_view_container > .flex.items-center.gap-2.flex-wrap > button { min-height: 2.65rem; }
-}
-@media (prefers-reduced-motion: reduce) {
-  #prospects_view_container *,
-  #clients_view_container * { transition-duration: .01ms !important; }
-}
+@media(prefers-reduced-motion:reduce){#prospects_view_container *,#clients_view_container *{transition-duration:.01ms!important;animation-duration:.01ms!important}}
