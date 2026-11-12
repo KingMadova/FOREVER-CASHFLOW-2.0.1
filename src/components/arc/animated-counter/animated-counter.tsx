@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type Key } from "react";
 import { AnimatePresence, animate, motion, useInView, useMotionValue, useReducedMotion, useTransform, type MotionValue, type Variants } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./animated-counter.module.css";
@@ -24,7 +24,7 @@ function partsFor(value: number, decimals: number, locale: string): Part[] {
     return [{ key: part.type === "group" ? `g${place}` : part.type === "decimal" ? "d" : `${part.type}${index}`, text: part.value }];
   });
 }
-function Glyph({ position, digit }: { position: MotionValue<number>; digit: number }) {
+function Glyph({ position, digit }: { position: MotionValue<number>; digit: number; key?: Key }) {
   const offset = useTransform(position, current => ((((digit - current) % 10) + 15) % 10) - 5);
   const y = useTransform(offset, current => `${current}em`);
   const opacity = useTransform(offset, current => Math.max(0, 1 - Math.abs(current)));
@@ -33,7 +33,7 @@ function Glyph({ position, digit }: { position: MotionValue<number>; digit: numb
   return <motion.span className={styles.glyph} style={{ y, opacity, filter, visibility }}>{digit}</motion.span>;
 }
 const presence = { initial: { width: 0, opacity: 0 }, animate: { width: "auto", opacity: 1 }, exit: { width: 0, opacity: 0 } };
-function Column({ digit, direction, armed, delay, reduceMotion }: { digit: number; direction: number; armed: boolean; delay: number; reduceMotion: boolean }) {
+function Column({ digit, direction, armed, delay, reduceMotion }: { digit: number; direction: number; armed: boolean; delay: number; reduceMotion: boolean; key?: Key }) {
   const position = useMotionValue(armed ? 0 : digit);
   const wheel = useRef({ digit: armed ? 0 : digit, target: armed ? 0 : digit, revealed: !armed });
   useEffect(() => {
