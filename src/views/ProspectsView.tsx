@@ -136,10 +136,10 @@ export const ProspectsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6" id="prospects_view_container">
+    <div className="crm-view prospects-view" id="prospects_view_container">
       
       {/* 1. Header Row */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="crm-page-header">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Suivi des Prospects FLP</h2>
           <p className="text-xs text-slate-500">Pipeline de conversion et de recrutement.</p>
@@ -147,7 +147,7 @@ export const ProspectsView: React.FC = () => {
         <button
           onClick={() => setIsAddOpen(true)}
           className="py-3 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-2xl active:scale-95 transition-all flex items-center gap-2 shrink-0 h-12"
-          id="prospect_add_new_btn"
+          id="prospect_add_new_btn" aria-label="Ajouter un prospect"
         >
           <UserPlus className="w-4 h-4" />
           AJOUTER UN PROSPECT
@@ -155,9 +155,9 @@ export const ProspectsView: React.FC = () => {
       </div>
 
       {/* 2. Search & Stage Filter Chips (designed for thumb swiping) */}
-      <div className="space-y-3">
+      <div className="prospects-toolbar">
         {/* Search Input */}
-        <div className="relative">
+        <div className="relative prospects-search-wrap">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
             <Search className="w-5 h-5" />
           </span>
@@ -172,7 +172,7 @@ export const ProspectsView: React.FC = () => {
         </div>
 
         {/* Swipeable Horizontal Stage List */}
-        <div className="flex gap-2 mx-[-1rem] px-4 overflow-x-auto pb-1 scrollbar-none snap-x select-none">
+        <div className="prospect-stage-filters flex gap-2 mx-[-1rem] px-4 overflow-x-auto pb-1 scrollbar-none snap-x select-none">
           <button
             onClick={() => setSelectedStage('ALL')}
             className={`px-4 py-2 rounded-full text-xs font-bold transition-all shrink-0 snap-start h-9 ${
@@ -205,7 +205,7 @@ export const ProspectsView: React.FC = () => {
       </div>
 
       {/* 3. Prospects Listing Cards (Optimized mobile alternative to a table) */}
-      <div className="space-y-3" id="prospects_list_area">
+      <div className="prospects-list" id="prospects_list_area">
         {filteredProspects.length === 0 ? (
           <Card className="text-center py-10">
             <p className="text-sm text-slate-400">Aucun prospect trouvé pour ce critère.</p>
@@ -216,7 +216,7 @@ export const ProspectsView: React.FC = () => {
             return (
               <Card 
                 key={pr.id} 
-                className="hoverable active:scale-98 flex items-center justify-between gap-3 text-left p-4 rounded-3xl"
+                className="prospect-row hoverable active:scale-98 flex items-center justify-between gap-3 text-left p-4 rounded-3xl"
                 onClick={() => {
                   setSelectedProspect(pr);
                   setIsDetailOpen(true);
