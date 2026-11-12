@@ -14,6 +14,8 @@ import {
   Users, 
   ShoppingBag, 
   Receipt,
+  PanelLeftClose,
+  PanelLeftOpen,
   TrendingUp, 
   Wallet, 
   Calendar, 
@@ -41,6 +43,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isSyncManagerOpen, setIsSyncManagerOpen] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   // Check first launch
@@ -124,17 +127,39 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div id="fcf-app-shell" className="min-h-screen bg-[var(--fcf-background)] text-[var(--fcf-foreground)] flex transition-colors duration-200">
       
       {/* 1. DESKTOP SIDEBAR (visible only at xl: 1280px+) */}
-      <aside id="fcf-sidebar" className="hidden xl:flex flex-col w-[232px] bg-[var(--fcf-surface)] border-r border-[var(--fcf-border)] sticky h-screen top-0 shrink-0 z-30">
+      <aside id="fcf-sidebar" className={'hidden xl:flex flex-col w-[232px] bg-[var(--fcf-surface)] border-r border-[var(--fcf-border)] sticky h-screen top-0 shrink-0 z-30 ' + (isSidebarCollapsed ? 'is-collapsed' : '')}>
         {/* Sidebar Header with Gold Accent */}
-        <div className="px-4 py-4 border-b border-[var(--fcf-border)] flex flex-col gap-1">
-          <div className="flex flex-col gap-1">
-            <BrandLogo />
-            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-[0.12em] pl-1">CRM des Conquérants</span>
+        <div className="fcf-sidebar-brand px-4 py-4 border-b border-[var(--fcf-border)]">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-col gap-1">
+              <BrandLogo showWordmark={!isSidebarCollapsed} />
+              <span className="fcf-sidebar-subtitle text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-[0.12em] pl-1">CRM des Conquérants</span>
+            </div>
+            <button type="button" className="fcf-sidebar-collapse" onClick={() => setIsSidebarCollapsed(value => !value)} aria-label={isSidebarCollapsed ? "Développer la navigation" : "Réduire la navigation"} title={isSidebarCollapsed ? "Développer" : "Réduire"}>
+              {isSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+            </button>
           </div>
         </div>
 
+
+
+        {/* Navigation list */}
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto fcf-sidebar-nav">
+          {desktopNavItems.map((item, index) => {
+            const active = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
+            return (
+              <React.Fragment key={item.path}>
+                {item.group === 'secondary' && index === 4 && <div className="fcf-sidebar-divider"><span>ESPACE DE TRAVAIL</span></div>}
+                <button onClick={() => navigate(item.path)} title={item.label} aria-current={active ? 'page' : undefined} className={`fcf-sidebar-link ${active ? 'is-active' : ''}`}>
+                  {item.icon}<span>{item.label}</span>
+                </button>
+              </React.Fragment>
+            );
+          })}
+        </nav>
+
         {/* User Badge */}
-        <div className="mx-3 mt-4 p-3 rounded-lg bg-[var(--fcf-background)] border border-[var(--fcf-border)] flex items-center gap-2.5">
+        <div className="fcf-sidebar-user mx-3 mt-auto mb-2 p-3 rounded-lg bg-[var(--fcf-background)] border border-[var(--fcf-border)] flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-lg bg-[var(--fcf-surface-muted)] text-[var(--fcf-brand-terracotta)] font-extrabold flex items-center justify-center text-sm border border-[var(--fcf-border)] overflow-hidden shrink-0">
             {profile.photoUrl ? (
               <img 
@@ -152,21 +177,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{profile.title}</p>
           </div>
         </div>
-
-        {/* Navigation list */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto fcf-sidebar-nav">
-          {desktopNavItems.map((item, index) => {
-            const active = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
-            return (
-              <React.Fragment key={item.path}>
-                {item.group === 'secondary' && index === 4 && <div className="fcf-sidebar-divider"><span>ESPACE DE TRAVAIL</span></div>}
-                <button onClick={() => navigate(item.path)} title={item.label} aria-current={active ? 'page' : undefined} className={`fcf-sidebar-link ${active ? 'is-active' : ''}`}>
-                  {item.icon}<span>{item.label}</span>
-                </button>
-              </React.Fragment>
-            );
-          })}
-        </nav>
 
         {/* Sidebar Footer with Theme toggling */}
         <div className="px-3 py-3 border-t border-[var(--fcf-border)] flex items-center justify-between">
