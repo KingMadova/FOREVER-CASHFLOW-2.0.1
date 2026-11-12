@@ -88,7 +88,7 @@ export const OrdersView: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   useEffect(() => {
-    const openForm = () => setIsNewOrderOpen(true);
+    const openForm = () => { sessionStorage.removeItem('fcf-open-new-order'); setIsNewOrderOpen(true); };
     if (sessionStorage.getItem('fcf-open-new-order') === '1') {
       sessionStorage.removeItem('fcf-open-new-order');
       openForm();
