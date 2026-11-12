@@ -11,6 +11,9 @@ export type BadgeSize = "sm" | "md" | "lg";
 export type BadgeColor = "teal" | "sky" | "orchid" | "violet" | "rose" | "amber";
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
+  /** Explicitly declare commonly used span props for compatibility with the project JSX typings. */
+  className?: string;
+  children?: ReactNode;
   tone?: BadgeTone;
   size?: BadgeSize;
   icon?: ReactNode;
