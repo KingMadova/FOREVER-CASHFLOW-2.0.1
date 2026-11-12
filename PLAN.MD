@@ -880,3 +880,12 @@ Un incident Windows a toutefois été signalé pendant le pull : Git n'a pas ré
 - [x] Journal G4 : onglets de période, sélecteur de date, score, habitudes et compteurs harmonisés ; logique de progression et calculs inchangés.
 - [x] Projection : feuille de style dédiée ajoutée pour clarifier la hiérarchie entre paramètres et matrice de résultats.
 - [ ] Validation locale TypeScript/build et contrôle visuel responsive après récupération.
+
+
+### Lot Profil + Paramètres + Authentification — première harmonisation — 2026-11-12
+
+- [x] Profil FBO : composition en sections compactes sur desktop, empilement mobile, formulaires et champs harmonisés ; identité, photo, coordonnées, moyens de paiement et paramètres TVA conservés.
+- [x] Paramètres : regroupement visuel plus dense des préférences, rapport d'activité, réseau/synchronisation et sauvegardes ; aucune action système retirée.
+- [x] Connexion et inscription : surface d'authentification harmonisée avec la palette et les surfaces Yekola Business.
+- [x] Aucun changement aux flux Firebase Auth, aux données profil, à la synchronisation, aux sauvegardes ou aux actions de réinitialisation.
+- [ ] Validation locale TypeScript/build et contrôle visuel desktop/mobile après récupération.
