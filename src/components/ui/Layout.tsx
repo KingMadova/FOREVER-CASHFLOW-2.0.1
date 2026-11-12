@@ -3,6 +3,7 @@ import './AppShell.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BottomNav } from './BottomNav';
 import { PageHeader } from './PageHeader';
+import { BrandLogo } from './BrandLogo';
 import { useAuthStore } from '../../store/slices/authSlice';
 import { useSyncStore } from '../../store/slices/syncSlice';
 import { useThemeStore } from '../../store/slices/themeSlice';
@@ -123,14 +124,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <aside id="fcf-sidebar" className="hidden xl:flex flex-col w-72 bg-white dark:bg-[#1f1f22] border-r border-slate-200 dark:border-slate-800 sticky h-screen top-0 shrink-0 z-30">
         {/* Sidebar Header with Gold Accent */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col gap-1">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-md shrink-0">
-              <img src="/icon-192.png" alt="Forever CashFlow" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100 tracking-tight">Forever CashFlow</h2>
-              <span className="text-xs font-semibold text-amber-500 uppercase tracking-wider">CRM des Conquérants</span>
-            </div>
+          <div className="flex flex-col gap-1">
+            <BrandLogo />
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-[0.12em] pl-1">CRM des Conquérants</span>
           </div>
         </div>
 
