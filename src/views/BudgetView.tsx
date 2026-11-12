@@ -5,6 +5,7 @@ import { useSortPref, sortList, BUDGET_SORT_OPTIONS, budgetComparators } from '.
 import { useBudgetStore } from '../store/slices/budgetSlice';
 import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
+import './BudgetView.css';
 import { Drawer } from '../components/ui/Drawer';
 import { BudgetEntry } from '../types';
 import { 
