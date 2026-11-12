@@ -1,0 +1,16 @@
+/* Budget — financial cockpit and movement ledger */
+#budget_view_container{display:flex;flex-direction:column;gap:1rem;min-width:0}
+#budget_view_container>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.15rem 0 .85rem;border-bottom:1px solid var(--fcf-border)}
+#budget_view_container>div:first-child h2{color:var(--fcf-foreground);font-family:var(--font-display);font-size:1.15rem;font-weight:850;letter-spacing:-.04em}
+#budget_view_container>div:first-child p{margin-top:.2rem;color:var(--fcf-muted);font-size:.66rem}
+#budget_add_btn{min-height:2.55rem;height:2.55rem;padding:0 .85rem;border:1px solid var(--fcf-brand-terracotta);border-radius:.65rem;background:var(--fcf-brand-terracotta);color:#fff;font-size:.63rem;font-weight:800;box-shadow:none}
+#budget_cumulative_grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem}
+#budget_cumulative_grid>div{min-width:0;padding:.8rem;border:1px solid var(--fcf-border);border-radius:.75rem;background:var(--fcf-surface);box-shadow:none}
+#budget_cumulative_grid>div:last-child{background:var(--fcf-foreground);border-color:var(--fcf-foreground)}
+#budget_cumulative_grid>div span{font-size:.56rem;letter-spacing:.08em}
+#budget_cumulative_grid>div p{font-size:clamp(.8rem,1.5vw,1.05rem);font-variant-numeric:tabular-nums}
+#budget_view_container #budget_mapping_area{gap:.55rem;padding-top:.15rem}
+#budget_view_container #budget_mapping_area>div:first-child{align-items:center;border-color:var(--fcf-border)}
+#budget_view_container [id^="budget_card_"]{padding:.75rem .85rem;border:1px solid var(--fcf-border);border-radius:.7rem;background:var(--fcf-surface);box-shadow:none}
+#budget_view_container [id^="budget_card_"]:hover{border-color:color-mix(in oklab,var(--fcf-brand-orange) 45%,var(--fcf-border))}
+@media(max-width:640px){#budget_view_container{gap:.8rem}#budget_view_container>div:first-child{align-items:flex-start}#budget_view_container>div:first-child h2{font-size:1rem}#budget_add_btn{width:2.55rem;min-width:2.55rem;padding:0;font-size:0}#budget_cumulative_grid{gap:.4rem}#budget_cumulative_grid>div{padding:.6rem}#budget_cumulative_grid>div p{font-size:.76rem}#budget_view_container #budget_mapping_area>div:first-child{align-items:flex-start}}
