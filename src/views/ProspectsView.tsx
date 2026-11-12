@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './ProspectsClients.css';
 import { useCustomersStore } from '../store/slices/customersSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
