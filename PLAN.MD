@@ -654,3 +654,16 @@ La refonte sera considérée comme terminée lorsque :
 - [x] Aucun changement de rendu attendu, d'animation, de calcul ou de logique métier ; aucune dépendance ajoutée.
 - [x] Le propriétaire a confirmé que `npm run build` réussit déjà sur sa copie locale. Les avertissements d'imports mixtes et de chunk principal supérieur à 500 kB restent non bloquants et hors de ce correctif.
 - [ ] Récupérer le commit du correctif puis relancer `npm run lint` et `npm run build` pour confirmer le résultat sur le poste local.
+
+
+### Validation locale confirmée — 2026-11-12
+
+- [x] Le propriétaire a récupéré le correctif TypeScript des props `key` de `Glyph` et `Column`.
+- [x] `npm run lint` exécuté localement après le pull : `tsc --noEmit` termine sans erreur.
+- [x] `npm run build` exécuté localement après le pull : Vite termine avec succès (2 738 modules transformés) et la PWA est générée avec 46 entrées précachées.
+- [x] Les avertissements non bloquants sur les imports mixtes Firebase/Firestore/stores et le chunk principal d'environ 1 044 kB sont consignés comme dette d'optimisation distincte.
+- [x] Inspection statique complémentaire du shell : les sélecteurs de sidebar, header et navigation basse correspondent aux identifiants réellement présents dans le DOM.
+- [x] Correction CSS préventive publiée : suppression d'une règle de marge verticale générique qui aurait pu se cumuler avec la classe Tailwind `space-y-6` du conteneur Dashboard.
+- [ ] La validation visuelle réelle sur desktop et mobile reste à effectuer par le propriétaire ; aucune capture ni exécution navigateur distante n'est disponible pour ce contrôle.
+
+**État corrigé au 2026-11-12 :** contrôle TypeScript et build de production validés localement après récupération du correctif compteur. Le shell et le Dashboard restent en attente de validation visuelle/fonctionnelle. Le lot design n'est pas déclaré terminé.
