@@ -58,3 +58,45 @@
 #clients_view_container .clients-period-toolbar>button{padding-inline:.5rem;font-size:.58rem}
 }
 @media(prefers-reduced-motion:reduce){#prospects_view_container *,#clients_view_container *{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+
+/* Clients — portefeuille structuré : table desktop, cartes mobiles */
+#clients_view_container .clients-total-count{display:inline-flex;align-items:center;justify-content:center;min-width:1.55rem;height:1.55rem;padding:0 .4rem;border:1px solid var(--fcf-border);border-radius:.45rem;background:var(--fcf-surface);color:var(--fcf-muted);font:700 .68rem/1 var(--font-body);font-variant-numeric:tabular-nums}
+#clients_view_container .clients-saved-views{display:flex;align-items:center;gap:.35rem;overflow-x:auto;scrollbar-width:none;padding:.1rem 0}
+#clients_view_container .clients-saved-views::-webkit-scrollbar{display:none}
+#clients_view_container .clients-saved-views button{display:inline-flex;align-items:center;gap:.45rem;min-height:2.1rem;padding:0 .75rem;border:1px solid var(--fcf-border);border-radius:.55rem;background:var(--fcf-surface);color:var(--fcf-muted);font-size:.68rem;font-weight:650;white-space:nowrap}
+#clients_view_container .clients-saved-views button span{display:inline-flex;align-items:center;justify-content:center;min-width:1.15rem;height:1.15rem;padding:0 .25rem;border-radius:.35rem;background:var(--fcf-background);color:var(--fcf-muted);font-size:.59rem;font-variant-numeric:tabular-nums}
+#clients_view_container .clients-saved-views button.is-active{border-color:color-mix(in oklab,var(--fcf-brand-orange) 48%,var(--fcf-border));background:color-mix(in oklab,var(--fcf-brand-gold) 10%,var(--fcf-surface));color:var(--fcf-brand-terracotta)}
+#clients_view_container .clients-saved-views button.is-active span{background:color-mix(in oklab,var(--fcf-brand-gold) 22%,var(--fcf-surface));color:var(--fcf-brand-terracotta)}
+#clients_view_container .clients-results{min-width:0;border:1px solid var(--fcf-border);border-radius:.75rem;background:var(--fcf-surface);overflow:hidden}
+#clients_view_container .clients-table-wrap{display:block;max-height:calc(100dvh - 21rem);overflow:auto}
+#clients_view_container .clients-table{width:100%;border-collapse:separate;border-spacing:0;text-align:left;font-size:.72rem}
+#clients_view_container .clients-table thead{position:sticky;top:0;z-index:2;background:var(--fcf-background)}
+#clients_view_container .clients-table th{height:2.65rem;padding:.55rem .8rem;border-bottom:1px solid var(--fcf-border);color:var(--fcf-muted);font-size:.62rem;font-weight:750;letter-spacing:.045em;text-transform:uppercase;white-space:nowrap}
+#clients_view_container .clients-table td{height:3.55rem;padding:.45rem .8rem;border-bottom:1px solid color-mix(in oklab,var(--fcf-border) 72%,transparent);color:var(--fcf-muted);white-space:nowrap}
+#clients_view_container .clients-table tbody tr:last-child td{border-bottom:0}
+#clients_view_container .clients-table tbody tr:hover{background:color-mix(in oklab,var(--fcf-brand-gold) 4%,var(--fcf-surface))}
+#clients_view_container .clients-table .is-numeric{text-align:right;font-variant-numeric:tabular-nums}
+#clients_view_container .client-open-button{display:flex;align-items:center;gap:.65rem;min-width:0;text-align:left}
+#clients_view_container .client-table-avatar{display:inline-flex;align-items:center;justify-content:center;flex:0 0 2.15rem;width:2.15rem;height:2.15rem;border:1px solid color-mix(in oklab,var(--fcf-brand-gold) 45%,var(--fcf-border));border-radius:.6rem;background:color-mix(in oklab,var(--fcf-brand-gold) 13%,var(--fcf-surface));color:var(--fcf-brand-terracotta);font-size:.67rem;font-weight:800}
+#clients_view_container .client-table-identity,#clients_view_container .client-mobile-identity{display:flex;flex-direction:column;min-width:0;gap:.15rem}
+#clients_view_container .client-table-identity strong,#clients_view_container .client-mobile-identity strong{overflow:hidden;color:var(--fcf-foreground);font-size:.73rem;font-weight:750;text-overflow:ellipsis}
+#clients_view_container .client-table-identity small,#clients_view_container .client-mobile-identity small{color:var(--fcf-muted);font-size:.63rem}
+#clients_view_container .client-offline-dot{width:.42rem;height:.42rem;border-radius:50%;background:var(--fcf-danger);flex:0 0 auto}
+#clients_view_container .client-segment{display:inline-flex;align-items:center;gap:.25rem;padding:.2rem .45rem;border:1px solid var(--fcf-border);border-radius:999px;background:var(--fcf-background);color:var(--fcf-muted);font-size:.59rem;font-weight:700}
+#clients_view_container .client-segment-vip{border-color:color-mix(in oklab,var(--fcf-brand-gold) 48%,var(--fcf-border));background:color-mix(in oklab,var(--fcf-brand-gold) 12%,var(--fcf-surface));color:#9A5B00}
+#clients_view_container .clients-spend{color:var(--fcf-foreground)!important;font-weight:750}
+#clients_view_container .clients-volume{font-weight:650;font-variant-numeric:tabular-nums}
+#clients_view_container .clients-mobile-list{display:none}
+#clients_view_container .clients-reset-filter{margin-top:.7rem;padding:.45rem .7rem;border:1px solid var(--fcf-border);border-radius:.5rem;color:var(--fcf-brand-terracotta);font-size:.68rem;font-weight:700}
+#clients_view_container .clients-empty-state{padding:2rem 1rem;border:0;background:transparent}
+@media(max-width:767px){
+  #clients_view_container .clients-table-wrap{display:none}
+  #clients_view_container .clients-mobile-list{display:flex;flex-direction:column;gap:.45rem;padding:.45rem}
+  #clients_view_container .client-mobile-row{display:flex;align-items:center;gap:.65rem;min-height:4.25rem;padding:.55rem .65rem;border:1px solid var(--fcf-border);border-radius:.65rem;background:var(--fcf-surface);box-shadow:none}
+  #clients_view_container .client-mobile-row .client-table-avatar{width:2.35rem;height:2.35rem;flex-basis:2.35rem}
+  #clients_view_container .client-mobile-identity{flex:1}
+  #clients_view_container .client-mobile-metrics{display:flex;flex-direction:column;align-items:flex-end;gap:.12rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+  #clients_view_container .client-mobile-metrics strong{color:var(--fcf-foreground);font-size:.69rem;font-weight:750}
+  #clients_view_container .client-mobile-metrics small{color:var(--fcf-muted);font-size:.6rem}
+  #clients_view_container .client-mobile-row>svg:last-child{color:var(--fcf-muted);flex:0 0 auto}
+}
