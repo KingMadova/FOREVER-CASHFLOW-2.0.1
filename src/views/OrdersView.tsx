@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './OrdersView.css';
 import { printCanvas } from '../lib/printHelper';
 import { isCountedOrder } from '../lib/orderStats';
 import { SortSelect } from '../components/ui/SortSelect';
@@ -496,17 +497,17 @@ export const OrdersView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6" id="orders_view_container">
+    <div className="orders-view" id="orders_view_container">
       
       {/* 1. Header with Add Command Action */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="orders-page-header">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Commandes & Facturation</h2>
-          <p className="text-xs text-slate-500">Création instantanée de bons d’achat pour votre réseau.</p>
+          <h2 className="orders-page-title">Commandes & Facturation</h2>
+          <p className="orders-page-description">Suivez les ventes, les règlements et la facturation de votre réseau.</p>
         </div>
         <button
           onClick={() => setIsNewOrderOpen(true)}
-          className="py-3 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-2xl active:scale-95 transition-all flex items-center gap-2 shrink-0 h-12"
+          className="orders-create-button"
           id="order_add_btn"
         >
           <Plus className="w-4 h-4" />
@@ -515,16 +516,12 @@ export const OrdersView: React.FC = () => {
       </div>
 
       {/* 2. Filter tabs for orders */}
-      <div className="flex gap-2 bg-white dark:bg-[#1f1f22] p-1 border border-slate-200 dark:border-slate-800 rounded-2xl" id="orders_filter_group">
+      <div className="orders-filter-bar" id="orders_filter_group">
         {(['ALL', OrderStatus.PENDING, OrderStatus.VALIDATED, OrderStatus.CANCELLED] as const).map(f => (
           <button
             key={f}
             onClick={() => setStatusFilter(f)}
-            className={`flex-1 py-2 text-center text-xs font-bold rounded-xl transition-all h-9 cursor-pointer ${
-              statusFilter === f
-                ? 'bg-amber-500 text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
-            }`}
+            className={`orders-filter-button ${statusFilter === f ? 'is-active' : ''}`}
           >
             {f === 'ALL' ? 'Tout' : f === OrderStatus.PENDING ? 'En Attente' : f === OrderStatus.VALIDATED ? 'Validée' : 'Annulée'}
           </button>
@@ -532,15 +529,15 @@ export const OrdersView: React.FC = () => {
       </div>
 
       {/* Export Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-2">
-        <span className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-left">
+      <div className="orders-toolbar">
+        <span className="orders-count-label">
           Registre des Commandes ({filteredOrders.length})
         </span>
         <div className="flex flex-wrap items-center gap-2">
           <SortSelect options={ORDER_SORT_OPTIONS} value={orderSort} onChange={setOrderSort} id="orders_sort_select" />
           <button
             onClick={handleExportOrdersCSV}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="orders-utility-button"
             title="Exporter tout l'historique en CSV (Excel)"
           >
             <Download className="w-3.5 h-3.5 text-slate-500" />
@@ -548,7 +545,7 @@ export const OrdersView: React.FC = () => {
           </button>
           <button
             onClick={handlePrintRegistry}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="orders-utility-button"
             title="Imprimer le Registre de Ventes PDF"
           >
             <Printer className="w-3.5 h-3.5 text-slate-500" />
@@ -558,25 +555,25 @@ export const OrdersView: React.FC = () => {
       </div>
 
       {/* 3. Cards representing orders */}
-      <div className="space-y-3" id="orders_mapping_area">
+      <div className="orders-list" id="orders_mapping_area">
         {filteredOrders.length === 0 ? (
-          <Card className="text-center py-10">
+          <Card className="orders-empty text-center py-10">
             <p className="text-sm text-slate-400">Aucune commande enregistrée dans cette catégorie.</p>
           </Card>
         ) : (
           sortedOrders.map(ord => (
             <Card
               key={ord.id}
-              className="hoverable active:scale-98 flex items-center justify-between gap-3 text-left p-4 rounded-3xl"
+              className="order-row hoverable active:scale-98 flex items-center justify-between gap-3 text-left p-4 rounded-3xl"
               onClick={() => {
                 setSelectedOrder(ord);
                 setIsDetailOpen(true);
               }}
               id={`order_card_${ord.id}`}
             >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] text-slate-400 font-bold">
+              <div className="order-row-main flex-1 min-w-0">
+                <div className="order-row-meta flex items-center gap-2 flex-wrap">
+                  <span className="order-row-date">
                     {ord.status === OrderStatus.VALIDATED ? (ord.validatedAt || ord.date) : ord.date}
                   </span>
                   <span className={`text-[8px] font-extrabold uppercase px-2 py-0.5 rounded ${
@@ -596,16 +593,16 @@ export const OrdersView: React.FC = () => {
                   )}
                 </div>
 
-                <h3 className="font-bold text-slate-950 dark:text-slate-100 text-base mt-1 truncate">
+                <h3 className="order-row-customer font-bold text-slate-950 dark:text-slate-100 text-base mt-1 truncate">
                   {ord.customerName}
                 </h3>
 
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                <p className="order-row-summary text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
                   {ord.items.length} produit(s) • <span className="font-bold text-blue-500">{ord.totalCC.toFixed(3)} CC</span>
                 </p>
 
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-sm font-black text-amber-600 dark:text-amber-400">
+                <div className="order-row-financials flex items-center gap-2 mt-1">
+                  <p className="order-row-total text-sm font-black text-amber-600 dark:text-amber-400">
                     {ord.totalRetail.toLocaleString()} F
                   </p>
                   {ord.status === 'VALIDATED' && (
@@ -616,7 +613,7 @@ export const OrdersView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="order-row-chevron flex items-center gap-1">
                 <ChevronRight className="w-5 h-5 text-slate-300" />
               </div>
             </Card>
