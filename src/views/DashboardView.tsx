@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '../components/ui/Card';
+import { Button } from '../components/arc/button/button';
+import { Badge } from '../components/arc/badge/badge';
+import { Input } from '../components/arc/input/input';
+import './DashboardView.css';
 import { useAuthStore } from '../store/slices/authSlice';
 import { useCustomersStore } from '../store/slices/customersSlice';
 import { useOrdersStore } from '../store/slices/ordersSlice';
@@ -284,12 +288,12 @@ export const DashboardView: React.FC = () => {
       .reduce((s, l) => s + (l.oneToOne||0) + ((l.miniConferences||0)*3) + ((l.conferences||0)*5) + ((l.boutiques||0)*5), 0);
 
   return (
-    <div className="space-y-6" id="dashboard_view_container">
+    <div className="dashboard-view space-y-6" id="dashboard_view_container">
       
       {/* 1. Header Greeting with profile status */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-[#1f1f22] p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+      <div className="dashboard-header flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-[#1f1f22] p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
         <div>
-          <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">Dashboard Actif</span>
+          <Badge tone="warning" size="sm" pill dot>TABLEAU DE BORD</Badge>
           <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-0.5">
             Bonjour, {profile.name} 👋
           </h2>
@@ -298,22 +302,26 @@ export const DashboardView: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/projection')}
-            className="flex-1 md:flex-initial py-3 px-5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-2xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+          <Button
             id="dash_projection_cta"
+            className="dashboard-primary-action"
+            size="md"
+            onClick={() => navigate('/projection')}
           >
             <TrendingUp className="w-4 h-4" />
             LANCER UNE PROJECTION
-          </button>
-          <button
-            onClick={() => navigate('/orders')}
-            className="py-3 px-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-[#2a2a2e] text-slate-700 dark:text-slate-300 rounded-2xl active:scale-95 transition-all flex items-center justify-center"
-            title="Ajouter Vente"
+          </Button>
+          <Button
             id="dash_add_sale_cta"
+            className="dashboard-icon-action"
+            variant="secondary"
+            size="md"
+            title="Ajouter une vente"
+            aria-label="Ajouter une vente"
+            onClick={() => navigate('/orders')}
           >
             <Plus className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -427,7 +435,7 @@ export const DashboardView: React.FC = () => {
         const percentAmount = goalAmount > 0 ? Math.min(100, (totalAmountThisMonth / goalAmount) * 100) : 0;
 
         return (
-          <Card className="p-6 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-800 shadow-sm bg-white dark:bg-[#1f1f22]" id="monthly_sales_goals_section">
+          <Card className="dashboard-panel dashboard-goals-panel p-6 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-800 shadow-sm bg-white dark:bg-[#1f1f22]" id="monthly_sales_goals_section">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center">
@@ -443,70 +451,65 @@ export const DashboardView: React.FC = () => {
                 </div>
               </div>
 
-              <button
-                onClick={() => setIsEditingGoals(!isEditingGoals)}
-                className="py-1.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-[#2a2a2e] dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-center"
+              <Button
                 id="edit_goals_btn"
+                className="dashboard-edit-action self-start sm:self-center"
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsEditingGoals(!isEditingGoals)}
               >
                 <Pencil className="w-3.5 h-3.5" />
                 {goalCC === 0 && goalAmount === 0 ? "Définir des objectifs" : "Modifier"}
-              </button>
+              </Button>
             </div>
 
             {isEditingGoals ? (
               <form onSubmit={handleSaveGoals} className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-800/80 pt-4">
-                <div className="text-left">
-                  <label className="block text-xs font-black uppercase text-slate-400 dark:text-slate-500 mb-1">
-                    Objectif Case Credits (CC)
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={goalCCInput}
-                      onChange={(e) => setGoalCCInput(e.target.value)}
-                      placeholder="Ex: 4.0"
-                      className="w-full py-2.5 pl-3 pr-12 bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-850 rounded-xl text-slate-900 dark:text-slate-100 font-bold text-sm focus:outline-none focus:border-amber-500"
-                    />
-                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">CC</span>
-                  </div>
+                <div className="dashboard-goal-input">
+                  <Input
+                    label="Objectif Case Credits (CC)"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={goalCCInput}
+                    onChange={(e) => setGoalCCInput(e.target.value)}
+                    placeholder="Ex: 4.0"
+                    className="dashboard-goal-input-field"
+                  />
+                  <span className="dashboard-goal-input-suffix">CC</span>
                 </div>
-                <div className="text-left">
-                  <label className="block text-xs font-black uppercase text-slate-400 dark:text-slate-500 mb-1">
-                    Objectif de ventes (FCFA)
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min="0"
-                      value={goalAmountInput}
-                      onChange={(e) => setGoalAmountInput(e.target.value)}
-                      placeholder="Ex: 1000000"
-                      className="w-full py-2.5 pl-3 pr-16 bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-850 rounded-xl text-slate-900 dark:text-slate-100 font-bold text-sm focus:outline-none focus:border-emerald-500"
-                    />
-                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">FCFA</span>
-                  </div>
+                <div className="dashboard-goal-input">
+                  <Input
+                    label="Objectif de ventes (FCFA)"
+                    type="number"
+                    min="0"
+                    value={goalAmountInput}
+                    onChange={(e) => setGoalAmountInput(e.target.value)}
+                    placeholder="Ex: 1000000"
+                    className="dashboard-goal-input-field"
+                  />
+                  <span className="dashboard-goal-input-suffix">FCFA</span>
                 </div>
                 <div className="sm:col-span-2 flex items-center justify-end gap-2 mt-2">
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => {
                       setIsEditingGoals(false);
                       setGoalCCInput((profile.monthlyGoalCC || 0).toString());
                       setGoalAmountInput((profile.monthlyGoalAmount || 0).toString());
                     }}
-                    className="py-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-705 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl cursor-pointer"
                   >
                     Annuler
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
-                    className="py-2 px-6 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl transition-all shadow-md cursor-pointer"
                     id="save_goals_btn"
+                    size="sm"
                   >
-                    Enregistrer Enjeux
-                  </button>
+                    Enregistrer les objectifs
+                  </Button>
                 </div>
               </form>
             ) : (
@@ -588,7 +591,7 @@ export const DashboardView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Main Chart Canvas */}
-        <Card className="lg:col-span-8 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-[#1f1f22]">
+        <Card className="dashboard-panel dashboard-performance-panel lg:col-span-8 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-[#1f1f22]">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">Performances Hebdomadaires</h3>
@@ -608,23 +611,23 @@ export const DashboardView: React.FC = () => {
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorMarge" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.0}/>
+                    <stop offset="5%" stopColor="#F9A825" stopOpacity={0.32}/>
+                    <stop offset="95%" stopColor="#F9A825" stopOpacity={0.0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" className="dark:stroke-slate-800/60" />
-                <XAxis dataKey="day" stroke="#94A3B8" fontSize={11} fontWeight="bold" tickLine={false} />
-                <YAxis stroke="#94A3B8" fontSize={10} fontWeight="bold" tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--fcf-border)" />
+                <XAxis dataKey="day" stroke="var(--fcf-muted)" fontSize={11} fontWeight="bold" tickLine={false} />
+                <YAxis stroke="var(--fcf-muted)" fontSize={10} fontWeight="bold" tickLine={false} />
                 <ChartTooltip 
                   contentStyle={{ 
-                    backgroundColor: '#1E293B', 
-                    borderRadius: '16px', 
-                    color: '#fff', 
-                    border: 'none',
+                    backgroundColor: 'var(--fcf-surface)', 
+                    borderRadius: '12px', 
+                    color: 'var(--fcf-foreground)', 
+                    border: '1px solid var(--fcf-border)',
                     fontSize: '12px'
                   }} 
                 />
-                <Area type="monotone" dataKey="Marge" name="Marge (F)" stroke="#F59E0B" strokeWidth={3} fillOpacity={1} fill="url(#colorMarge)" />
+                <Area type="monotone" dataKey="Marge" name="Marge (F)" stroke="#C1440E" strokeWidth={2.5} fillOpacity={1} fill="url(#colorMarge)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -645,9 +648,11 @@ export const DashboardView: React.FC = () => {
         <div className="lg:col-span-4 flex flex-col gap-6">
 
           {/* Widget G4 — Journal Excellente Vie */}
-          <div
-            className="bg-slate-900 dark:bg-slate-800 rounded-3xl p-4 cursor-pointer active:scale-[0.99] transition-all"
+          <button
+            type="button"
+            className="dashboard-g4-card bg-slate-900 dark:bg-slate-800 rounded-3xl p-4 cursor-pointer active:scale-[0.99] transition-all text-left w-full"
             onClick={() => navigate('/tracker')}
+            aria-label="Ouvrir le journal G4"
           >
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -687,8 +692,8 @@ export const DashboardView: React.FC = () => {
             <p className="text-[10px] text-slate-500 mt-2 text-center">
               {dayScorePct >= 80 ? '🔥 Journée excellente' : dayScorePct >= 50 ? '⚡ Continue à pousser' : '👆 Ouvrir le journal G4'}
             </p>
-          </div>
-          <Card className="flex-1 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-[#1f1f22] flex flex-col justify-between">
+          </button>
+          <Card className="dashboard-panel dashboard-activity-panel flex-1 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-[#1f1f22] flex flex-col justify-between">
             <div>
               <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3 mb-4 uppercase tracking-wider text-left">
                 Activités Récentes
