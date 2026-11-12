@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { Download, Search, Receipt, Wallet, TrendingUp, CircleDollarSign, ChevronRight } from 'lucide-react';
 import { useOrdersStore } from '../store/slices/ordersSlice';
 import { isCountedOrder, orderAccountingDate } from '../lib/orderStats';
-import { Order } from '../types';
 import './SalesView.css';
 
 type Period = '7' | '30' | '90' | 'year';
