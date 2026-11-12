@@ -52,7 +52,6 @@ export const SalesView: React.FC = () => {
     const paid = Math.min(order.totalRetail, Math.max(0, order.amountPaid ?? order.totalRetail));
     acc.revenue += order.totalRetail;
     acc.paid += paid;
-    acc.margin += order.totalMargin;
     acc.count += 1;
     return acc;
   }, { revenue: 0, paid: 0, margin: 0, count: 0 }), [countedOrders]);
@@ -132,15 +131,15 @@ export const SalesView: React.FC = () => {
           <Wallet size={18} aria-hidden="true" />
         </article>
         <article className="sales-kpi">
-          <span>Reste à encaisser estimé</span>
+          <span>Écart catalogue / encaissé</span>
           <strong>{money(Math.max(0, totals.revenue - totals.paid))}</strong>
-          <small>Écart entre CA et montant déclaré encaissé</small>
+          <small>Écart de valeur, pas un solde client dû</small>
           <CircleDollarSign size={18} aria-hidden="true" />
         </article>
         <article className="sales-kpi">
-          <span>Marge commerciale</span>
-          <strong>{money(totals.margin)}</strong>
-          <small>Calcul de marge existant sur les commandes</small>
+          <span>Panier moyen catalogue</span>
+          <strong>{money(totals.count ? totals.revenue / totals.count : 0)}</strong>
+          <small>Valeur catalogue moyenne par commande</small>
           <TrendingUp size={18} aria-hidden="true" />
         </article>
       </div>
@@ -176,7 +175,7 @@ export const SalesView: React.FC = () => {
 
         <aside className="sales-analysis">
           <section className="sales-analysis-card">
-            <div className="sales-analysis-title"><div><h2>Activité récente</h2><span>Chiffre d'affaires · 7 jours</span></div><ChevronRight size={16} /></div>
+            <div className="sales-analysis-title"><div><h2>Activité récente</h2><span>CA catalogue · 7 jours</span></div><ChevronRight size={16} /></div>
             <div className="sales-bars" role="img" aria-label="Chiffre d'affaires par jour sur les sept derniers jours">
               {daily.map(day => (
                 <div className="sales-bar-column" key={day.key} title={`${day.label} : ${money(day.amount)}`}>
@@ -188,7 +187,7 @@ export const SalesView: React.FC = () => {
             </div>
           </section>
           <section className="sales-analysis-card">
-            <div className="sales-analysis-title"><div><h2>Modes de paiement</h2><span>Répartition des commandes</span></div></div>
+            <div className="sales-analysis-title"><div><h2>Modes de paiement</h2><span>Nombre de commandes par mode</span></div></div>
             {paymentMix.length ? paymentMix.map(([mode, count]) => (
               <div className="sales-payment-row" key={mode}>
                 <div><span>{paymentLabel[mode] || mode}</span><strong>{count}</strong></div>
