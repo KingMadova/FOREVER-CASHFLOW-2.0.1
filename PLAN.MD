@@ -580,18 +580,19 @@ Ces largeurs sont des repères de test, pas des limites rigides de conception.
 - [x] Les avertissements Vite concernent des imports à la fois statiques et dynamiques (Firebase/Firestore et slices) ainsi qu'un chunk principal minifié supérieur à 500 kB ; ils ne bloquent pas le build et ne sont pas modifiés dans ce correctif.
 - [x] `npm run lint` (en réalité `tsc --noEmit`) a identifié 5 erreurs de typage : `BadgeProps` ne déclarait pas explicitement `className`/`children` selon les types JSX du projet ; `key` était refusé sur les props locales de `LabelPhase` et `MessageRow`.
 - [x] Correctifs ciblés publiés sur `feat/lot-1-design-system` : déclaration explicite des props Badge et acceptation typée de `key` dans les deux composants internes animés. Aucun changement de logique métier.
-- [ ] Rejouer `npm run lint` après récupération des trois commits correctifs ; si des erreurs persistent, les traiter avant validation du lot.
-- [ ] Rejouer `npm run build` après récupération des correctifs ; effectuer ensuite la validation visuelle et responsive du Dashboard.
+- [x] Après récupération des correctifs, `npm run lint` (`tsc --noEmit`) s'est terminé sans aucune erreur.
+- [x] Après récupération des correctifs, `npm run build` s'est terminé avec succès ; Vite a transformé 2 733 modules et généré la PWA (47 entrées précachées).
+- [ ] Effectuer la validation visuelle et responsive du Dashboard sur le poste du propriétaire ; les avertissements Vite non bloquants restent à traiter dans un lot d'optimisation distinct.
 
 ### Journal d'avancement
 
 | Lot | Statut | Notes |
 |---|---|---|
 | Audit statique initial | Effectué | Lecture du code distant ; pas encore de build/test local |
-| Lot 0 — Préparation | En cours — build local réussi, TypeScript à corriger | `npm run build` réussi sur le poste du propriétaire ; `npm run lint` remonte 5 erreurs de typage dans les composants Arc Badge, Button et Input ; warnings Vite non bloquants sur imports mixtes et chunk principal > 500 kB |
-| Lot 1 — Design system | En cours — correctifs TypeScript publiés | Typage des props Badge et des clés React dans Button/Input corrigé sur la branche feature ; nouvelle exécution locale de `npm run lint` requise ; showcase et validations restantes à terminer |
+| Lot 0 — Préparation | Validé pour le socle et les contrôles locaux | Après correctifs : `npm run lint` réussi sans erreur et `npm run build` réussi ; avertissements Vite non bloquants sur imports mixtes et chunk principal > 500 kB consignés pour optimisation ultérieure |
+| Lot 1 — Design system | En cours — intégration et TypeScript validés | Tokens Yekola et composants Arc UI intégrés ; `npm run lint` et `npm run build` réussis après corrections ; showcase, notice de licence consolidée et validation visuelle restent à terminer |
 | Lot 2 — Shell et navigation | À faire | Desktop et mobile |
-| Lot 3 — Dashboard | En cours — première passe UI publiée | Le propriétaire a confirmé le build Vite de production réussi ; les 5 erreurs TypeScript identifiées sont traitées dans les composants Arc ; contrôles responsive et validation visuelle/fonctionnelle encore en attente |
+| Lot 3 — Dashboard | En cours — première passe UI compilée | Le propriétaire a confirmé `npm run lint` sans erreur et `npm run build` réussi ; contrôles responsive et validation visuelle/fonctionnelle encore en attente |
 | Lot 4 — Prospects et clients | À faire | Gestion commerciale |
 | Lot 5 — Commandes et ventes | À faire | Parcours de vente |
 | Lot 6 — Projection et finances | À faire | Calculs et budget |
