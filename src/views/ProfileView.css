@@ -1,0 +1,13 @@
+/* FBO profile — identity and business details */
+#profile_view_container{display:flex;flex-direction:column;gap:1rem;min-width:0}
+#profile_view_container>div:first-child{padding:.15rem 0 .85rem;border-bottom:1px solid var(--fcf-border)}
+#profile_view_container>div:first-child h2{color:var(--fcf-foreground);font-family:var(--font-display);font-size:1.15rem;font-weight:850;letter-spacing:-.04em}
+#profile_view_container>div:first-child p{max-width:52rem;margin-top:.25rem;color:var(--fcf-muted);font-size:.67rem;line-height:1.5}
+#profile_view_container #settings_tab_profile_content{gap:.85rem}
+#profile_view_container #settings_tab_profile_content>form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:.85rem}
+#profile_view_container #settings_tab_profile_content>form>div{min-width:0;padding:1rem;border:1px solid var(--fcf-border);border-radius:.8rem;background:var(--fcf-surface);box-shadow:none}
+#profile_view_container #settings_tab_profile_content>form>div:first-child{grid-column:1/-1}
+#profile_view_container #settings_tab_profile_content h3{font-size:.7rem;letter-spacing:.07em}
+#profile_view_container input,#profile_view_container select,#profile_view_container textarea{min-height:2.55rem;border-radius:.55rem;font-size:.75rem}
+#profile_save_btn2{min-height:2.7rem;border-radius:.65rem;background:var(--fcf-brand-terracotta);color:#fff;box-shadow:none}
+@media(max-width:767px){#profile_view_container #settings_tab_profile_content>form{grid-template-columns:minmax(0,1fr)}#profile_view_container #settings_tab_profile_content>form>div:first-child{grid-column:auto}#profile_view_container>div:first-child h2{font-size:1rem}}
