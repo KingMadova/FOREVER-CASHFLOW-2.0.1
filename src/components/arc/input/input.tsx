@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useId, useRef, useState } from "react";
-import type { InputHTMLAttributes } from "react";
+import type { InputHTMLAttributes, Key } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./input.module.css";
@@ -48,7 +48,7 @@ function FieldMessage({ id, text, className, alert }: { id?: string; text?: stri
 }
 
 /** The row tracks the measured copy, so a longer message that wraps opens its next line instead of snapping. */
-function MessageRow({ id, text, className, alert }: { id?: string; text: string; className?: string; alert?: boolean }) {
+function MessageRow({ id, text, className, alert }: { id?: string; text: string; className?: string; alert?: boolean; key?: Key }) {
   const reduced = useReducedMotion();
   const copyRef = useRef<HTMLSpanElement>(null);
   const [height, setHeight] = useState<number | "auto">("auto");
