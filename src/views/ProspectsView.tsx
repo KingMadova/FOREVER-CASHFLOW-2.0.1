@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './ProspectsClients.css';
+import './ProspectsView.css';
 import { useCustomersStore } from '../store/slices/customersSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
@@ -203,6 +204,36 @@ export const ProspectsView: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* Pipeline overview — counts remain derived from the existing prospect records. */}
+      <section className="prospect-pipeline-overview" aria-label="Vue d'ensemble du pipeline">
+        <div className="prospect-pipeline-heading">
+          <div>
+            <span>PIPELINE COMMERCIAL</span>
+            <strong>Progression des prospects</strong>
+          </div>
+          <span className="prospect-pipeline-total">{prospects.length} au total</span>
+        </div>
+        <div className="prospect-pipeline-stages">
+          {STAGES.map(stage => {
+            const count = prospects.filter(prospect => prospect.pipelineStage === stage.code).length;
+            const active = selectedStage === stage.code;
+            return (
+              <button
+                key={stage.code}
+                type="button"
+                className={`prospect-pipeline-stage ${active ? 'is-active' : ''}`}
+                onClick={() => setSelectedStage(active ? 'ALL' : stage.code)}
+                aria-pressed={active}
+              >
+                <span>{stage.label}</span>
+                <strong>{count}</strong>
+                <small>{stage.desc}</small>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       {/* 3. Prospects Listing Cards (Optimized mobile alternative to a table) */}
       <div className="prospects-list" id="prospects_list_area">
