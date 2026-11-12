@@ -73,6 +73,7 @@
   --control-height-lg: 3rem;
 
   --radius-control: var(--fcf-radius-md);
+  --radius-surface: var(--fcf-radius-lg);
   --radius-pill: 9999px;
   --shadow-resting: var(--fcf-shadow-sm);
 
