@@ -859,3 +859,13 @@ Un incident Windows a toutefois été signalé pendant le pull : Git n'a pas ré
 **État de validation à ne pas confondre :** le commit `ff3a238` est validé localement par le propriétaire. Les commits de correction publiés après `ff3a238` n'ont pas encore été exécutés localement ; ils restent à valider après récupération.
 
 **Prochaine étape :** poursuivre l'audit visuel et fonctionnel des vues CRM et du Dashboard sans toucher à la logique métier, puis valider chaque lot sur le poste local.
+
+
+### Lot Prospects + Projection — première refonte structurelle — 2026-11-12
+
+- [x] Ajout d'une vue synthétique du pipeline Prospects avec compteurs par étape, calculés à partir des prospects existants.
+- [x] Chaque étape du pipeline permet d'activer/désactiver le filtre correspondant ; aucun nouveau statut ni champ métier n'est introduit.
+- [x] Présentation horizontale compacte sur desktop et défilement horizontal adapté au tactile sur mobile.
+- [x] Harmonisation de la hiérarchie de la page Projection : en-tête, zone de configuration et panneau de résultats, avec densité et rayons cohérents.
+- [x] Conservation des algorithmes de marge, CC, sélection des packs, catalogue produits, partage et copie.
+- [ ] Validation locale TypeScript/build et contrôle visuel responsive après récupération.
