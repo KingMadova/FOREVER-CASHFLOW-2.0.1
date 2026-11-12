@@ -10,6 +10,7 @@ import {
   BookOpen, Coffee, Sun, Sunset, Moon, TrendingUp,
   Star, Award, BarChart3, Calendar
 } from 'lucide-react';
+import './TrackerView.css';
 
 // ── Constantes objectifs G4 Excellente Vie ──────────────────────
 const GOALS = {
