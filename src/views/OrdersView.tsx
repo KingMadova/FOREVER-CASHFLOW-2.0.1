@@ -87,6 +87,13 @@ export const OrdersView: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  useEffect(() => {
+    if (sessionStorage.getItem('fcf-open-new-order') === '1') {
+      sessionStorage.removeItem('fcf-open-new-order');
+      setIsNewOrderOpen(true);
+    }
+  }, []);
+
 
   // Filter lists
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatut>('ALL');
