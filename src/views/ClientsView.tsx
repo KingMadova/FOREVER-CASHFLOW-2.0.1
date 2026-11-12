@@ -71,6 +71,13 @@ export const ClientsView: React.FC = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState<'INFO' | 'ORDERS' | 'HISTORY' | 'NOTES'>('INFO');
+  useEffect(() => {
+    if (sessionStorage.getItem('fcf-open-new-client') === '1') {
+      sessionStorage.removeItem('fcf-open-new-client');
+      setIsAddOpen(true);
+    }
+  }, []);
+
 
   // Période sélectionnée pour le rapport VIP
   // Recalculer la date courante dynamiquement pour détecter le changement de mois
