@@ -714,3 +714,10 @@ La refonte sera considérée comme terminée lorsque :
 - [ ] Vérifier les vues sur petit mobile, smartphone standard et desktop ; la validation visuelle locale n'est pas disponible à distance.
 
 **Statut :** refonte structurelle et visuelle publiée sur la branche feature ; validation technique et visuelle locale en attente.
+
+
+### Ajustement de densité du Dashboard — 2026-11-12
+
+- [x] Réduction des espacements entre le graphique, le panneau G4 et les activités récentes, y compris sur desktop.
+- [x] Harmonisation de la séparation entre les sections inférieures et les commandes récentes.
+- [x] Contrôle statique de `orderAccountingDate` : le tri de l'aperçu s'appuie sur la date comptable existante (date de validation pour les commandes comptabilisées, date de création sinon), sans changer les règles de calcul.
