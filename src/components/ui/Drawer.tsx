@@ -6,9 +6,10 @@ interface DrawerProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  variant?: 'modal' | 'side';
 }
 
-export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, title, children }) => {
+export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, title, children, variant = 'modal' }) => {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -23,7 +24,9 @@ export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, title, children
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center xl:items-center">
+    <div className={variant === 'side'
+      ? 'fixed inset-0 z-50 flex items-stretch justify-end'
+      : 'fixed inset-0 z-50 flex items-end justify-center xl:items-center'}>
       
       {/* Backdrop */}
       <div 
@@ -33,7 +36,9 @@ export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, title, children
 
       {/* Sheet Content Container */}
       <div 
-        className="relative w-full max-w-lg md:max-w-xl bg-white dark:bg-[#1f1f22] rounded-t-3xl xl:rounded-3xl shadow-2xl p-6 pb-8 border border-slate-100 dark:border-slate-800 transition-transform duration-300 transform translate-y-0 flex flex-col max-h-[85vh] xl:max-h-[80vh] z-10"
+        className={variant === 'side'
+          ? 'relative w-full max-w-lg h-[92dvh] mt-auto rounded-t-2xl bg-white dark:bg-[#1f1f22] shadow-2xl p-4 pb-6 border border-slate-100 dark:border-slate-800 flex flex-col z-10 xl:mt-0 xl:h-dvh xl:max-h-dvh xl:max-w-[440px] xl:rounded-none xl:p-5'
+          : 'relative w-full max-w-lg md:max-w-xl bg-white dark:bg-[#1f1f22] rounded-t-3xl xl:rounded-3xl shadow-2xl p-6 pb-8 border border-slate-100 dark:border-slate-800 transition-transform duration-300 transform translate-y-0 flex flex-col max-h-[85vh] xl:max-h-[80vh] z-10'}
         role="dialog"
         aria-modal="true"
         id="app_drawer_panel"
