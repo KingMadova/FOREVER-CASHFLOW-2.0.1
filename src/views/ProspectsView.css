@@ -1,0 +1,22 @@
+/* Prospects — pipeline board and compact CRM workspace */
+#prospects_view_container .prospect-pipeline-overview{display:flex;flex-direction:column;gap:.65rem;padding:.85rem;border:1px solid var(--fcf-border);border-radius:.8rem;background:var(--fcf-surface)}
+#prospects_view_container .prospect-pipeline-heading{display:flex;align-items:center;justify-content:space-between;gap:.7rem}
+#prospects_view_container .prospect-pipeline-heading>div{display:flex;flex-direction:column;gap:.12rem}
+#prospects_view_container .prospect-pipeline-heading>div>span{color:var(--fcf-muted);font-size:.54rem;font-weight:800;letter-spacing:.12em}
+#prospects_view_container .prospect-pipeline-heading strong{color:var(--fcf-foreground);font-size:.78rem;font-weight:800;letter-spacing:-.02em}
+#prospects_view_container .prospect-pipeline-total{padding:.25rem .5rem;border:1px solid var(--fcf-border);border-radius:.45rem;background:var(--fcf-background);color:var(--fcf-muted);font-size:.6rem;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap}
+#prospects_view_container .prospect-pipeline-stages{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.45rem}
+#prospects_view_container .prospect-pipeline-stage{display:flex;min-width:0;min-height:4.6rem;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:.2rem;padding:.55rem .6rem;border:1px solid var(--fcf-border);border-radius:.6rem;background:var(--fcf-background);text-align:left;transition:border-color .15s ease,background .15s ease}
+#prospects_view_container .prospect-pipeline-stage>span{overflow:hidden;max-width:100%;color:var(--fcf-muted);font-size:.57rem;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+#prospects_view_container .prospect-pipeline-stage strong{color:var(--fcf-foreground);font-size:1.2rem;font-weight:850;line-height:1;font-variant-numeric:tabular-nums}
+#prospects_view_container .prospect-pipeline-stage small{overflow:hidden;max-width:100%;color:var(--fcf-muted);font-size:.5rem;text-overflow:ellipsis;white-space:nowrap}
+#prospects_view_container .prospect-pipeline-stage:hover,#prospects_view_container .prospect-pipeline-stage.is-active{border-color:var(--fcf-brand-orange);background:color-mix(in oklab,var(--fcf-brand-gold) 9%,var(--fcf-surface))}
+#prospects_view_container .prospect-pipeline-stage.is-active strong,#prospects_view_container .prospect-pipeline-stage.is-active>span{color:var(--fcf-brand-terracotta)}
+#prospects_view_container .prospects-toolbar{display:grid;grid-template-columns:minmax(15rem,1fr);gap:.6rem}
+#prospects_view_container .prospect-row{border-radius:.7rem}
+#prospects_view_container .prospect-row:focus-within{outline:2px solid color-mix(in oklab,var(--fcf-brand-orange) 35%,transparent);outline-offset:1px}
+@media(max-width:767px){
+#prospects_view_container .prospect-pipeline-stages{grid-template-columns:repeat(5,minmax(6.2rem,1fr));overflow-x:auto;padding-bottom:.15rem;scroll-snap-type:x mandatory}
+#prospects_view_container .prospect-pipeline-stage{scroll-snap-align:start;min-height:4.3rem}
+}
+@media(prefers-reduced-motion:reduce){#prospects_view_container .prospect-pipeline-stage{transition:none}}
