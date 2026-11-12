@@ -37,7 +37,7 @@ export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, title, children
       {/* Sheet Content Container */}
       <div 
         className={variant === 'side'
-          ? 'relative w-full max-w-lg h-[92dvh] mt-auto rounded-t-2xl bg-white dark:bg-[#1f1f22] shadow-2xl p-4 pb-6 border border-slate-100 dark:border-slate-800 flex flex-col z-10 xl:mt-0 xl:h-dvh xl:max-h-dvh xl:max-w-[440px] xl:rounded-none xl:p-5'
+          ? 'relative w-full max-w-lg h-[92dvh] mt-auto rounded-t-2xl bg-white dark:bg-[#1f1f22] shadow-2xl p-4 pb-6 border border-slate-100 dark:border-slate-800 flex flex-col z-10 md:mt-0 md:h-dvh md:max-h-dvh md:max-w-[440px] md:rounded-l-2xl md:rounded-t-none md:p-5 xl:rounded-none'
           : 'relative w-full max-w-lg md:max-w-xl bg-white dark:bg-[#1f1f22] rounded-t-3xl xl:rounded-3xl shadow-2xl p-6 pb-8 border border-slate-100 dark:border-slate-800 transition-transform duration-300 transform translate-y-0 flex flex-col max-h-[85vh] xl:max-h-[80vh] z-10'}
         role="dialog"
         aria-modal="true"
