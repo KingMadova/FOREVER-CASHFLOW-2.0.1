@@ -1,12 +1,94 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
 @variant dark (&:where(.dark, .dark *));
 
+/*
+ * FOREVER CASHFLOW — Yekola Business design tokens
+ * Keep semantic values here; feature views should consume these tokens
+ * instead of introducing new one-off brand colors.
+ */
+:root {
+  color-scheme: light;
+
+  --fcf-brand-gold: #F9A825;
+  --fcf-brand-orange: #FF6A1A;
+  --fcf-brand-terracotta: #C1440E;
+  --fcf-brand-gradient: linear-gradient(110deg, #F9A825 0%, #C1440E 100%);
+
+  --fcf-background: #FFF9F3;
+  --fcf-surface: #FFFFFF;
+  --fcf-surface-muted: #FFF3E8;
+  --fcf-foreground: #29231F;
+  --fcf-muted: #756B63;
+  --fcf-border: #E9DED3;
+  --fcf-primary: #C1440E;
+  --fcf-primary-foreground: #FFFFFF;
+  --fcf-focus: #F9A825;
+
+  --fcf-success: #16845B;
+  --fcf-warning: #B7791F;
+  --fcf-danger: #C53030;
+  --fcf-info: #2563A6;
+
+  --fcf-radius-sm: 0.5rem;
+  --fcf-radius-md: 0.75rem;
+  --fcf-radius-lg: 1rem;
+  --fcf-radius-xl: 1.25rem;
+  --fcf-radius-2xl: 1.5rem;
+
+  --fcf-shadow-sm: 0 1px 2px rgb(41 35 31 / 0.06);
+  --fcf-shadow-md: 0 8px 24px rgb(41 35 31 / 0.08);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --fcf-background: #11100F;
+  --fcf-surface: #1B1917;
+  --fcf-surface-muted: #26221F;
+  --fcf-foreground: #F6F0EA;
+  --fcf-muted: #B4A89E;
+  --fcf-border: #3A332E;
+  --fcf-primary: #FF8A50;
+  --fcf-primary-foreground: #24140D;
+  --fcf-focus: #FFC04D;
+
+  --fcf-success: #4CC38A;
+  --fcf-warning: #E8B45B;
+  --fcf-danger: #F07878;
+  --fcf-info: #77B5ED;
+
+  --fcf-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.18);
+  --fcf-shadow-md: 0 8px 24px rgb(0 0 0 / 0.24);
+}
+
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Outfit", sans-serif;
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-gold: var(--fcf-brand-gold);
+  --color-brand-orange: var(--fcf-brand-orange);
+  --color-brand-terracotta: var(--fcf-brand-terracotta);
+  --color-background: var(--fcf-background);
+  --color-foreground: var(--fcf-foreground);
+  --color-surface: var(--fcf-surface);
+  --color-surface-muted: var(--fcf-surface-muted);
+  --color-muted: var(--fcf-muted);
+  --color-border: var(--fcf-border);
+  --color-primary: var(--fcf-primary);
+  --color-primary-foreground: var(--fcf-primary-foreground);
+  --color-success: var(--fcf-success);
+  --color-warning: var(--fcf-warning);
+  --color-danger: var(--fcf-danger);
+  --color-info: var(--fcf-info);
+
+  --radius-sm: var(--fcf-radius-sm);
+  --radius-md: var(--fcf-radius-md);
+  --radius-lg: var(--fcf-radius-lg);
+  --radius-xl: var(--fcf-radius-xl);
+  --radius-2xl: var(--fcf-radius-2xl);
 }
 
 @utility scrollbar-none {
@@ -33,7 +115,7 @@
     padding: 0 !important;
     background: white !important;
     color: #0f172a !important;
-    font-family: "Inter", sans-serif !important;
+    font-family: "Poppins", sans-serif !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -154,9 +236,20 @@
 
 body {
   font-family: var(--font-sans);
+  background-color: var(--fcf-background);
+  color: var(--fcf-foreground);
   -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
+}
+
+:where(button, a, input, select, textarea, [role="button"]):focus-visible {
+  outline: 2px solid var(--fcf-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgb(249 168 37 / 0.28);
 }
