@@ -721,3 +721,21 @@ La refonte sera considérée comme terminée lorsque :
 - [x] Réduction des espacements entre le graphique, le panneau G4 et les activités récentes, y compris sur desktop.
 - [x] Harmonisation de la séparation entre les sections inférieures et les commandes récentes.
 - [x] Contrôle statique de `orderAccountingDate` : le tri de l'aperçu s'appuie sur la date comptable existante (date de validation pour les commandes comptabilisées, date de création sinon), sans changer les règles de calcul.
+
+
+### Résultats de validation locale — branche feat/lot-1-design-system — 2026-11-12
+
+- [x] `git pull origin feat/lot-1-design-system` effectué en fast-forward jusqu'au commit `4f7cc77`.
+- [x] `npm run lint` exécuté localement : `tsc --noEmit` passe sans erreur.
+- [x] `npm run build` exécuté localement : Vite 6.4.6 compile 2 739 modules et termine avec succès.
+- [x] Génération PWA réussie : 47 ressources précachées.
+- [ ] Les avertissements d'imports statiques/dynamiques mixtes et le bundle principal d'environ 1 044 Ko restent à traiter dans un lot performance séparé ; ils ne bloquent pas ce build.
+
+### Lot Commandes — première passe de refonte visuelle — 2026-11-12
+
+- [x] Structure visuelle identifiée : en-tête, filtres de statut, registre, tri, exports CSV/PDF, liste de commandes, drawer de création/détail, facture imprimable.
+- [x] Ajout de classes de présentation explicites à l'en-tête, aux filtres, à la barre d'outils et aux cartes de commande.
+- [x] Nouvelle feuille de style dédiée : surfaces neutres, accent terracotta pour l'action principale, jaune/or Yekola en accent, listes compactes, adaptation mobile.
+- [x] Conservation du drawer de création et de détail, des actions de validation/modification/suppression, du tri, des filtres, des exports, de l'impression et du partage.
+- [ ] Validation locale `npm run lint` / `npm run build` après récupération.
+- [ ] Contrôle visuel desktop et mobile à réaliser sur l'application exécutée.
