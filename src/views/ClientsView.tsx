@@ -65,6 +65,7 @@ export const ClientsView: React.FC = () => {
   
   // States
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeClientView, setActiveClientView] = useState<'ALL' | 'VIP' | 'NO_ORDER'>('ALL');
   const [clientSort, setClientSort] = useSortPref('fcf-sort-clients', CLIENT_SORT_OPTIONS, 'name_asc');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -99,12 +100,6 @@ export const ClientsView: React.FC = () => {
 
   // Filtering list
   const clients = customers.filter(c => c.status === CustomerStatus.CLIENT);
-
-  const filteredClients = clients.filter(cl => {
-    return cl.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-           cl.phone.includes(searchTerm) || 
-           (cl.address && cl.address.toLowerCase().includes(searchTerm.toLowerCase()));
-  });
 
   const handleAddSubmit = (e: React.FormEvent) => {
       e.preventDefault();
@@ -199,6 +194,20 @@ export const ClientsView: React.FC = () => {
     getClientOrders(clientId)
       .filter(isCountedOrder)
       .reduce((m, o) => { const d = o.validatedAt || o.date; return d > m ? d : m; }, '');
+
+  const filteredClients = clients.filter(cl => {
+    const query = searchTerm.trim().toLowerCase();
+    const matchesSearch = !query ||
+      cl.name.toLowerCase().includes(query) ||
+      cl.phone.includes(query) ||
+      (cl.address || '').toLowerCase().includes(query) ||
+      (cl.ville || '').toLowerCase().includes(query);
+    const matchesView =
+      activeClientView === 'ALL' ||
+      (activeClientView === 'VIP' && isVip(cl.id)) ||
+      (activeClientView === 'NO_ORDER' && !lastOrderDate(cl.id));
+    return matchesSearch && matchesView;
+  });
   // Clients sans commande : toujours en fin de liste
   const lastCmp = (dir: 1 | -1) => (a: Customer, b: Customer): number => {
     const da = lastOrderDate(a.id), db = lastOrderDate(b.id);
@@ -313,8 +322,11 @@ export const ClientsView: React.FC = () => {
       {/* 1. Header with Add button */}
       <div className="crm-page-header">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Fiches Clients FLP</h2>
-          <p className="text-xs text-slate-500">Consommateurs fidèles et récurrents de vos produits.</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Clients</h2>
+            <span className="clients-total-count">{clients.length}</span>
+          </div>
+          <p className="text-xs text-slate-500">Portefeuille clients · suivi des achats et fidélité</p>
         </div>
         <button
           onClick={() => setIsAddOpen(true)}
@@ -376,7 +388,27 @@ export const ClientsView: React.FC = () => {
         </div>
       )}
 
-      {/* 3. Unified sleek Search filter */}
+      {/* Vues rapides du portefeuille client */}
+      <div className="clients-saved-views" role="tablist" aria-label="Vues clients">
+        {([
+          ['ALL', 'Tous', clients.length],
+          ['VIP', 'VIP', clients.filter(client => isVip(client.id)).length],
+          ['NO_ORDER', 'Sans achat', clients.filter(client => !lastOrderDate(client.id)).length],
+        ] as const).map(([view, label, count]) => (
+          <button
+            key={view}
+            type="button"
+            role="tab"
+            aria-selected={activeClientView === view}
+            className={activeClientView === view ? 'is-active' : ''}
+            onClick={() => setActiveClientView(view)}
+          >
+            {label}<span>{count}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Recherche du portefeuille */}
       <div className="relative clients-search-wrap">
         <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
           <Search className="w-5 h-5" />
@@ -396,101 +428,76 @@ export const ClientsView: React.FC = () => {
         <SortSelect options={CLIENT_SORT_OPTIONS} value={clientSort} onChange={setClientSort} id="clients_sort_select" />
       </div>
 
-      {/* 3. Clients Listing Grid */}
-      <div className="clients-list" id="clients_listing_area">
-        {filteredClients.length === 0 ? (
-          <Card className="text-center py-10">
-            <p className="text-sm text-slate-400">Aucun client trouvé.</p>
+      {/* Portefeuille : tableau desktop et cartes mobiles */}
+      <div className="clients-results" id="clients_listing_area">
+        {sortedClients.length === 0 ? (
+          <Card className="clients-empty-state text-center py-10">
+            <p className="text-sm text-slate-500">
+              {searchTerm || activeClientView !== 'ALL'
+                ? 'Aucun client ne correspond à cette vue.'
+                : 'Aucun client. Ajoutez votre premier client pour commencer.'}
+            </p>
+            {(searchTerm || activeClientView !== 'ALL') && (
+              <button type="button" onClick={() => { setSearchTerm(''); setActiveClientView('ALL'); }} className="clients-reset-filter">
+                Réinitialiser les filtres
+              </button>
+            )}
           </Card>
         ) : (
-          sortedClients.map(c => {
-            const { spent, cc } = getClientTotalSpendAndCC(c.id);
-            const clientInitials = c.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-
-            return (
-              <Card
-                key={c.id}
-                className="client-row hoverable active:scale-98 flex items-center justify-between gap-3 text-left p-4 rounded-3xl"
-                onClick={() => {
-                  setSelectedClient(c);
-                  setNewNotes(c.notes || '');
-                  setActiveTab('INFO');
-                  setIsDetailOpen(true);
-                }}
-                id={`client_card_${c.id}`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  {/* Initials custom Avatar block matching design system spec */}
-                  <div className="w-12 h-12 bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900 rounded-full flex items-center justify-center font-extrabold text-sm shrink-0">
-                    {clientInitials || 'CL'}
-                  </div>
-                  
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-slate-900 dark:text-slate-100 truncate text-base leading-snug flex items-center gap-1.5 flex-wrap">
-                      <span>{c.name}</span>
-                      {isVip(c.id) && (
-                        <span className="text-[8px] font-black uppercase py-0.5 px-1.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-300/50 flex items-center gap-0.5">
-                          ⭐ VIP
-                        </span>
-                      )}
-                      {c.synced === false && (
-                        <span className="text-[8px] font-black uppercase py-0.5 px-1.5 rounded-full bg-red-100 text-red-600 dark:bg-red-950/70 dark:text-red-400 border border-red-200/30 tracking-wider flex items-center gap-1 select-none animate-pulse" title="Créé hors-ligne. En attente de réseau.">
-                          <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                          Hors-ligne
-                        </span>
-                      )}
-                    </h3>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{c.phone}</p>
-                    
-                    {/* Métriques : total global + ce mois */}
-                    {(() => {
-                      const monthStats = getClientMonthStats(c.id);
-                      return (
-                        <div className="flex flex-col gap-0.5 mt-1">
-                          <div className="flex items-center gap-2 text-[10px] text-amber-600 dark:text-amber-400 font-extrabold uppercase">
-                            <span>{spent.toLocaleString()} F</span>
-                            <span className="text-slate-300 dark:text-slate-700">•</span>
-                            <span>{cc.toFixed(3)} CC</span>
-                          </div>
-                          {monthStats.count > 0 && (
-                            <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold">
-                              {periodLabel} : {monthStats.count} cmd · {monthStats.spent.toLocaleString()} F
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  {/* WhatsApp anchor tag */}
-                  <a
-                    href={`https://wa.me/${cleanPhoneForWhatsApp(c.phone)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-11 h-11 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900 rounded-full flex items-center justify-center active:scale-90 transition-all border border-emerald-200/50 dark:border-emerald-800/30"
-                    aria-label="WhatsApp direct"
-                    title="Contacter sur WhatsApp"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                  </a>
-
-                  {/* Phone anchor tag */}
-                  <a
-                    href={`tel:${c.phone}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-11 h-11 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-amber-50 rounded-full flex items-center justify-center active:scale-90 transition-all border border-slate-200/50 dark:border-slate-700/50"
-                    aria-label="Appeler direct"
-                  >
-                    <Phone className="w-4 h-4" />
-                  </a>
-                  <ChevronRight className="w-5 h-5 text-slate-300" />
-                </div>
-              </Card>
-            );
-          })
+          <>
+            <div className="clients-table-wrap">
+              <table className="clients-table">
+                <thead>
+                  <tr>
+                    <th>Client</th><th>Ville</th><th>Dernier achat</th><th>Segment</th>
+                    <th className="is-numeric">CA cumulé</th><th className="is-numeric">Volume</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedClients.map(c => {
+                    const { spent, cc } = getClientTotalSpendAndCC(c.id);
+                    const initials = c.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                    const lastPurchase = lastOrderDate(c.id);
+                    return (
+                      <tr key={c.id}>
+                        <td>
+                          <button type="button" className="client-open-button" onClick={() => {
+                            setSelectedClient(c); setNewNotes(c.notes || ''); setActiveTab('INFO'); setIsDetailOpen(true);
+                          }} aria-label={'Ouvrir la fiche de ' + c.name}>
+                            <span className="client-table-avatar">{initials || 'CL'}</span>
+                            <span className="client-table-identity"><strong>{c.name}</strong><small>{c.phone}</small></span>
+                            {c.synced === false && <span className="client-offline-dot" title="En attente de synchronisation" />}
+                          </button>
+                        </td>
+                        <td>{c.ville || '—'}</td>
+                        <td>{lastPurchase ? new Date(lastPurchase).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' }) : 'Aucun achat'}</td>
+                        <td>{isVip(c.id) ? <span className="client-segment client-segment-vip"><Star size={12} /> VIP</span> : <span className="client-segment">Client</span>}</td>
+                        <td className="is-numeric clients-spend">{spent.toLocaleString('fr-FR')} F</td>
+                        <td className="is-numeric clients-volume">{cc.toFixed(3)} CC</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="clients-mobile-list">
+              {sortedClients.map(c => {
+                const { spent, cc } = getClientTotalSpendAndCC(c.id);
+                const initials = c.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                const lastPurchase = lastOrderDate(c.id);
+                return (
+                  <Card key={c.id} className="client-mobile-row" onClick={() => {
+                    setSelectedClient(c); setNewNotes(c.notes || ''); setActiveTab('INFO'); setIsDetailOpen(true);
+                  }} id={'client_card_' + c.id}>
+                    <span className="client-table-avatar">{initials || 'CL'}</span>
+                    <span className="client-mobile-identity"><strong>{c.name}</strong><small>{lastPurchase ? 'Achat le ' + new Date(lastPurchase).toLocaleDateString('fr-FR') : 'Aucun achat enregistré'}</small></span>
+                    <span className="client-mobile-metrics"><strong>{spent.toLocaleString('fr-FR')} F</strong><small>{cc.toFixed(3)} CC</small></span>
+                    <ChevronRight size={17} />
+                  </Card>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
@@ -604,6 +611,7 @@ export const ClientsView: React.FC = () => {
 
       {/* 5. DRAWER: TABS DETAILS (INFO / ORDERS / NOTES) */}
       <Drawer
+        variant="side"
         isOpen={isDetailOpen && selectedClient !== null}
         onClose={() => {
           setIsDetailOpen(false);
