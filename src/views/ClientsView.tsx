@@ -308,10 +308,10 @@ export const ClientsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6" id="clients_view_container">
+    <div className="crm-view clients-view" id="clients_view_container">
       
       {/* 1. Header with Add button */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="crm-page-header">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Fiches Clients FLP</h2>
           <p className="text-xs text-slate-500">Consommateurs fidèles et récurrents de vos produits.</p>
@@ -319,7 +319,7 @@ export const ClientsView: React.FC = () => {
         <button
           onClick={() => setIsAddOpen(true)}
           className="py-3 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-2xl active:scale-95 transition-all flex items-center gap-2 shrink-0 h-12"
-          id="client_add_btn"
+          id="client_add_btn" aria-label="Ajouter un client"
         >
           <UserPlus className="w-4 h-4" />
           AJOUTER UN CLIENT
@@ -327,7 +327,7 @@ export const ClientsView: React.FC = () => {
       </div>
 
       {/* 2. Sélecteur de période + export VIP */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="clients-period-toolbar flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-1.5 bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 flex-1 min-w-0">
           <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <select
@@ -363,7 +363,7 @@ export const ClientsView: React.FC = () => {
 
       {/* 2b. Résumé VIP du mois (si données) */}
       {vipRanking.length > 0 && (
-        <div className="bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 rounded-2xl p-3">
+        <div className="clients-vip-summary bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 rounded-2xl p-3">
           <div className="flex items-center gap-2 mb-2">
             <Star className="w-3.5 h-3.5 text-amber-500" />
             <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">{vipRanking.length} client{vipRanking.length > 1 ? 's' : ''} actif{vipRanking.length > 1 ? 's' : ''} en {periodLabel}</span>
@@ -377,7 +377,7 @@ export const ClientsView: React.FC = () => {
       )}
 
       {/* 3. Unified sleek Search filter */}
-      <div className="relative">
+      <div className="relative clients-search-wrap">
         <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
           <Search className="w-5 h-5" />
         </span>
@@ -391,13 +391,13 @@ export const ClientsView: React.FC = () => {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-2">
+      <div className="clients-list-toolbar flex items-center justify-between gap-2">
         <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{filteredClients.length} client{filteredClients.length > 1 ? 's' : ''}</span>
         <SortSelect options={CLIENT_SORT_OPTIONS} value={clientSort} onChange={setClientSort} id="clients_sort_select" />
       </div>
 
       {/* 3. Clients Listing Grid */}
-      <div className="space-y-3" id="clients_listing_area">
+      <div className="clients-list" id="clients_listing_area">
         {filteredClients.length === 0 ? (
           <Card className="text-center py-10">
             <p className="text-sm text-slate-400">Aucun client trouvé.</p>
@@ -410,7 +410,7 @@ export const ClientsView: React.FC = () => {
             return (
               <Card
                 key={c.id}
-                className="hoverable active:scale-98 flex items-center justify-between gap-3 text-left p-4 rounded-3xl"
+                className="client-row hoverable active:scale-98 flex items-center justify-between gap-3 text-left p-4 rounded-3xl"
                 onClick={() => {
                   setSelectedClient(c);
                   setNewNotes(c.notes || '');
