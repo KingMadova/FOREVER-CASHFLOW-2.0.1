@@ -667,3 +667,17 @@ La refonte sera considérée comme terminée lorsque :
 - [ ] La validation visuelle réelle sur desktop et mobile reste à effectuer par le propriétaire ; aucune capture ni exécution navigateur distante n'est disponible pour ce contrôle.
 
 **État corrigé au 2026-11-12 :** contrôle TypeScript et build de production validés localement après récupération du correctif compteur. Le shell et le Dashboard restent en attente de validation visuelle/fonctionnelle. Le lot design n'est pas déclaré terminé.
+
+
+### Lot CRM — première passe visuelle Prospects / Clients — 2026-11-12
+
+- [x] Inspection des vues et de leurs interactions avant modification.
+- [x] Identification des contrats métier à préserver : filtres de pipeline, recherche, création, changement d'étape, conversion prospect-client, suppression confirmée, liens téléphone/WhatsApp ; côté clients, tri mémorisé, classement VIP, calculs de commandes validées, période mensuelle, export PDF, notes et historique.
+- [x] Ajout d'une feuille CSS dédiée et partagée `ProspectsClients.css`, limitée aux conteneurs `#prospects_view_container` et `#clients_view_container`.
+- [x] Première passe de densification : en-têtes plus nets, actions compactes, champs de recherche cohérents avec les tokens, listes plus serrées, surfaces moins arrondies et responsive mobile.
+- [x] Aucun changement apporté aux fonctions métier, aux stores, aux données Firestore, aux filtres, au tri, aux exports, aux liens d'action ou aux drawers.
+- [x] Aucun nouveau paquet npm.
+- [ ] Contrôle local `npm run lint` et `npm run build` après récupération.
+- [ ] Validation visuelle et fonctionnelle des deux vues sur mobile et desktop ; aucun rendu navigateur n'a été prétendu ou validé à distance.
+
+**Statut :** première passe CSS publiée sur la branche feature ; lot CRM non validé tant que les contrôles locaux et la revue visuelle n'ont pas été effectués.
