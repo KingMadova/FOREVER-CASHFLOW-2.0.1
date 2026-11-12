@@ -296,10 +296,10 @@ export const DashboardView: React.FC = () => {
         <div>
           <Badge tone="warning" size="sm" pill dot>TABLEAU DE BORD</Badge>
           <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-0.5">
-            Bonjour, {profile.name} 👋
+            Bonjour, {profile.name}
           </h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-            Revenus optimisés et suivi de votre réseau FLP d’une seule main. Grade actuel : <strong className="text-slate-700 dark:text-slate-200">{currentGrade.label} ({Math.round(currentGrade.tauxRemise * 100)}%)</strong>
+            Suivi de votre activité commerciale et financière. Grade actuel : <strong className="text-slate-700 dark:text-slate-200">{currentGrade.label} ({Math.round(currentGrade.tauxRemise * 100)}%)</strong>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -640,7 +640,7 @@ export const DashboardView: React.FC = () => {
               </div>
             </div>
             <p className="text-[10px] text-slate-500 mt-2 text-center">
-              {dayScorePct >= 80 ? '🔥 Journée excellente' : dayScorePct >= 50 ? '⚡ Continue à pousser' : '👆 Ouvrir le journal G4'}
+              {dayScorePct >= 80 ? 'Journée excellente' : dayScorePct >= 50 ? 'Poursuivez vos efforts' : 'Ouvrir le journal G4'}
             </p>
           </button>
           <Card className="dashboard-panel dashboard-activity-panel flex-1 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-[#1f1f22] flex flex-col justify-between">
@@ -659,7 +659,7 @@ export const DashboardView: React.FC = () => {
                     <div key={act.id} className="flex items-start gap-3 text-left">
                       <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 flex flex-col items-center justify-center font-bold text-xs shrink-0 select-none">
                         <span className="text-lg">
-                          {act.type === 'COMMANDE' ? '📦' : '👤'}
+                          {act.type === 'COMMANDE' ? <Layers className="w-4 h-4" /> : <Users className="w-4 h-4" />}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
