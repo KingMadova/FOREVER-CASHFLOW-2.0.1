@@ -638,6 +638,7 @@ La refonte sera considérée comme terminée lorsque :
 - [x] Refonte CSS du shell : sidebar plus étroite et plus dense, navigation active moins criarde, en-tête mobile compact, barre basse mobile plus proche d'une navigation native et contenu moins espacé.
 - [x] Ajout de tokens de compatibilité Arc pour les surfaces.
 - [x] Aucune modification volontaire des calculs, contrats de données, stores, routes ou services Firebase.
+- [x] Nettoyage éditorial du Dashboard : suppression des emojis décoratifs et clarification du sous-titre pour un ton de logiciel de gestion.
 
 **Validation restant à faire :**
 - [ ] Le propriétaire doit récupérer la branche et exécuter `npm run lint` puis `npm run build`.
