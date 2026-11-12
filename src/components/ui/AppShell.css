@@ -92,3 +92,20 @@
 #bottom_nav_bar.fcf-bottom-nav>button.is-active{color:var(--fcf-brand-terracotta)}
 #bottom_nav_bar.fcf-bottom-nav>button span{font-size:.58rem;font-weight:650}
 #bottom_nav_bar.fcf-bottom-nav>button.fcf-bottom-fab{width:46px;height:46px;min-height:46px;justify-self:center;margin-top:-17px;padding:0;border:3px solid var(--fcf-surface);border-radius:50%;background:var(--fcf-brand-orange);color:#fff;box-shadow:0 3px 10px rgb(193 68 14 / .22)}
+
+/* Desktop sidebar collapse — compact icon rail */
+#fcf-sidebar.is-collapsed{width:64px;flex-basis:64px}
+#fcf-sidebar.is-collapsed .fcf-sidebar-brand{display:flex;justify-content:center;padding:.8rem .35rem}
+#fcf-sidebar .fcf-sidebar-collapse{display:flex;width:1.8rem;height:1.8rem;flex:0 0 1.8rem;align-items:center;justify-content:center;border:1px solid var(--fcf-border);border-radius:.45rem;background:var(--fcf-surface);color:var(--fcf-muted)}
+#fcf-sidebar.is-collapsed .fcf-sidebar-brand>div{flex-direction:column;gap:.45rem}
+#fcf-sidebar.is-collapsed .fcf-sidebar-brand>div>div{align-items:center}
+#fcf-sidebar.is-collapsed .fcf-sidebar-subtitle,#fcf-sidebar.is-collapsed .fcf-brand-wordmark{display:none}
+#fcf-sidebar.is-collapsed .fcf-sidebar-nav{padding-inline:.55rem}
+#fcf-sidebar.is-collapsed .fcf-sidebar-link{justify-content:center;width:42px;height:42px;min-height:42px;margin-inline:auto;padding:0}
+#fcf-sidebar.is-collapsed .fcf-sidebar-link span{display:none}
+#fcf-sidebar.is-collapsed .fcf-sidebar-divider{height:1px;margin:.65rem .25rem;font-size:0}
+#fcf-sidebar.is-collapsed .fcf-sidebar-divider:after{display:none}
+#fcf-sidebar.is-collapsed .fcf-sidebar-user{justify-content:center;margin-inline:.35rem;padding:.35rem}
+#fcf-sidebar.is-collapsed .fcf-sidebar-user>div:nth-child(2){display:none}
+#fcf-sidebar.is-collapsed>div:last-child{justify-content:center;padding:.55rem .2rem}
+#fcf-sidebar.is-collapsed>div:last-child span{display:none}
