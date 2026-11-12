@@ -189,6 +189,11 @@ export const ClientsView: React.FC = () => {
     .filter(r => r.count > 0)
     .sort((a, b) => b.spent - a.spent);
 
+  const isVip = (clientId: string) =>
+    // Top 3 du mois OU VIP vie entière (#6 : >= 3 achats ou >= 100k F cumulés)
+    (vipRanking.findIndex(r => r.client.id === clientId) < 3 && vipRanking.some(r => r.client.id === clientId)) ||
+    isVipClient(clientId);
+
   // ── Tri de la liste clients ──
   const lastOrderDate = (clientId: string): string =>
     getClientOrders(clientId)
@@ -227,11 +232,6 @@ export const ClientsView: React.FC = () => {
     created_asc:  (a, b) => (a.createdAt || '').localeCompare(b.createdAt || '') || cmpText(a.name, b.name),
   };
   const sortedClients = sortList(filteredClients, clientSort, clientComparators);
-
-  const isVip = (clientId: string) =>
-    // Top 3 du mois OU VIP vie entière (#6 : >= 3 achats ou >= 100k F cumulés)
-    (vipRanking.findIndex(r => r.client.id === clientId) < 3 && vipRanking.some(r => r.client.id === clientId)) ||
-    isVipClient(clientId);
 
   const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
   const periodLabel = `${MONTHS_FR[selectedMonth - 1]} ${selectedYear}`;
