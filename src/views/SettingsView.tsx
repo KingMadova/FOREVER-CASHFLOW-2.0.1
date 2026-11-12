@@ -9,6 +9,7 @@ import { useSyncStore } from '../store/slices/syncSlice';
 import { useThemeStore } from '../store/slices/themeSlice';
 import { useBackupStore } from '../store/slices/backupSlice';
 import { Card } from '../components/ui/Card';
+import './SettingsView.css';
 import { ActivityReport } from '../components/ui/ActivityReport';
 import { 
   Sliders,
