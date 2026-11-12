@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import './AppShell.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BottomNav } from './BottomNav';
 import { PageHeader } from './PageHeader';
@@ -116,10 +117,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9F7F4] dark:bg-[#09090b] text-slate-800 dark:text-slate-100 flex transition-colors duration-200">
+    <div id="fcf-app-shell" className="min-h-screen bg-[#F9F7F4] dark:bg-[#09090b] text-slate-800 dark:text-slate-100 flex transition-colors duration-200">
       
       {/* 1. DESKTOP SIDEBAR (visible only at xl: 1280px+) */}
-      <aside className="hidden xl:flex flex-col w-72 bg-white dark:bg-[#1f1f22] border-r border-slate-200 dark:border-slate-800 sticky h-screen top-0 shrink-0 z-30">
+      <aside id="fcf-sidebar" className="hidden xl:flex flex-col w-72 bg-white dark:bg-[#1f1f22] border-r border-slate-200 dark:border-slate-800 sticky h-screen top-0 shrink-0 z-30">
         {/* Sidebar Header with Gold Accent */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col gap-1">
           <div className="flex items-center gap-3">
@@ -197,7 +198,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </aside>
 
       {/* 2. MAIN HUB WORKSPACE */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+      <div id="fcf-workspace" className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         
         {/* On Mobile/Tablet: Render page header with the back button dynamically */}
         <div className="xl:hidden">
@@ -208,7 +209,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         {/* Content canvas */}
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 pb-28 xl:pb-12 transition-all">
+        <main id="fcf-main-content" className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 pb-28 xl:pb-12 transition-all">
           {children}
         </main>
 
