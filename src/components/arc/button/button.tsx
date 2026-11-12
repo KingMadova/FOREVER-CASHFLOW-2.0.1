@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, isValidElement, useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import type { ButtonHTMLAttributes, ReactNode, Ref, RefObject } from "react";
+import type { ButtonHTMLAttributes, Key, ReactNode, Ref, RefObject } from "react";
 import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion } from "motion/react";
 import type { TargetAndTransition, Variants } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
@@ -72,7 +72,7 @@ function useMorphWidth(content: RefObject<HTMLElement | null>, key: string, redu
   return width;
 }
 
-function LabelPhase({ children, icon, reduced, ref }: { children: ReactNode; icon: boolean; reduced: boolean; ref?: Ref<HTMLSpanElement> }) {
+function LabelPhase({ children, icon, reduced, ref }: { children: ReactNode; icon: boolean; reduced: boolean; ref?: Ref<HTMLSpanElement>; key?: Key }) {
   const present = useIsPresent();
   return <motion.span ref={ref} className={styles.labelPhase} aria-hidden={present ? undefined : true} initial={reduced ? fadeIn : icon ? iconIn : textIn} animate={rest} exit={reduced ? fadeOut : icon ? iconOut : textOut} transition={reduced ? { duration: motionTokens.duration.instant } : icon ? iconEnter : { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{children}</motion.span>;
 }
