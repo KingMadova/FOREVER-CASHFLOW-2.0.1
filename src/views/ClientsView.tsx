@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './ProspectsClients.css';
 import { useNavigate } from 'react-router-dom';
 import { useCustomersStore } from '../store/slices/customersSlice';
 import { useProductsStore } from '../store/slices/productsSlice';
