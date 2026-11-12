@@ -168,20 +168,20 @@ export const OrdersView: React.FC = () => {
 
   const orderStatusOptions: { value: 'ALL' | OrderStatut; label: string }[] = [
     { value: 'ALL', label: 'Toutes' },
-    { value: OrderStatus.PENDING, label: 'En attente' },
-    { value: OrderStatus.VALIDATED, label: 'Validées' },
-    { value: OrderStatus.PAYE, label: 'Payées' },
-    { value: OrderStatus.LIVRE, label: 'Livrées' },
-    { value: OrderStatus.CANCELLED, label: 'Annulées' },
-    { value: OrderStatus.RETOUR, label: 'Retours' },
-    { value: OrderStatus.REMPLACEMENT, label: 'Remplacements' }
+    { value: 'PENDING', label: 'En attente' },
+    { value: 'VALIDATED', label: 'Validées' },
+    { value: 'PAYE', label: 'Payées' },
+    { value: 'LIVRE', label: 'Livrées' },
+    { value: 'CANCELLED', label: 'Annulées' },
+    { value: 'RETOUR', label: 'Retours' },
+    { value: 'REMPLACEMENT', label: 'Remplacements' }
   ];
   const orderStatusLabel = (status: string) => {
     const labels: Record<string, string> = { PENDING: 'En attente', VALIDATED: 'Validée', PAYE: 'Payée', LIVRE: 'Livrée', CANCELLED: 'Annulée', RETOUR: 'Retour', REMPLACEMENT: 'Remplacement' };
     return labels[status] || status;
   };
   const orderStatusCount = (status: 'ALL' | OrderStatut) => status === 'ALL' ? orders.length : orders.filter(order => order.status === status).length;
-  const kanbanStatuses: OrderStatut[] = [OrderStatus.PENDING, OrderStatus.VALIDATED, OrderStatus.PAYE, OrderStatus.LIVRE, OrderStatus.CANCELLED, OrderStatus.RETOUR, OrderStatus.REMPLACEMENT];
+  const kanbanStatuses: OrderStatut[] = ['PENDING', 'VALIDATED', 'PAYE', 'LIVRE', 'CANCELLED', 'RETOUR', 'REMPLACEMENT'];
 
 
   // Calculate prices based on FBO profile grade & discount logic
