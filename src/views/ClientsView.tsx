@@ -72,7 +72,7 @@ export const ClientsView: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState<'INFO' | 'ORDERS' | 'HISTORY' | 'NOTES'>('INFO');
   useEffect(() => {
-    const openForm = () => setIsAddOpen(true);
+    const openForm = () => { sessionStorage.removeItem('fcf-open-new-client'); setIsAddOpen(true); };
     if (sessionStorage.getItem('fcf-open-new-client') === '1') {
       sessionStorage.removeItem('fcf-open-new-client');
       openForm();
