@@ -209,6 +209,11 @@ export const DashboardView: React.FC = () => {
 
   const activities = getRecentActivities();
 
+  // Présentation des dernières commandes : tri d'affichage uniquement, sans modifier les données.
+  const recentOrders = [...orders]
+    .sort((a, b) => new Date(orderAccountingDate(b)).getTime() - new Date(orderAccountingDate(a)).getTime())
+    .slice(0, 5);
+
   // Calculate new KPIs
     const totalPVThisMonth = Math.round(totalCCThisMonth * 135);
     const totalBVThisMonth = totalCCThisMonth;
@@ -289,7 +294,7 @@ export const DashboardView: React.FC = () => {
       .reduce((s, l) => s + (l.oneToOne||0) + ((l.miniConferences||0)*3) + ((l.conferences||0)*5) + ((l.boutiques||0)*5), 0);
 
   return (
-    <div className="dashboard-view space-y-6" id="dashboard_view_container">
+    <div className="dashboard-view" id="dashboard_view_container">
       
       {/* 1. Header Greeting with profile status */}
       <div className="dashboard-header flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-[#1f1f22] p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
@@ -690,6 +695,59 @@ export const DashboardView: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Commandes récentes — aperçu opérationnel */}
+      <section className="dashboard-recent-orders dashboard-panel" aria-labelledby="dashboard_recent_orders_title">
+        <div className="dashboard-recent-orders-header">
+          <div>
+            <span className="dashboard-eyebrow">SUIVI COMMERCIAL</span>
+            <h3 id="dashboard_recent_orders_title">Commandes récentes</h3>
+            <p>Retrouvez rapidement les dernières opérations enregistrées.</p>
+          </div>
+          <button type="button" className="dashboard-section-link" onClick={() => navigate('/orders')}>
+            Toutes les commandes <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {recentOrders.length === 0 ? (
+          <div className="dashboard-orders-empty">
+            <Layers className="w-5 h-5" />
+            <span>Aucune commande enregistrée pour le moment.</span>
+            <button type="button" onClick={() => navigate('/orders')}>Ajouter une commande</button>
+          </div>
+        ) : (
+          <div className="dashboard-orders-list">
+            {recentOrders.map((order) => {
+              const orderDate = new Date(orderAccountingDate(order));
+              const statusLabel = order.status === 'VALIDATED'
+                ? 'Validée'
+                : order.status === 'PENDING' ? 'En attente' : 'Annulée';
+              const statusClass = order.status === 'VALIDATED'
+                ? 'is-validated'
+                : order.status === 'PENDING' ? 'is-pending' : 'is-cancelled';
+
+              return (
+                <button
+                  type="button"
+                  key={order.id}
+                  className="dashboard-order-row"
+                  onClick={() => navigate('/orders')}
+                  aria-label={`Voir les commandes — ${order.customerName}`}
+                >
+                  <span className="dashboard-order-icon"><Layers className="w-4 h-4" /></span>
+                  <span className="dashboard-order-main">
+                    <strong>{order.customerName}</strong>
+                    <small>{orderDate.toLocaleDateString('fr-FR')} · {order.items.length} produit(s)</small>
+                  </span>
+                  <span className="dashboard-order-volume">{order.totalCC.toFixed(3)} CC</span>
+                  <span className={`dashboard-order-status ${statusClass}`}>{statusLabel}</span>
+                  <ChevronRight className="dashboard-order-chevron w-4 h-4" />
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
     </div>
   );
