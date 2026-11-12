@@ -359,7 +359,7 @@ Chaque lot doit être réalisé sur une branche de travail dédiée ou une branc
 - [ ] Identifier les variables d'environnement requises sans divulguer leurs valeurs.
 - [ ] Vérifier les fonctions PWA, hors ligne, impression et synchronisation dans le navigateur.
 
-**Décision :** ne pas installer UIArc et ne pas modifier les fichiers applicatifs tant que ces vérifications locales n'ont pas établi une base reproductible. Le Lot 0 ne peut pas être déclaré terminé sur la seule base d'une lecture distante.
+**Décision initiale mise à jour le 2026-11-12 :** après confirmation de la branche de travail, synchronisation du clone local avec GitHub et vérification des composants retenus, l'intégration UIArc a été autorisée sur `feat/lot-1-design-system`. Les vérifications de build et de rendu restent toutefois à exécuter localement ; le Lot 0 demeure donc partiellement effectué.
 
 - [ ] Confirmer la branche de travail et le commit de référence.
 - [ ] Vérifier l'état Git et les éventuels changements non commités.
@@ -570,6 +570,8 @@ Ces largeurs sont des repères de test, pas des limites rigides de conception.
 | 2026-11-12 | Densité d'interface : compacte |
 | 2026-11-12 | UIArc retenu comme base de composants, sous réserve de vérification des dépendances et licences |
 | 2026-11-12 | Refonte progressive ; préservation des fonctionnalités métier et de Firebase |
+| 2026-11-12 | GitHub devient l'espace de travail distant sur `feat/lot-1-design-system` ; le propriétaire récupère les commits avec `git pull` |
+| 2026-11-12 | Première passe visuelle du Dashboard publiée sur la branche feature, sans changement volontaire des calculs métier |
 
 ### Journal d'avancement
 
@@ -577,9 +579,9 @@ Ces largeurs sont des repères de test, pas des limites rigides de conception.
 |---|---|---|
 | Audit statique initial | Effectué | Lecture du code distant ; pas encore de build/test local |
 | Lot 0 — Préparation | En cours — installation réussie | 613 paquets installés ; TypeScript, build et audit détaillé des vulnérabilités restent à vérifier |
-| Lot 1 — Design system | À faire | UIArc, tokens, thèmes, composants |
+| Lot 1 — Design system | En cours — intégration distante | Tokens Yekola et composants Arc UI présents ; showcase, notice de licence consolidée et validations locales restent à terminer |
 | Lot 2 — Shell et navigation | À faire | Desktop et mobile |
-| Lot 3 — Dashboard | À faire | Poste de pilotage |
+| Lot 3 — Dashboard | En cours — première passe UI publiée | Refonte visuelle initiale sur la branche feature ; build, contrôles responsive et validation visuelle locale en attente |
 | Lot 4 — Prospects et clients | À faire | Gestion commerciale |
 | Lot 5 — Commandes et ventes | À faire | Parcours de vente |
 | Lot 6 — Projection et finances | À faire | Calculs et budget |
@@ -604,4 +606,4 @@ La refonte sera considérée comme terminée lorsque :
 - Le build de production est validé.
 - Le propriétaire a effectué sa validation visuelle et fonctionnelle finale.
 
-**État actuel : plan créé ; aucune refonte du code applicatif n'a encore commencé.**
+**État actuel au 2026-11-12 :** fondation UIArc et première passe visuelle du Dashboard intégrées sur `feat/lot-1-design-system`. Les lots restent en cours jusqu'aux vérifications TypeScript/build et à la validation visuelle et fonctionnelle sur le poste du propriétaire.
