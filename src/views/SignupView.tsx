@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/slices/authSlice';
 import { UserPlus, Leaf } from 'lucide-react';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import './AuthViews.css';
 
 export const SignupView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
@@ -27,8 +28,8 @@ export const SignupView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#121215] p-4 text-slate-900 dark:text-white">
-      <div className="w-full max-w-sm bg-white dark:bg-[#1c1c1f] p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#121215] p-4 text-slate-900 dark:text-white fcf-auth-surface">
+      <div className="w-full max-w-sm bg-white dark:bg-[#1c1c1f] p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 fcf-auth-panel">
         <div className="flex flex-col items-center justify-center mb-8">
           <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center mb-4">
             <Leaf className="w-6 h-6 text-amber-500" />
