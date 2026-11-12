@@ -815,11 +815,13 @@ Un incident Windows a toutefois été signalé pendant le pull : Git n'a pas ré
 **Rubrique Ventes :**
 - [x] Nouvelle route protégée `/sales` et vue dédiée.
 - [x] Périodes 7 jours, 30 jours, 90 jours et année.
-- [x] KPI dérivés des commandes comptabilisées : CA, montant encaissé déclaré, reste à encaisser estimé et marge.
+- [x] KPI dérivés des commandes comptabilisées : CA catalogue, montant encaissé déclaré, écart catalogue/encaissé et panier moyen catalogue.
 - [x] Tableau de commandes comptabilisées avec recherche et export CSV.
 - [x] Analyse compacte du CA quotidien sur 7 jours et répartition des modes de paiement.
 - [x] Composition responsive desktop/tablette/mobile.
 - [x] Avertissement visible : la vue est dérivée des commandes et ne constitue pas un journal indépendant des transactions.
+
+- [x] L'écart catalogue/encaissé est explicitement présenté comme un écart de valeur, jamais comme une dette client : le modèle actuel ne permet pas de distinguer une remise commerciale d'un solde restant dû.
 - [ ] Aucun modèle de transaction, mouvement de caisse, vente comptoir ou journal de paiement créé ; ces évolutions exigent un lot métier séparé.
 
 **Rubrique Commandes :**
