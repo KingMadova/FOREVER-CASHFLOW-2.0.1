@@ -737,5 +737,6 @@ La refonte sera considérée comme terminée lorsque :
 - [x] Ajout de classes de présentation explicites à l'en-tête, aux filtres, à la barre d'outils et aux cartes de commande.
 - [x] Nouvelle feuille de style dédiée : surfaces neutres, accent terracotta pour l'action principale, jaune/or Yekola en accent, listes compactes, adaptation mobile.
 - [x] Conservation du drawer de création et de détail, des actions de validation/modification/suppression, du tri, des filtres, des exports, de l'impression et du partage.
+- [x] Bouton de création doté d'un nom accessible explicite, y compris lorsque son libellé visuel est masqué sur mobile.
 - [ ] Validation locale `npm run lint` / `npm run build` après récupération.
 - [ ] Contrôle visuel desktop et mobile à réaliser sur l'application exécutée.
