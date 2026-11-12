@@ -889,3 +889,11 @@ Un incident Windows a toutefois été signalé pendant le pull : Git n'a pas ré
 - [x] Connexion et inscription : surface d'authentification harmonisée avec la palette et les surfaces Yekola Business.
 - [x] Aucun changement aux flux Firebase Auth, aux données profil, à la synchronisation, aux sauvegardes ou aux actions de réinitialisation.
 - [ ] Validation locale TypeScript/build et contrôle visuel desktop/mobile après récupération.
+
+
+### Restauration des logos historiques — 2026-11-12
+
+- [x] Le composant de marque partagé réutilise à nouveau l'asset historique `/icon-192.png`, déjà présent dans `public/` et référencé par l'application avant la refonte.
+- [x] Suppression du monogramme SVG « FC » créé pendant la refonte ; le wordmark « Forever CashFlow » reste conservé.
+- [x] Aucun fichier d'icône PWA, manifeste, favicon ou comportement métier n'a été modifié.
+- [ ] Vérifier le rendu visuel sur le poste local après synchronisation.
