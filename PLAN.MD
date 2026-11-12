@@ -681,3 +681,23 @@ La refonte sera considérée comme terminée lorsque :
 - [ ] Validation visuelle et fonctionnelle des deux vues sur mobile et desktop ; aucun rendu navigateur n'a été prétendu ou validé à distance.
 
 **Statut :** première passe CSS publiée sur la branche feature ; lot CRM non validé tant que les contrôles locaux et la revue visuelle n'ont pas été effectués.
+
+
+### Réorientation artistique — refonte franche demandée par le propriétaire — 2026-11-12
+
+**Décision prioritaire :** les premières passes CSS de densification sont jugées insuffisantes. La suite du projet doit être traitée comme une refonte visuelle réelle, et non comme un ajustement cosmétique de l'interface existante.
+
+- [x] Consigne confirmée : liberté complète sur la présentation, la composition, la hiérarchie et les composants visuels.
+- [x] Référence d'expérience : interfaces natives iOS — sobres, calmes, lisibles, bien organisées et adaptées au tactile, sans copier littéralement iOS.
+- [x] Espacements : réduire les marges/paddings inutiles tout en conservant une respiration régulière et une hiérarchie claire.
+- [x] Charte Yekola Business obligatoire : or `#F9A825`, orange `#FF6A1A`, terracotta `#C1440E`, ivoire `#FFF9F3`, dégradé réservé aux accents.
+- [x] Le responsive doit adapter la composition mobile et desktop ; il ne suffit plus de conserver le même écran en réduisant les dimensions.
+- [x] Préservation stricte des règles métier, calculs, données, stores, routes, services Firebase, synchronisation, PWA, sauvegardes, exports et impressions.
+- [ ] Refaire entièrement le Dashboard, y compris les zones inférieures et un véritable aperçu « Commandes récentes ».
+- [ ] Refaire réellement les vues Prospects et Clients (structure, hiérarchie et composants), au-delà d'une simple feuille CSS de densification.
+- [ ] Étendre ensuite la même direction artistique aux autres vues métier, lot par lot.
+- [ ] Valider TypeScript/build et les parcours sur le poste local après chaque lot ; aucune validation visuelle locale ne sera prétendue à distance.
+
+**Travail publié dans cette session :** refonte visuelle de la feuille CSS du Dashboard et ajout d'une section de consultation des cinq commandes les plus récentes. Le tri est limité à l'affichage ; aucune donnée n'est modifiée. Les autres calculs et interactions du Dashboard sont conservés.
+
+**Statut :** première étape de la nouvelle direction publiée sur la branche feature ; contrôles locaux et revue responsive restent à faire.
