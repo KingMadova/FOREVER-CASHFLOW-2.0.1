@@ -42,7 +42,45 @@ import {
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { isCountedOrder, orderAccountingDate } from '../lib/orderStats';
-import { GRADES } from '../types';
+import { GRADES, OrderStatut } from '../types';
+
+const ORDER_STATUS_META: Record<OrderStatut, { label: string; activityColor: string; statusClass: string }> = {
+  PENDING: {
+    label: 'En attente',
+    activityColor: 'text-amber-500 bg-amber-50 dark:bg-amber-950/45',
+    statusClass: 'is-pending',
+  },
+  VALIDATED: {
+    label: 'Validée',
+    activityColor: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/45',
+    statusClass: 'is-validated',
+  },
+  PAYE: {
+    label: 'Payée',
+    activityColor: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/45',
+    statusClass: 'is-validated',
+  },
+  LIVRE: {
+    label: 'Livrée',
+    activityColor: 'text-blue-600 bg-blue-50 dark:bg-blue-950/45',
+    statusClass: 'is-delivered',
+  },
+  CANCELLED: {
+    label: 'Annulée',
+    activityColor: 'text-slate-400 bg-slate-100 dark:bg-slate-800',
+    statusClass: 'is-cancelled',
+  },
+  RETOUR: {
+    label: 'Retour',
+    activityColor: 'text-orange-600 bg-orange-50 dark:bg-orange-950/45',
+    statusClass: 'is-return',
+  },
+  REMPLACEMENT: {
+    label: 'Remplacement',
+    activityColor: 'text-violet-600 bg-violet-50 dark:bg-violet-950/45',
+    statusClass: 'is-replacement',
+  },
+};
 
 export const DashboardView: React.FC = () => {
   const { orders } = useOrdersStore();
@@ -199,8 +237,8 @@ export const DashboardView: React.FC = () => {
         type: 'COMMANDE',
         desc: `${o.items.length} produit(s) • ${o.totalCC.toFixed(3)} CC`,
         date: o.date,
-        badge: o.status === 'VALIDATED' ? 'VALIDÉE' : o.status === 'PENDING' ? 'EN ATTENTE' : 'ANNULÉE',
-        color: o.status === 'VALIDATED' ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950' : o.status === 'PENDING' ? 'text-amber-500 bg-amber-50 dark:bg-amber-950' : 'text-slate-400 bg-slate-100 dark:bg-slate-800'
+        badge: ORDER_STATUS_META[o.status].label,
+        color: ORDER_STATUS_META[o.status].activityColor
       });
     });
 
@@ -719,12 +757,9 @@ export const DashboardView: React.FC = () => {
           <div className="dashboard-orders-list">
             {recentOrders.map((order) => {
               const orderDate = new Date(orderAccountingDate(order));
-              const statusLabel = order.status === 'VALIDATED'
-                ? 'Validée'
-                : order.status === 'PENDING' ? 'En attente' : 'Annulée';
-              const statusClass = order.status === 'VALIDATED'
-                ? 'is-validated'
-                : order.status === 'PENDING' ? 'is-pending' : 'is-cancelled';
+              const statusMeta = ORDER_STATUS_META[order.status];
+              const statusLabel = statusMeta.label;
+              const statusClass = statusMeta.statusClass;
 
               return (
                 <button
