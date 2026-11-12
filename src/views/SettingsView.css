@@ -1,0 +1,12 @@
+/* Settings — system controls grouped as a compact administration console */
+#settings_view_container{display:flex;flex-direction:column;gap:1rem;min-width:0}
+#settings_view_container>div:first-child{padding:.15rem 0 .85rem;border-bottom:1px solid var(--fcf-border)}
+#settings_view_container>div:first-child h2{color:var(--fcf-foreground);font-family:var(--font-display);font-size:1.15rem;font-weight:850;letter-spacing:-.04em}
+#settings_view_container>div:first-child p{max-width:48rem;margin-top:.25rem;color:var(--fcf-muted);font-size:.67rem;line-height:1.5}
+#settings_view_container #settings_tab_system_content{gap:.8rem}
+#settings_view_container #settings_tab_system_content>div{padding:1rem;border:1px solid var(--fcf-border);border-radius:.8rem;background:var(--fcf-surface);box-shadow:none}
+#settings_view_container h3{font-size:.72rem;letter-spacing:.045em}
+#settings_view_container button{border-radius:.6rem;box-shadow:none}
+#settings_view_container input{border-radius:.55rem}
+#settings_view_container .text-amber-500{color:var(--fcf-brand-terracotta)}
+@media(max-width:640px){#settings_view_container{gap:.8rem}#settings_view_container>div:first-child h2{font-size:1rem}#settings_view_container #settings_tab_system_content>div{padding:.8rem}}
