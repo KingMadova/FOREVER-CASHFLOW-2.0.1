@@ -329,6 +329,15 @@ Chaque lot doit être réalisé sur une branche de travail dédiée ou une branc
 
 **Diagnostic provisoire :** l'échec observé est d'abord un problème d'accès au registre npm / transfert TLS et d'intégrité du cache, pas une preuve d'une erreur dans le code de l'application. Les avertissements `EPERM` indiquent en plus un possible verrouillage de fichiers sous Windows. Le build et le contrôle TypeScript restent inconnus.
 
+#### Analyse complémentaire de la configuration npm — 2026-11-12
+
+- [x] Registre npm utilisateur identifié : `https://registry.npmmirror.com/`.
+- [x] Le fichier `package-lock.json` contient des URL `resolved` officielles `https://registry.npmjs.org/...` dans les premières entrées examinées.
+- [x] Configuration utilisateur relevée : `legacy-peer-deps=true`, `registry=npmmirror.com`, `strict-ssl=false`.
+- **Conclusion :** le miroir est configuré dans `C:\Users\...\.npmrc`, et non imposé par les URL `resolved` montrées dans le lockfile. La désactivation de `strict-ssl` réduit la sécurité des connexions HTTPS et ne doit pas être conservée comme solution.
+- **Action recommandée, pas encore exécutée :** rétablir le registre officiel npm, remettre `strict-ssl=true`, nettoyer le cache npm puis relancer `npm ci` après fermeture des processus susceptibles de verrouiller `node_modules`.
+- Conserver `legacy-peer-deps=true` pendant ce diagnostic afin de ne pas changer simultanément la stratégie de résolution des dépendances.
+
 #### Vérifications encore nécessaires sur le poste de travail
 
 - [ ] Confirmer branche, commit et état `git status --short` local.
