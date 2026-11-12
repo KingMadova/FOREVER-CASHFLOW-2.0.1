@@ -119,6 +119,9 @@
   font-size: .62rem;
   line-height: 1.4;
 }
+#dashboard_view_container > .grid { gap: .85rem; }
+#dashboard_view_container > .grid > div:last-child { gap: .85rem; }
+#dashboard_view_container .dashboard-performance-panel > div:first-child { margin-bottom: .75rem; }
 #dashboard_view_container .dashboard-panel {
   min-width: 0;
   border: 1px solid var(--fcf-border);
