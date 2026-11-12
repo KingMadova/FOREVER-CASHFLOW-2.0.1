@@ -13,6 +13,7 @@ import {
   Target, 
   Users, 
   ShoppingBag, 
+  Receipt,
   TrendingUp, 
   Wallet, 
   Calendar, 
@@ -84,15 +85,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [themeMode]);
 
   const desktopNavItems = [
-    { path: '/', label: 'Tableau de bord', icon: <LayoutDashboard className="w-5 h-5" /> },
-    { path: '/prospects', label: 'Suivi Prospects', icon: <Target className="w-5 h-5" /> },
-    { path: '/clients', label: 'Gestion Clients', icon: <Users className="w-5 h-5" /> },
-    { path: '/orders', label: 'Commandes & Ventes', icon: <ShoppingBag className="w-5 h-5" /> },
-    { path: '/projection', label: 'Salle de Projection', icon: <TrendingUp className="w-5 h-5" /> },
-    { path: '/budget', label: 'Budget & Trésorerie', icon: <Wallet className="w-5 h-5" /> },
-    { path: '/agenda', label: 'Agenda & Rappels', icon: <Calendar className="w-5 h-5" /> },
-    { path: '/profile', label: 'Mon Profil FBO', icon: <User className="w-5 h-5" /> },
-    { path: '/settings', label: 'Paramètres Système', icon: <Settings className="w-5 h-5" /> }
+    { path: '/', label: 'Accueil', icon: <LayoutDashboard className="w-5 h-5" />, group: 'primary' },
+    { path: '/clients', label: 'Clients', icon: <Users className="w-5 h-5" />, group: 'primary' },
+    { path: '/orders', label: 'Commandes', icon: <ShoppingBag className="w-5 h-5" />, group: 'primary' },
+    { path: '/sales', label: 'Ventes', icon: <Receipt className="w-5 h-5" />, group: 'primary' },
+    { path: '/prospects', label: 'Prospects', icon: <Target className="w-5 h-5" />, group: 'secondary' },
+    { path: '/projection', label: 'Projection', icon: <TrendingUp className="w-5 h-5" />, group: 'secondary' },
+    { path: '/budget', label: 'Budget & Trésorerie', icon: <Wallet className="w-5 h-5" />, group: 'secondary' },
+    { path: '/agenda', label: 'Agenda & Rappels', icon: <Calendar className="w-5 h-5" />, group: 'secondary' },
+    { path: '/tracker', label: 'Journal G4', icon: <BookOpen className="w-5 h-5" />, group: 'secondary' }
   ];
 
   const getPageTitle = () => {
@@ -100,7 +101,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path === '/') return 'Forever CashFlow';
     if (path.startsWith('/prospects')) return 'Prospects Pipeline';
     if (path.startsWith('/clients')) return 'Fiches Clients';
-    if (path.startsWith('/orders')) return 'Gestion des Ventes';
+    if (path.startsWith('/orders')) return 'Commandes';
+    if (path.startsWith('/sales')) return 'Ventes';
     if (path.startsWith('/projection')) return 'Salle de la Projection';
     if (path.startsWith('/budget')) return 'Finances & Budget';
     if (path.startsWith('/profile')) return 'Profil FBO';
@@ -118,12 +120,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div id="fcf-app-shell" className="min-h-screen bg-[#F9F7F4] dark:bg-[#09090b] text-slate-800 dark:text-slate-100 flex transition-colors duration-200">
+    <div id="fcf-app-shell" className="min-h-screen bg-[var(--fcf-background)] text-[var(--fcf-foreground)] flex transition-colors duration-200">
       
       {/* 1. DESKTOP SIDEBAR (visible only at xl: 1280px+) */}
-      <aside id="fcf-sidebar" className="hidden xl:flex flex-col w-72 bg-white dark:bg-[#1f1f22] border-r border-slate-200 dark:border-slate-800 sticky h-screen top-0 shrink-0 z-30">
+      <aside id="fcf-sidebar" className="hidden xl:flex flex-col w-[232px] bg-[var(--fcf-surface)] border-r border-[var(--fcf-border)] sticky h-screen top-0 shrink-0 z-30">
         {/* Sidebar Header with Gold Accent */}
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col gap-1">
+        <div className="px-4 py-4 border-b border-[var(--fcf-border)] flex flex-col gap-1">
           <div className="flex flex-col gap-1">
             <BrandLogo />
             <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-[0.12em] pl-1">CRM des Conquérants</span>
@@ -131,8 +133,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         {/* User Badge */}
-        <div className="mx-4 mt-6 p-4 rounded-xl bg-[#F9F7F4] dark:bg-[#2a2a2e] border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 font-extrabold flex items-center justify-center text-sm border border-amber-200 dark:border-amber-900 overflow-hidden shrink-0">
+        <div className="mx-3 mt-4 p-3 rounded-lg bg-[var(--fcf-background)] border border-[var(--fcf-border)] flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-lg bg-[var(--fcf-surface-muted)] text-[var(--fcf-brand-terracotta)] font-extrabold flex items-center justify-center text-sm border border-[var(--fcf-border)] overflow-hidden shrink-0">
             {profile.photoUrl ? (
               <img 
                 src={profile.photoUrl} 
@@ -151,35 +153,26 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-          {desktopNavItems.map((item) => {
-            const active = item.path === '/' 
-              ? location.pathname === '/'
-              : location.pathname.startsWith(item.path);
-
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto fcf-sidebar-nav">
+          {desktopNavItems.map((item, index) => {
+            const active = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
             return (
-              <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all outline-none ${
-                  active
-                    ? 'bg-amber-500 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#2a2a2e] hover:text-slate-900 dark:hover:text-slate-200'
-                }`}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
+              <React.Fragment key={item.path}>
+                {item.group === 'secondary' && index === 4 && <div className="fcf-sidebar-divider"><span>ESPACE DE TRAVAIL</span></div>}
+                <button onClick={() => navigate(item.path)} title={item.label} aria-current={active ? 'page' : undefined} className={`fcf-sidebar-link ${active ? 'is-active' : ''}`}>
+                  {item.icon}<span>{item.label}</span>
+                </button>
+              </React.Fragment>
             );
           })}
         </nav>
 
         {/* Sidebar Footer with Theme toggling */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <span className="text-xs text-slate-400 dark:text-slate-500">Theme: {themeMode === 'system' ? 'Système' : themeMode === 'light' ? 'Clair' : 'Sombre'}</span>
+        <div className="px-3 py-3 border-t border-[var(--fcf-border)] flex items-center justify-between">
+          <span className="text-[10px] text-[var(--fcf-muted)]">Thème : {themeMode === 'system' ? 'Système' : themeMode === 'light' ? 'Clair' : 'Sombre'}</span>
           <button
             onClick={handleCycleTheme}
-            className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all outline-none"
+            className="p-2 rounded-md border border-[var(--fcf-border)] bg-[var(--fcf-surface)] text-[var(--fcf-muted)] hover:bg-[var(--fcf-surface-muted)] transition-all outline-none"
             aria-label="Toggle theme"
           >
             {themeMode === 'light' ? (
@@ -193,14 +186,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </aside>
 
+      {/* Tablet navigation rail: primary workspaces only */}
+      <aside className="hidden md:flex xl:hidden fcf-tablet-rail" aria-label="Navigation principale">
+        {desktopNavItems.filter(item => item.group === 'primary').map(item => {
+          const active = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
+          return <button key={item.path} type="button" onClick={() => navigate(item.path)} title={item.label} aria-label={item.label} aria-current={active ? 'page' : undefined} className={active ? 'is-active' : ''}>{item.icon}</button>;
+        })}
+      </aside>
+
       {/* 2. MAIN HUB WORKSPACE */}
       <div id="fcf-workspace" className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         
         {/* On Mobile/Tablet: Render page header with the back button dynamically */}
-        <div className="xl:hidden">
+        <div className="fcf-topbar">
           <PageHeader 
             title={getPageTitle()} 
-            showBack={location.pathname !== '/' && location.pathname !== '/prospects' && location.pathname !== '/clients' && location.pathname !== '/orders' && location.pathname !== '/projection'} 
+            showBack={false} 
           />
         </div>
 
@@ -210,7 +211,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </main>
 
         {/* Mobile/Tablet Tab Bar */}
-        <div className="xl:hidden">
+        <div className="md:hidden">
           <BottomNav />
         </div>
       </div>
