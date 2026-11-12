@@ -17,6 +17,7 @@ import {
   TrendingUp, 
   Wallet, 
   Calendar, 
+  BookOpen,
   User, 
   Sun, 
   Moon, 
