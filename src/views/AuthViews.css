@@ -1,0 +1,8 @@
+/* Authentication — restrained Yekola identity, readable form surface */
+body:has(.fcf-auth-surface){background:var(--fcf-background)}
+.fcf-auth-surface{background:radial-gradient(ellipse at 50% 0%,color-mix(in oklab,var(--fcf-brand-gold) 13%,transparent),transparent 58%),var(--fcf-background)}
+.fcf-auth-panel{width:min(100%,27rem);padding:clamp(1.4rem,4vw,2.25rem);border:1px solid var(--fcf-border);border-radius:1rem;background:var(--fcf-surface);box-shadow:0 18px 55px rgb(43 26 18 / .07)}
+.fcf-auth-panel h1{color:var(--fcf-foreground);font-family:var(--font-display);font-size:1.35rem;font-weight:850;letter-spacing:-.04em}
+.fcf-auth-panel button{min-height:2.85rem;border-radius:.65rem}
+.fcf-auth-panel a{color:var(--fcf-brand-terracotta);font-weight:700}
+@media(max-width:480px){.fcf-auth-panel{padding:1.35rem;border-radius:.8rem}}
