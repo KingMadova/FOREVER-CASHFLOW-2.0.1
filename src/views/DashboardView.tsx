@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/arc/button/button';
 import { Badge } from '../components/arc/badge/badge';
+import { MetricCard } from '../components/arc/metric-card/metric-card';
 import { Input } from '../components/arc/input/input';
 import './DashboardView.css';
 import { useAuthStore } from '../store/slices/authSlice';
@@ -325,96 +326,45 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. KPI Grids (2x2 on Mobile, 4 columns on Desktop) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" id="dashboard_kpi_grid">
-        {/* KPI 1: Monthly Margin */}
-        <Card className="p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden flex flex-col justify-between h-36">
-          <div className="flex items-center justify-between">
-            <div className="w-10 h-10 bg-amber-50 dark:bg-amber-950/50 text-amber-500 dark:text-amber-400 rounded-2xl flex items-center justify-center">
-              <DollarSign className="w-5 h-5" />
-            </div>
-            {marginChange !== 0 && (
-              <span className={`text-[10px] py-0.5 px-2 rounded-full font-bold flex items-center gap-0.5 ${
-                marginChange > 0 ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950' : 'text-rose-500 bg-rose-50 dark:bg-rose-950'
-              }`}>
-                {marginChange > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                {Math.abs(Math.round(marginChange))}%
-              </span>
-            )}
+      {/* 2. KPI summary — Arc metric cards */}
+      <section className="dashboard-kpi-section" aria-label="Indicateurs clés">
+        <div className="dashboard-section-heading">
+          <div>
+            <span className="dashboard-eyebrow">PERFORMANCE</span>
+            <h3>Vos indicateurs clés</h3>
           </div>
-          <div className="mt-3">
-            <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Marge Mensuelle</p>
-            <p className="text-xl font-black text-slate-900 dark:text-slate-100 mt-1 truncate">
-              {totalMarginThisMonth.toLocaleString()} <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">F</span>
-            </p>
-          </div>
-        </Card>
-
-        {/* KPI 2: Case Credits (CC) */}
-        <Card className="p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden flex flex-col justify-between h-36">
-          <div className="flex items-center justify-between">
-            <div className="w-10 h-10 bg-blue-50 dark:bg-blue-950/50 text-blue-500 dark:text-blue-400 rounded-2xl flex items-center justify-center">
-              <Layers className="w-5 h-5" />
-            </div>
-            {ccChange !== 0 && (
-              <span className={`text-[10px] py-0.5 px-2 rounded-full font-bold flex items-center gap-0.5 ${
-                ccChange > 0 ? 'text-blue-500 bg-blue-50 dark:bg-blue-950' : 'text-rose-500 bg-rose-50 dark:bg-rose-950'
-              }`}>
-                {ccChange > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                {ccChange > 0 ? '+ ' : ''}{ccChange.toFixed(1)}%
-              </span>
-            )}
-          </div>
-          <div className="mt-3">
-            <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Volume Mensuel</p>
-            <p className="text-xl font-black text-slate-900 dark:text-slate-100 mt-1 truncate">
-              {totalCCThisMonth.toFixed(3)} <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase">CC</span>
-            </p>
-          </div>
-        </Card>
-
-        {/* KPI 3: Active Clients count */}
-        <Card className="p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden flex flex-col justify-between h-36">
-          <div className="flex items-center justify-between">
-            <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-500 dark:text-emerald-400 rounded-2xl flex items-center justify-center">
-              <Users className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] text-emerald-500 bg-emerald-50 dark:bg-emerald-950 py-0.5 px-2 rounded-full font-bold flex items-center gap-0.5">
-              Actifs
-            </span>
-          </div>
-          <div className="mt-3">
-            <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Base Clients</p>
-            <p className="text-xl font-black text-slate-900 dark:text-slate-100 mt-1 truncate">
-              {activeClientsCount} <span className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase">Contacts</span>
-            </p>
-          </div>
-        </Card>
-
-        {/* KPI 4: Net Cashflow (Margin - Expenses) */}
-        <Card className="p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden flex flex-col justify-between h-36">
-          <div className="flex items-center justify-between">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-              netCashflow >= 0 
-                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-500 dark:text-emerald-400' 
-                : 'bg-red-50 dark:bg-red-950/50 text-red-500 dark:text-red-400'
-            }`}>
-              <DollarSign className="w-5 h-5" />
-            </div>
-            <span className={`text-[10px] py-0.5 px-2 rounded-full font-bold flex items-center ${
-              netCashflow >= 0 ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950' : 'text-red-500 bg-red-50 dark:bg-red-950'
-            }`}>
-              {netCashflow >= 0 ? 'Positif' : 'Déficit'}
-            </span>
-          </div>
-          <div className="mt-3">
-            <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Trésorerie Nette</p>
-            <p className="text-xl font-black text-slate-900 dark:text-slate-100 mt-1 truncate">
-              {netCashflow.toLocaleString()} <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">F</span>
-            </p>
-          </div>
-        </Card>
-      </div>
+          <span className="dashboard-period-label">Ce mois-ci</span>
+        </div>
+        <div className="dashboard-kpi-grid" id="dashboard_kpi_grid">
+          <MetricCard
+            label="Marge mensuelle"
+            value={totalMarginThisMonth}
+            suffix=" F"
+            context={marginChange === 0 ? "Aucune évolution vs mois précédent" : `${marginChange > 0 ? "+" : ""}${Math.round(marginChange)}% vs mois précédent`}
+            change={marginChange === 0 ? undefined : `${marginChange > 0 ? "+" : ""}${Math.round(marginChange)}%`}
+          />
+          <MetricCard
+            label="Volume mensuel"
+            value={totalCCThisMonth}
+            suffix=" CC"
+            decimals={3}
+            context="Crédits de vente validés"
+            change={ccChange === 0 ? undefined : `${ccChange > 0 ? "+" : ""}${ccChange.toFixed(1)}%`}
+          />
+          <MetricCard
+            label="Base clients"
+            value={activeClientsCount}
+            context="Clients actifs enregistrés"
+          />
+          <MetricCard
+            label="Trésorerie nette"
+            value={netCashflow}
+            suffix=" F"
+            context="Marge moins dépenses du mois"
+            change={netCashflow >= 0 ? "Positive" : "Déficit"}
+          />
+        </div>
+      </section>
 
       {/* 2.5. Monthly Goals and Progress Section */}
       {(() => {
