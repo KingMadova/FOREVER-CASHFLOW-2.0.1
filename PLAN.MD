@@ -573,15 +573,25 @@ Ces largeurs sont des repères de test, pas des limites rigides de conception.
 | 2026-11-12 | GitHub devient l'espace de travail distant sur `feat/lot-1-design-system` ; le propriétaire récupère les commits avec `git pull` |
 | 2026-11-12 | Première passe visuelle du Dashboard publiée sur la branche feature, sans changement volontaire des calculs métier |
 
+
+### Vérification locale du Dashboard et correctifs TypeScript — 2026-11-12
+
+- [x] `npm run build` exécuté sur le poste du propriétaire : build Vite réussi en 36,70 s ; PWA générée avec 47 entrées précachées.
+- [x] Les avertissements Vite concernent des imports à la fois statiques et dynamiques (Firebase/Firestore et slices) ainsi qu'un chunk principal minifié supérieur à 500 kB ; ils ne bloquent pas le build et ne sont pas modifiés dans ce correctif.
+- [x] `npm run lint` (en réalité `tsc --noEmit`) a identifié 5 erreurs de typage : `BadgeProps` ne déclarait pas explicitement `className`/`children` selon les types JSX du projet ; `key` était refusé sur les props locales de `LabelPhase` et `MessageRow`.
+- [x] Correctifs ciblés publiés sur `feat/lot-1-design-system` : déclaration explicite des props Badge et acceptation typée de `key` dans les deux composants internes animés. Aucun changement de logique métier.
+- [ ] Rejouer `npm run lint` après récupération des trois commits correctifs ; si des erreurs persistent, les traiter avant validation du lot.
+- [ ] Rejouer `npm run build` après récupération des correctifs ; effectuer ensuite la validation visuelle et responsive du Dashboard.
+
 ### Journal d'avancement
 
 | Lot | Statut | Notes |
 |---|---|---|
 | Audit statique initial | Effectué | Lecture du code distant ; pas encore de build/test local |
-| Lot 0 — Préparation | En cours — installation réussie | 613 paquets installés ; TypeScript, build et audit détaillé des vulnérabilités restent à vérifier |
-| Lot 1 — Design system | En cours — intégration distante | Tokens Yekola et composants Arc UI présents ; showcase, notice de licence consolidée et validations locales restent à terminer |
+| Lot 0 — Préparation | En cours — build local réussi, TypeScript à corriger | `npm run build` réussi sur le poste du propriétaire ; `npm run lint` remonte 5 erreurs de typage dans les composants Arc Badge, Button et Input ; warnings Vite non bloquants sur imports mixtes et chunk principal > 500 kB |
+| Lot 1 — Design system | En cours — correctifs TypeScript publiés | Typage des props Badge et des clés React dans Button/Input corrigé sur la branche feature ; nouvelle exécution locale de `npm run lint` requise ; showcase et validations restantes à terminer |
 | Lot 2 — Shell et navigation | À faire | Desktop et mobile |
-| Lot 3 — Dashboard | En cours — première passe UI publiée | Refonte visuelle initiale sur la branche feature ; build, contrôles responsive et validation visuelle locale en attente |
+| Lot 3 — Dashboard | En cours — première passe UI publiée | Le propriétaire a confirmé le build Vite de production réussi ; les 5 erreurs TypeScript identifiées sont traitées dans les composants Arc ; contrôles responsive et validation visuelle/fonctionnelle encore en attente |
 | Lot 4 — Prospects et clients | À faire | Gestion commerciale |
 | Lot 5 — Commandes et ventes | À faire | Parcours de vente |
 | Lot 6 — Projection et finances | À faire | Calculs et budget |
