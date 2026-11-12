@@ -508,7 +508,7 @@ export const OrdersView: React.FC = () => {
         <button
           onClick={() => setIsNewOrderOpen(true)}
           className="orders-create-button"
-          id="order_add_btn"
+          id="order_add_btn" aria-label="Créer un bon de vente"
         >
           <Plus className="w-4 h-4" />
           CRÉER UN BON DE VENTE
