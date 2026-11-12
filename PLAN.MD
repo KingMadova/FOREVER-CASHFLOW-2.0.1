@@ -789,3 +789,50 @@ Le propriétaire a transmis et validé une spécification détaillée couvrant l
 3. Créer la vue Ventes distincte comme lecture dérivée des commandes comptabilisées, puis définir séparément le besoin d'un vrai registre de transactions avant toute modification du modèle métier.
 4. Reprendre le Dashboard selon la composition détaillée du cahier des charges et les champs réellement disponibles.
 
+### Validation locale communiquée — commit `3c00ce6`
+
+Le propriétaire a exécuté après récupération :
+- `npm run lint` : réussi, aucune erreur TypeScript.
+- `npm run build` : réussi, Vite 6.4.6, 2 741 modules transformés.
+- PWA : `generateSW` réussi, 48 ressources précachées.
+- Avertissements toujours présents : imports dynamiques/statistiques mélangés pour Firebase, slices Zustand et `postPurchaseService`, ainsi que bundle principal supérieur à 500 kB. Ces sujets restent isolés dans un futur lot performance/synchronisation.
+
+Un incident Windows a toutefois été signalé pendant le pull : Git n'a pas réussi à supprimer un ancien couple de fichiers pack `.idx/.pack` dans `.git/objects/pack` (fichier verrouillé). Le pull a ensuite affiché un fast-forward et les tests ont été exécutés, mais l'intégrité complète du dépôt local doit être contrôlée avant le prochain pull. Ne pas supprimer manuellement les fichiers pack.
+
+### Lot Navigation + Commandes + Ventes — 2026-11-12
+
+**Navigation publiée sur `feat/lot-1-design-system` :**
+- [x] Navigation principale desktop organisée autour de quatre espaces : Accueil, Clients, Commandes, Ventes.
+- [x] Navigation secondaire conservée : Prospects, Projection, Budget, Agenda et Journal G4.
+- [x] Rail tablette de 64 px avec icônes et infobulles.
+- [x] Barre mobile à quatre destinations et action centrale ouvrant une feuille d'actions.
+- [x] Actions mobiles réellement connectées aux formulaires existants : Nouveau client et Nouvelle commande.
+- [x] Accès mobile à la lecture Ventes et au suivi des commandes/règlements.
+- [x] Topbar commune affichée sur toutes les tailles d'écran ; titre de page contextualisé.
+- [ ] Recherche globale clavier `⌘K` non implémentée dans ce lot.
+- [ ] Repli manuel de la sidebar desktop non implémenté dans ce lot.
+
+**Rubrique Ventes :**
+- [x] Nouvelle route protégée `/sales` et vue dédiée.
+- [x] Périodes 7 jours, 30 jours, 90 jours et année.
+- [x] KPI dérivés des commandes comptabilisées : CA, montant encaissé déclaré, reste à encaisser estimé et marge.
+- [x] Tableau de commandes comptabilisées avec recherche et export CSV.
+- [x] Analyse compacte du CA quotidien sur 7 jours et répartition des modes de paiement.
+- [x] Composition responsive desktop/tablette/mobile.
+- [x] Avertissement visible : la vue est dérivée des commandes et ne constitue pas un journal indépendant des transactions.
+- [ ] Aucun modèle de transaction, mouvement de caisse, vente comptoir ou journal de paiement créé ; ces évolutions exigent un lot métier séparé.
+
+**Rubrique Commandes :**
+- [x] Séparation explicite de l'intitulé Commandes par rapport à la rubrique Ventes.
+- [x] Filtres et compteurs sur tous les statuts réellement présents dans `OrderStatut` : en attente, validée, payée, livrée, annulée, retour et remplacement.
+- [x] Bascule Liste / Kanban.
+- [x] Kanban en colonnes horizontales utilisant les statuts existants ; ouverture du détail au clic.
+- [x] Conservation des formulaires, calculs, exports, factures, détails, synchronisation et transitions existantes.
+- [ ] Glisser-déposer et changement de statut inline non implémentés ; le Kanban actuel est une vue de lecture/accès au détail, sans action métier supplémentaire.
+- [ ] Validation locale `npm run lint` et `npm run build` après récupération de ces nouveaux commits.
+- [ ] Validation visuelle réelle desktop/tablette/mobile.
+
+**Prochaine étape :**
+1. Faire contrôler le dépôt Git local Windows avant récupération des nouveaux commits.
+2. Faire valider localement ce lot Navigation + Commandes + Ventes.
+3. Reprendre le Dashboard pour appliquer la composition opérationnelle demandée, puis poursuivre les écrans Budget/Agenda et les autres vues.
