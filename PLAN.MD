@@ -869,3 +869,14 @@ Un incident Windows a toutefois été signalé pendant le pull : Git n'a pas ré
 - [x] Harmonisation de la hiérarchie de la page Projection : en-tête, zone de configuration et panneau de résultats, avec densité et rayons cohérents.
 - [x] Conservation des algorithmes de marge, CC, sélection des packs, catalogue produits, partage et copie.
 - [ ] Validation locale TypeScript/build et contrôle visuel responsive après récupération.
+
+
+### Lot Budget + Agenda + Journal G4 — première refonte visuelle — 2026-11-12
+
+- [x] Budget : hiérarchie resserrée entre en-tête, synthèse des entrées/sorties/bénéfice, ventilation des dépenses et registre des mouvements.
+- [x] Budget : tableaux de bord et lignes de mouvements adaptés aux surfaces et à la densité de la charte Yekola ; export CSV, impression, tri et formulaires conservés.
+- [x] Agenda : hiérarchie en-tête/priorités/échéances clarifiée ; cartes de tâches compactes, lisibles et accessibles au tactile.
+- [x] Agenda : conservation du tri chronologique, de la complétion, suppression avec confirmation, contact lié et formulaire existants.
+- [x] Journal G4 : onglets de période, sélecteur de date, score, habitudes et compteurs harmonisés ; logique de progression et calculs inchangés.
+- [x] Projection : feuille de style dédiée ajoutée pour clarifier la hiérarchie entre paramètres et matrice de résultats.
+- [ ] Validation locale TypeScript/build et contrôle visuel responsive après récupération.
