@@ -329,6 +329,15 @@ Chaque lot doit être réalisé sur une branche de travail dédiée ou une branc
 
 **Diagnostic provisoire :** l'échec observé est d'abord un problème d'accès au registre npm / transfert TLS et d'intégrité du cache, pas une preuve d'une erreur dans le code de l'application. Les avertissements `EPERM` indiquent en plus un possible verrouillage de fichiers sous Windows. Le build et le contrôle TypeScript restent inconnus.
 
+#### Résultat de la nouvelle installation npm — 2026-11-12
+
+- [x] `npm ci` terminé avec succès depuis le registre officiel.
+- [x] 613 paquets ajoutés ; 614 paquets audités.
+- [x] Les erreurs TLS, archives corrompues et erreurs de nettoyage bloquantes ne se sont pas reproduites.
+- [ ] Contrôle TypeScript et build de production à exécuter.
+- [ ] Examiner le détail des 30 vulnérabilités signalées par `npm audit` (3 low, 13 moderate, 13 high, 1 critical).
+- **Consigne :** ne pas exécuter `npm audit fix` ni `npm audit fix --force` à ce stade. Les mises à jour de dépendances sont hors du diagnostic initial et pourraient modifier les versions ou introduire des régressions. Il faudra d'abord examiner `npm audit` et distinguer dépendances directes/transitives, chemins d'impact et correctifs disponibles.
+
 #### Analyse complémentaire de la configuration npm — 2026-11-12
 
 - [x] Registre npm utilisateur identifié : `https://registry.npmmirror.com/`.
@@ -567,7 +576,7 @@ Ces largeurs sont des repères de test, pas des limites rigides de conception.
 | Lot | Statut | Notes |
 |---|---|---|
 | Audit statique initial | Effectué | Lecture du code distant ; pas encore de build/test local |
-| Lot 0 — Préparation | En cours — installation bloquée | Working tree local propre et versions relevées ; npm ci échoue sur le registre miroir/TLS, build et TypeScript non vérifiés |
+| Lot 0 — Préparation | En cours — installation réussie | 613 paquets installés ; TypeScript, build et audit détaillé des vulnérabilités restent à vérifier |
 | Lot 1 — Design system | À faire | UIArc, tokens, thèmes, composants |
 | Lot 2 — Shell et navigation | À faire | Desktop et mobile |
 | Lot 3 — Dashboard | À faire | Poste de pilotage |
