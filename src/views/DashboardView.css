@@ -375,3 +375,6 @@
   #dashboard_view_container .dashboard-kpi-grid > article .counter { font-size: .96rem; }
   #dashboard_view_container .dashboard-period-label { font-size: .58rem; }
 }
+
+#dashboard_view_container > :not([hidden]) ~ :not([hidden]) { margin-top: .9rem; }
+@media (max-width: 640px) { #dashboard_view_container > :not([hidden]) ~ :not([hidden]) { margin-top: .75rem; } }
