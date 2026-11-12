@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useProductsStore } from '../store/slices/productsSlice';
 import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
+import './ProjectionView.css';
 import { Product, GRADES } from '../types';
 import { 
   Plus,
