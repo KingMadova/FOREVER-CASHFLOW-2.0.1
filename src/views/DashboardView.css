@@ -296,6 +296,9 @@
 #dashboard_view_container .dashboard-order-status.is-validated { background: color-mix(in oklab, var(--fcf-success) 12%, var(--fcf-surface)); color: var(--fcf-success); }
 #dashboard_view_container .dashboard-order-status.is-pending { background: color-mix(in oklab, var(--fcf-warning) 14%, var(--fcf-surface)); color: var(--fcf-warning); }
 #dashboard_view_container .dashboard-order-status.is-cancelled { background: var(--fcf-surface-muted); color: var(--fcf-muted); }
+#dashboard_view_container .dashboard-order-status.is-delivered { background: color-mix(in oklab, #2563eb 12%, var(--fcf-surface)); color: #2563eb; }
+#dashboard_view_container .dashboard-order-status.is-return { background: color-mix(in oklab, #ea580c 12%, var(--fcf-surface)); color: #c2410c; }
+#dashboard_view_container .dashboard-order-status.is-replacement { background: color-mix(in oklab, #7c3aed 12%, var(--fcf-surface)); color: #7c3aed; }
 #dashboard_view_container .dashboard-order-chevron { color: var(--fcf-muted); }
 #dashboard_view_container .dashboard-orders-empty {
   display: flex;
