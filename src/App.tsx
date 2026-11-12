@@ -11,6 +11,7 @@ const DashboardView = lazy(() => import('./views/DashboardView').then(m => ({ de
 const ProspectsView = lazy(() => import('./views/ProspectsView').then(m => ({ default: m.ProspectsView })));
 const ClientsView = lazy(() => import('./views/ClientsView').then(m => ({ default: m.ClientsView })));
 const OrdersView = lazy(() => import('./views/OrdersView').then(m => ({ default: m.OrdersView })));
+const SalesView = lazy(() => import('./views/SalesView').then(m => ({ default: m.SalesView })));
 const ProjectionView = lazy(() => import('./views/ProjectionView').then(m => ({ default: m.ProjectionView })));
 const BudgetView = lazy(() => import('./views/BudgetView').then(m => ({ default: m.BudgetView })));
 const AgendaView = lazy(() => import('./views/AgendaView').then(m => ({ default: m.AgendaView })));
@@ -59,6 +60,7 @@ export default function App() {
             <Route path="/prospects" element={<ProtectedRoute><ProspectsView /></ProtectedRoute>} />
             <Route path="/clients" element={<ProtectedRoute><ClientsView /></ProtectedRoute>} />
             <Route path="/orders" element={<ProtectedRoute><OrdersView /></ProtectedRoute>} />
+            <Route path="/sales" element={<ProtectedRoute><SalesView /></ProtectedRoute>} />
             <Route path="/projection" element={<ProtectedRoute><ProjectionView /></ProtectedRoute>} />
             <Route path="/budget" element={<ProtectedRoute><BudgetView /></ProtectedRoute>} />
             <Route path="/agenda" element={<ProtectedRoute><AgendaView /></ProtectedRoute>} />
