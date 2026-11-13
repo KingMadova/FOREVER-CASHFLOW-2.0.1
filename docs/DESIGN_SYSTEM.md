@@ -53,9 +53,26 @@ Current integration state:
 - [ ] Build the internal component showcase and validate light/dark themes.
 - [ ] Verify responsive behavior and keyboard interactions.
 
-## Implementation rules
+## État au 2026-11-12 (Lot A)
 
-1. Do not change business calculations, Firestore schemas, or service contracts for visual consistency.
-2. Do not replace complex business components with generic primitives without a parity review.
-3. Prefer semantic tokens in new components; migrate existing hard-coded styles progressively by lot.
-4. Keep print styles independent from screen themes.
+- [x] Primitives de présentation livrées : `StatusBadge`, `SectionCard`, `EmptyState`, `PageShell`
+- [x] Source unique de métadonnées de statut : `src/lib/orderStatusMeta.ts`
+- [x] Échelles sémantiques ajoutées (`--fcf-radius-*`, `--fcf-font-weight-*`, `--fcf-shadow-*`)
+- [x] Montserrat chargée jusqu'à 900
+- [ ] Consommation effective des primitives dans les vues — planifiée Lots C/D/E
+
+## Primitives livrées (Lot A)
+
+### `StatusBadge` — `src/components/ui/StatusBadge.tsx`
+
+Badge unifié pour les `OrderStatut`. Consomme `orderStatusMeta.ts`.
+
+- **Variants** : PENDING, VALIDATED, PAYE, LIVRE, CANCELLED, RETOUR, REMPLACEMENT
+- **Tailles** : `sm`, `md`
+- **Props** : `status`, `size?`, `showDot?` (défaut `true`), `className?`
+- **A11y** : `aria-label="Statut : <label>"`, point coloré `aria-hidden`
+
+Utilisation (à partir du Lot D) :
+
+```tsx
+<StatusBadge status={order.status} size="sm" />

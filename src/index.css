@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Poppins:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
@@ -40,6 +40,26 @@
 
   --fcf-shadow-sm: 0 1px 2px rgb(41 35 31 / 0.06);
   --fcf-shadow-md: 0 8px 24px rgb(41 35 31 / 0.08);
+
+  /* --- Ajouts Lot A : échelles sémantiques additives --- */
+  /* Poids typographiques (cohérence avec Montserrat/Poppins chargées) */
+  --fcf-font-weight-regular: 400;
+  --fcf-font-weight-medium: 500;
+  --fcf-font-weight-semibold: 600;
+  --fcf-font-weight-bold: 700;
+  --fcf-font-weight-extrabold: 800;
+  --fcf-font-weight-black: 900;
+
+  /* Rayons sémantiques (en plus des --fcf-radius-* existants) */
+  --fcf-radius-control: 0.5rem;   /* 8px — boutons, inputs, chips */
+  --fcf-radius-card:    0.75rem;  /* 12px — cartes secondaires */
+  --fcf-radius-panel:   1rem;     /* 16px — panneaux principaux */
+
+  /* Ombres sémantiques (aliases lisibles) */
+  --fcf-shadow-flat:     none;
+  --fcf-shadow-subtle:   0 1px 2px rgb(41 35 31 / 0.04);
+  --fcf-shadow-card:     var(--fcf-shadow-sm);
+  --fcf-shadow-elevated: var(--fcf-shadow-md);
 
   /* Arc UI compatibility tokens — mapped to Yekola Business */
   --background: var(--fcf-background);
