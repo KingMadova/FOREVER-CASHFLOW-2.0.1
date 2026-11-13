@@ -7,11 +7,11 @@ import { AgendaItem, Order, OrderStatus, Customer } from '../../types';
 import {
   getActiveRelances,
   stageLabel,
-  type RelanceInfo
+  type RelanceInfo,
 } from '../../lib/relanceService';
 import {
   getActivePurchaseFollowUps,
-  purchaseAnchorDate
+  purchaseAnchorDate,
 } from '../../lib/postPurchaseService';
 import {
   canNotifyNatively,
@@ -39,27 +39,26 @@ import {
   AlertCircle,
   HelpCircle,
   UserPlus,
-  BellRing
+  BellRing,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 
 export const NotificationCenter: React.FC = () => {
-  const { 
-    agendaList, 
+  const {
+    agendaList,
     toggleAgendaItemCompleted,
-    updateAgendaItem
+    updateAgendaItem,
   } = useAgendaStore();
   const { orders, updateOrder } = useOrdersStore();
   const { customers, updateCustomer } = useCustomersStore();
   const { isAuthenticated } = useAuthStore();
-  
+
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
-  // Audio state
+
   const [isMuted, setIsMuted] = useState(() => {
     try {
       return localStorage.getItem('fcf-notifications-muted') === 'true';
@@ -68,10 +67,8 @@ export const NotificationCenter: React.FC = () => {
     }
   });
 
-  // Tab state: 'all' | 'followups' | 'deadlines'
   const [activeTab, setActiveTab] = useState<'all' | 'followups' | 'deadlines'>('all');
 
-  // Helper synthetic chime sound using Web Audio API (totally offline-safe, no static files needed)
   const playNotificationChime = (isSuccess = false) => {
     try {
       const mutedValue = localStorage.getItem('fcf-notifications-muted') === 'true';
@@ -80,37 +77,40 @@ export const NotificationCenter: React.FC = () => {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContext) return;
       const ctx = new AudioContext();
-      
-      const playNote = (freq: number, startTime: number, duration: number, type: 'sine' | 'triangle' = 'sine') => {
+
+      const playNote = (
+        freq: number,
+        startTime: number,
+        duration: number,
+        type: 'sine' | 'triangle' = 'sine',
+      ) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        
+
         osc.type = type;
         osc.frequency.setValueAtTime(freq, startTime);
-        
+
         gain.gain.setValueAtTime(0, startTime);
         gain.gain.linearRampToValueAtTime(0.06, startTime + 0.03);
         gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-        
+
         osc.connect(gain);
         gain.connect(ctx.destination);
-        
+
         osc.start(startTime);
         osc.stop(startTime + duration + 0.1);
       };
 
       const now = ctx.currentTime;
       if (isSuccess) {
-        // High, cheerful major third chime for success
-        playNote(523.25, now, 0.15, 'sine'); // C5
-        playNote(659.25, now + 0.06, 0.25, 'sine'); // E5
+        playNote(523.25, now, 0.15, 'sine');
+        playNote(659.25, now + 0.06, 0.25, 'sine');
       } else {
-        // Soft focus dual-tone notice
-        playNote(587.33, now, 0.1, 'triangle'); // D5
-        playNote(783.99, now + 0.05, 0.2, 'sine'); // G5
+        playNote(587.33, now, 0.1, 'triangle');
+        playNote(783.99, now + 0.05, 0.2, 'sine');
       }
     } catch (err) {
-      console.warn("Web Audio API was blocked or not supported yet: ", err);
+      console.warn('Web Audio API was blocked or not supported yet: ', err);
     }
   };
 
@@ -120,7 +120,6 @@ export const NotificationCenter: React.FC = () => {
     try {
       localStorage.setItem('fcf-notifications-muted', String(nextMute));
       if (!nextMute) {
-        // play small test chime
         setTimeout(() => playNotificationChime(true), 100);
       }
     } catch (e) {
@@ -128,7 +127,6 @@ export const NotificationCenter: React.FC = () => {
     }
   };
 
-  // Helper to get local date string YYYY-MM-DD
   const getLocalDateString = (offsetDays = 0) => {
     const d = new Date();
     d.setDate(d.getDate() + offsetDays);
@@ -141,7 +139,6 @@ export const NotificationCenter: React.FC = () => {
   const todayStr = getLocalDateString();
   const tomorrowStr = getLocalDateString(1);
 
-  // Parse days pending for an order
   const getDaysPending = (orderDateStr: string): number => {
     try {
       const orderDate = new Date(orderDateStr);
@@ -154,44 +151,39 @@ export const NotificationCenter: React.FC = () => {
     }
   };
 
-  // 1. Follow-up Alarms from Agenda (Uncompleted, scheduled for today or past)
-  // Also Agenda items of type FOLLOW_UP or PRESENTATION
-  const followUpAlarms = agendaList.filter(item => 
-    !item.completed && 
-    (item.type === 'FOLLOW_UP' || item.type === 'PRESENTATION') &&
-    item.date <= todayStr
+  const followUpAlarms = agendaList.filter(
+    (item) =>
+      !item.completed &&
+      (item.type === 'FOLLOW_UP' || item.type === 'PRESENTATION') &&
+      item.date <= todayStr,
   );
 
-  // 2. Upcoming Order Deadlines Alarms
-  // - Uncompleted DELIVERY agenda items (today or past due/pending)
-  const deliveryAlarms = agendaList.filter(item =>
-    !item.completed &&
-    item.type === 'DELIVERY' &&
-    item.date <= todayStr
+  const deliveryAlarms = agendaList.filter(
+    (item) => !item.completed && item.type === 'DELIVERY' && item.date <= todayStr,
   );
 
-  // - Pending Orders (representing a transactional deadline that needs FBO validation within e.g. 72h)
-  const pendingOrders = orders.filter(order => order.status === OrderStatus.PENDING);
+  const pendingOrders = orders.filter((order) => order.status === OrderStatus.PENDING);
 
-  // 3. RELANCES PROSPECTS (règles J+N par étape du pipeline)
   const activeRelances = getActiveRelances(customers);
 
-  // 4. SUIVIS POST-ACHAT (J+3 démarrage / J+7 satisfaction / J+10 réachat)
   const purchaseFollowUps = getActivePurchaseFollowUps(orders, customers);
-  const duePurchaseFollowUps = purchaseFollowUps.filter(f => f.urgency === 'today' || f.urgency === 'due');
+  const duePurchaseFollowUps = purchaseFollowUps.filter(
+    (f) => f.urgency === 'today' || f.urgency === 'due',
+  );
 
-  // Total active alerts count
-  const alertsCount = followUpAlarms.length + deliveryAlarms.length + pendingOrders.length + activeRelances.length + duePurchaseFollowUps.length;
+  const alertsCount =
+    followUpAlarms.length +
+    deliveryAlarms.length +
+    pendingOrders.length +
+    activeRelances.length +
+    duePurchaseFollowUps.length;
 
-  // ===== NOTIFICATIONS NATIVES OS =====
   const [nativePerm, setNativePerm] = useState(getNativePermission());
   const [showPermCard, setShowPermCard] = useState(false);
 
   useEffect(() => {
-    // Proposer la carte de permission une seule fois : si support ET pas encore
-    // accordé ET pas déjà refusé in-app.
     if (getNativePermission() === 'default' && !wasPromptDismissed()) {
-      const t = setTimeout(() => setShowPermCard(true), 4000); // laisse l'app s'ouvrir d'abord
+      const t = setTimeout(() => setShowPermCard(true), 4000);
       return () => clearTimeout(t);
     }
   }, []);
@@ -221,21 +213,20 @@ export const NotificationCenter: React.FC = () => {
     setShowPermCard(false);
   };
 
-  // Envoi natif anti-spam : les relances EN RETARD partent en notification OS,
-  // max une par prospect et par jour. Dépend d'un ref (pas du tableau) pour ne
-  // tourner qu'une fois par session quand les données sont prêtes.
   const notifiedRef = useRef(false);
   const activeRelancesRef = useRef(activeRelances);
   activeRelancesRef.current = activeRelances;
   useEffect(() => {
     if (!canNotifyNatively() || !isAuthenticated) return;
-    if (notifiedRef.current) return; // une seule passe par session
-    const lateOnes = activeRelancesRef.current.filter(r => r.urgency === 'late' && r.customer.status !== ('CLIENT' as any));
+    if (notifiedRef.current) return;
+    const lateOnes = activeRelancesRef.current.filter(
+      (r) => r.urgency === 'late' && r.customer.status !== ('CLIENT' as any),
+    );
     if (lateOnes.length === 0) return;
     notifiedRef.current = true;
 
     (async () => {
-      for (const r of lateOnes.slice(0, 3)) { // max 3 notifs d'un coup
+      for (const r of lateOnes.slice(0, 3)) {
         const key = `relance_${r.customer.id}`;
         if (alreadyNotifiedToday(key)) continue;
         const sent = await showNativeNotification(
@@ -257,15 +248,19 @@ export const NotificationCenter: React.FC = () => {
         });
       }
 
-      // Parité : suivis post-achat dus aujourd'hui (J+3/J+7/J+10) -> 1 notif groupée
       try {
-        const { getActivePurchaseFollowUps } = await import('../../lib/postPurchaseService');
+        const { getActivePurchaseFollowUps } = await import(
+          '../../lib/postPurchaseService'
+        );
         const duePurchases = getActivePurchaseFollowUps(
           useOrdersStore.getState().orders,
           customers,
-        ).filter(f => f.urgency === 'today' || f.urgency === 'due');
+        ).filter((f) => f.urgency === 'today' || f.urgency === 'due');
         if (duePurchases.length > 0) {
-          const names = duePurchases.slice(0, 2).map(f => f.order.customerName).join(', ');
+          const names = duePurchases
+            .slice(0, 2)
+            .map((f) => f.order.customerName)
+            .join(', ');
           await showNativeNotification('🛒 Suivi client à faire', {
             body: `${duePurchases.length} achat(s) à suivre aujourd'hui : ${names}${duePurchases.length > 2 ? '…' : ''}`,
             tag: 'fcf-purchase-followup',
@@ -279,10 +274,9 @@ export const NotificationCenter: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Clic sur notification -> focus app (géré via focus event du SW)
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
-    const onFocus = () => { /* l'app reprend le focus quand on tape la notif */ };
+    const onFocus = () => {};
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data?.type === 'NOTIF_CLICK') {
         navigate('/prospects');
@@ -291,7 +285,6 @@ export const NotificationCenter: React.FC = () => {
     return () => navigator.serviceWorker.removeEventListener('message', onFocus);
   }, [navigate]);
 
-  // Action "Contacté aujourd'hui" depuis le centre d'alertes
   const handleMarkContacted = async (relance: RelanceInfo) => {
     try {
       await updateCustomer({
@@ -304,11 +297,9 @@ export const NotificationCenter: React.FC = () => {
     }
   };
 
-  // Track initial count to sound chime on increase
   const [prevCount, setPrevCount] = useState(0);
   useEffect(() => {
     if (alertsCount > prevCount && prevCount === 0) {
-      // Trigger alarm toast with soft chime on startup if there are things to address
       const timer = setTimeout(() => {
         setShowToast(true);
         playNotificationChime(false);
@@ -324,7 +315,6 @@ export const NotificationCenter: React.FC = () => {
     setPrevCount(alertsCount);
   }, [alertsCount]);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -339,37 +329,37 @@ export const NotificationCenter: React.FC = () => {
     };
   }, [isOpen]);
 
-  // Snooze function: postpone an Agenda item to tomorrow
   const handleSnooze = async (item: AgendaItem) => {
     try {
       const updatedItem: AgendaItem = {
         ...item,
-        date: tomorrowStr
+        date: tomorrowStr,
       };
       await updateAgendaItem(updatedItem);
       playNotificationChime(true);
     } catch (err) {
-      console.error("Snooze failed:", err);
+      console.error('Snooze failed:', err);
     }
   };
 
-  // Immediate validation of pending order directly from notification center
   const handleValidateOrder = async (order: Order) => {
     try {
       const updatedOrder: Order = {
         ...order,
-        status: OrderStatus.VALIDATED
+        status: OrderStatus.VALIDATED,
       };
       await updateOrder(updatedOrder);
       playNotificationChime(true);
     } catch (err) {
-      console.error("Order validation failed:", err);
+      console.error('Order validation failed:', err);
     }
   };
 
   const getContactInfo = (contactName?: string) => {
     if (!contactName) return null;
-    const client = customers.find(c => c.name.toLowerCase() === contactName.toLowerCase());
+    const client = customers.find(
+      (c) => c.name.toLowerCase() === contactName.toLowerCase(),
+    );
     return client || null;
   };
 
@@ -379,14 +369,27 @@ export const NotificationCenter: React.FC = () => {
       cleaned = cleaned.substring(2);
     }
     if (cleaned.length === 9) {
-      if (cleaned.startsWith('06') || cleaned.startsWith('05') || cleaned.startsWith('04')) {
+      if (
+        cleaned.startsWith('06') ||
+        cleaned.startsWith('05') ||
+        cleaned.startsWith('04')
+      ) {
         return '242' + cleaned.substring(1);
       }
-      if (cleaned.startsWith('77') || cleaned.startsWith('76') || cleaned.startsWith('78') || cleaned.startsWith('70')) {
+      if (
+        cleaned.startsWith('77') ||
+        cleaned.startsWith('76') ||
+        cleaned.startsWith('78') ||
+        cleaned.startsWith('70')
+      ) {
         return '242' + cleaned;
       }
     } else if (cleaned.length === 8) {
-      if (cleaned.startsWith('6') || cleaned.startsWith('5') || cleaned.startsWith('4')) {
+      if (
+        cleaned.startsWith('6') ||
+        cleaned.startsWith('5') ||
+        cleaned.startsWith('4')
+      ) {
         return '242' + cleaned;
       }
     }
@@ -395,13 +398,13 @@ export const NotificationCenter: React.FC = () => {
 
   return (
     <div className="relative" ref={dropdownRef} id="notification_center_wrapper">
-      {/* TRIGGER BUTTON (Header Bar) */}
+      {/* TRIGGER BUTTON (Header Bar) — M0: w-12 → w-10 sm:w-12 */}
       <button
         onClick={() => {
           setIsOpen(!isOpen);
           if (!isOpen) playNotificationChime(false);
         }}
-        className={`relative rounded-full active:scale-95 transition-all outline-none w-12 h-12 flex items-center justify-center cursor-pointer ${
+        className={`relative rounded-full active:scale-95 transition-all outline-none w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center cursor-pointer ${
           isOpen
             ? 'bg-amber-500/10 text-amber-500 ring-2 ring-amber-500/30'
             : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -410,9 +413,9 @@ export const NotificationCenter: React.FC = () => {
         id="notification_bell_btn"
       >
         <Bell className="w-5 h-5" />
-        
+
         {alertsCount > 0 && (
-          <span 
+          <span
             className="absolute top-2 right-2 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-[#101012] animate-bounce shrink-0 shadow-sm"
             id="notification_badge_counter"
           >
@@ -421,7 +424,7 @@ export const NotificationCenter: React.FC = () => {
         )}
       </button>
 
-      {/* FLOATING ACTION DROPDOWN */}
+      {/* FLOATING PANEL — M0: bottom sheet on mobile, dropdown on desktop */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -429,7 +432,8 @@ export const NotificationCenter: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="fixed top-[64px] left-2 right-2 sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:mt-2.5 sm:w-[410px] bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl z-55 overflow-hidden text-left flex flex-col" style={{ maxHeight: 'calc(100vh - 80px)' }}
+            className="fixed top-[52px] left-0 right-0 bottom-0 sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:bottom-auto sm:mt-2.5 sm:w-[410px] sm:max-w-[calc(100vw-2rem)] bg-white dark:bg-[#1f1f22] sm:border border-slate-200 dark:border-slate-800 rounded-t-2xl sm:rounded-2xl shadow-2xl z-[70] sm:z-[60] overflow-hidden text-left flex flex-col"
+            style={{ maxHeight: 'calc(100dvh - 52px)' }}
             id="notification_dropdown_box"
           >
             {/* 1. Header */}
@@ -439,17 +443,22 @@ export const NotificationCenter: React.FC = () => {
                   Centre d'alertes
                 </h3>
                 <p className="text-[11px] text-slate-500 mt-0.5 select-none">
-                  {alertsCount} tâche{alertsCount > 1 ? 's' : ''} prioritaire{alertsCount > 1 ? 's' : ''}
+                  {alertsCount} tâche{alertsCount > 1 ? 's' : ''} prioritaire
+                  {alertsCount > 1 ? 's' : ''}
                 </p>
               </div>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={toggleMute}
                   className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
-                  title={isMuted ? "Activer le son" : "Désactiver le son"}
+                  title={isMuted ? 'Activer le son' : 'Désactiver le son'}
                   id="mute_notification_audio_btn"
                 >
-                  {isMuted ? <VolumeX className="w-4 h-4 text-rose-500" /> : <Volume2 className="w-4 h-4 text-slate-500 dark:text-slate-400" />}
+                  {isMuted ? (
+                    <VolumeX className="w-4 h-4 text-rose-500" />
+                  ) : (
+                    <Volume2 className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                  )}
                 </button>
                 <button
                   onClick={() => setIsOpen(false)}
@@ -462,14 +471,21 @@ export const NotificationCenter: React.FC = () => {
             </div>
 
             {/* 2. Tabs */}
-            <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex gap-1.5" id="notification_tab_group">
+            <div
+              className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex gap-1.5"
+              id="notification_tab_group"
+            >
               {[
                 { key: 'all', label: 'Toutes', count: alertsCount },
                 { key: 'relances', label: 'Relances', count: activeRelances.length },
                 { key: 'purchases', label: 'Achats', count: duePurchaseFollowUps.length },
                 { key: 'followups', label: 'Suivis', count: followUpAlarms.length },
-                { key: 'deadlines', label: 'Délais', count: deliveryAlarms.length + pendingOrders.length },
-              ].map(tab => (
+                {
+                  key: 'deadlines',
+                  label: 'Délais',
+                  count: deliveryAlarms.length + pendingOrders.length,
+                },
+              ].map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as any)}
@@ -485,7 +501,7 @@ export const NotificationCenter: React.FC = () => {
               ))}
             </div>
 
-            {/* 2-bis. CARTE PERMISSION NOTIFICATIONS NATIVES (une seule fois) */}
+            {/* 2-bis. PERMISSION CARD */}
             {isOpen && showPermCard && nativePerm === 'default' && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -504,8 +520,8 @@ export const NotificationCenter: React.FC = () => {
                         Ne rate plus aucune vente
                       </h4>
                       <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
-                        Reçois tes relances prospects directement sur ton téléphone,
-                        même app fermée. Comme une vraie application.
+                        Reçois tes relances prospects directement sur ton téléphone, même app
+                        fermée. Comme une vraie application.
                       </p>
                       <div className="flex items-center gap-2 mt-3">
                         <button
@@ -527,15 +543,17 @@ export const NotificationCenter: React.FC = () => {
               </motion.div>
             )}
 
-            {/* 3. DYNAMIC NOTIFICATION ROWS */}
-            <div className="max-h-[50vh] sm:max-h-84 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 flex-1" id="notification_dropdown_list">
-
-              {/* If empty tab state */}
+            {/* 3. DYNAMIC LIST */}
+            <div
+              className="max-h-[50vh] sm:max-h-84 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 flex-1"
+              id="notification_dropdown_list"
+            >
               {((activeTab === 'all' && alertsCount === 0) ||
                 (activeTab === 'relances' && activeRelances.length === 0) ||
                 (activeTab === 'purchases' && duePurchaseFollowUps.length === 0) ||
                 (activeTab === 'followups' && followUpAlarms.length === 0) ||
-                (activeTab === 'deadlines' && (deliveryAlarms.length + pendingOrders.length) === 0)) && (
+                (activeTab === 'deadlines' &&
+                  deliveryAlarms.length + pendingOrders.length === 0)) && (
                 <div className="p-8 text-center flex flex-col items-center justify-center gap-2 select-none min-h-[14rem]">
                   <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 text-lg">
                     🎉
@@ -545,440 +563,499 @@ export const NotificationCenter: React.FC = () => {
                   </h4>
                   <p className="text-[10px] text-slate-500 leading-relaxed max-w-[240px]">
                     {activeTab === 'relances'
-                      ? "Aucun prospect à relancer — ton pipeline est chaud et frais. 🔥"
+                      ? 'Aucun prospect à relancer — ton pipeline est chaud et frais. 🔥'
                       : activeTab === 'purchases'
-                        ? "Aucun suivi post-achat dû — tes clients sont accompagnés comme il se doit. ✨"
-                      : activeTab === 'followups'
-                        ? "Tous vos rendez-vous clients et appels de prospection sont à jour."
-                        : activeTab === 'deadlines'
-                          ? "Aucune commande en suspens ni livraison en retard pour le moment."
-                          : "Parfait ! Vos suivis d'activité, rendez-vous et commandes sont impeccablement gérés."}
+                        ? 'Aucun suivi post-achat dû — tes clients sont accompagnés comme il se doit. ✨'
+                        : activeTab === 'followups'
+                          ? 'Tous vos rendez-vous clients et appels de prospection sont à jour.'
+                          : activeTab === 'deadlines'
+                            ? 'Aucune commande en suspens ni livraison en retard pour le moment.'
+                            : "Parfait ! Vos suivis d'activité, rendez-vous et commandes sont impeccablement gérés."}
                   </p>
                 </div>
               )}
 
-              {/* A-bis. RELANCES PROSPECTS — design premium */}
-              {(activeTab === 'all' || activeTab === 'relances') && activeRelances.map(r => {
-                const isLate = r.urgency === 'late';
-                const isDue = r.urgency === 'due';
-                const phone = r.customer.phone || '';
-                return (
-                  <div
-                    key={`notify_relance_${r.customer.id}`}
-                    className={`p-3.5 hover:bg-slate-50/70 dark:hover:bg-[#25252a]/40 transition-colors relative border-l-4 ${
-                      isLate ? 'border-l-rose-500 bg-rose-500/5' : isDue ? 'border-l-amber-400 bg-amber-500/5' : 'border-l-sky-400'
-                    }`}
-                    id={`notify_relance_row_${r.customer.id}`}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      {/* Avatar initiales */}
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-xs ${
+              {/* A-bis. RELANCES PROSPECTS */}
+              {(activeTab === 'all' || activeTab === 'relances') &&
+                activeRelances.map((r) => {
+                  const isLate = r.urgency === 'late';
+                  const isDue = r.urgency === 'due';
+                  const phone = r.customer.phone || '';
+                  return (
+                    <div
+                      key={`notify_relance_${r.customer.id}`}
+                      className={`p-3.5 hover:bg-slate-50/70 dark:hover:bg-[#25252a]/40 transition-colors relative border-l-4 ${
                         isLate
-                          ? 'bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-sm shadow-rose-500/30'
+                          ? 'border-l-rose-500 bg-rose-500/5'
                           : isDue
-                            ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30'
-                            : 'bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-sm shadow-sky-500/30'
-                      }`}>
-                        {r.customer.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md ${
-                            isLate ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                              : isDue ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                          }`}>
-                            {r.label}
-                          </span>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                            {stageLabel(r.customer.pipelineStage)}
-                          </span>
+                            ? 'border-l-amber-400 bg-amber-500/5'
+                            : 'border-l-sky-400'
+                      }`}
+                      id={`notify_relance_row_${r.customer.id}`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-xs ${
+                            isLate
+                              ? 'bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-sm shadow-rose-500/30'
+                              : isDue
+                                ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30'
+                                : 'bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-sm shadow-sky-500/30'
+                          }`}
+                        >
+                          {r.customer.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .substring(0, 2)
+                            .toUpperCase()}
                         </div>
 
-                        <p className="text-[13px] font-bold text-slate-900 dark:text-slate-100 mt-1 truncate">
-                          {r.customer.name}
-                        </p>
-                        <p className="text-[10px] text-slate-500 truncate">
-                          Dernier contact : {r.customer.lastContactDate || 'jamais'} · il y a {r.daysSinceContact > 900 ? '?' : r.daysSinceContact} j
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              className={`text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                isLate
+                                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                                  : isDue
+                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                    : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
+                              }`}
+                            >
+                              {r.label}
+                            </span>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                              {stageLabel(r.customer.pipelineStage)}
+                            </span>
+                          </div>
 
-                        {/* Actions rapides */}
-                        <div className="flex items-center gap-1.5 mt-2">
-                          <a
-                            href={`https://wa.me/${(() => {
-                              let c = phone.replace(/[^0-9]/g, '');
-                              if (c.startsWith('00')) c = c.substring(2);
-                              if (c.length === 9 && (c.startsWith('05') || c.startsWith('06'))) return '242' + c.substring(1);
-                              if ((c.length === 9 || c.length === 8)) return '242' + c.replace(/^[456]/, '');
-                              return c;
-                            })()}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => handleMarkContacted(r)}
-                            className="py-1.5 px-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-black flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
-                            title="Relancer sur WhatsApp (marque contacté)"
-                          >
-                            <MessageCircle className="w-3 h-3" />
-                            WhatsApp
-                          </a>
-                          <a
-                            href={`tel:${phone}`}
-                            onClick={() => handleMarkContacted(r)}
-                            className="py-1.5 px-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-black flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
-                            title="Appeler (marque contacté)"
-                          >
-                            <Phone className="w-3 h-3" />
-                            Appeler
-                          </a>
+                          <p className="text-[13px] font-bold text-slate-900 dark:text-slate-100 mt-1 truncate">
+                            {r.customer.name}
+                          </p>
+                          <p className="text-[10px] text-slate-500 truncate">
+                            Dernier contact : {r.customer.lastContactDate || 'jamais'} · il y a{' '}
+                            {r.daysSinceContact > 900 ? '?' : r.daysSinceContact} j
+                          </p>
+
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <a
+                              href={`https://wa.me/${(() => {
+                                let c = phone.replace(/[^0-9]/g, '');
+                                if (c.startsWith('00')) c = c.substring(2);
+                                if (c.length === 9 && (c.startsWith('05') || c.startsWith('06')))
+                                  return '242' + c.substring(1);
+                                if (c.length === 9 || c.length === 8)
+                                  return '242' + c.replace(/^[456]/, '');
+                                return c;
+                              })()}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => handleMarkContacted(r)}
+                              className="py-1.5 px-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-black flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                              title="Relancer sur WhatsApp (marque contacté)"
+                            >
+                              <MessageCircle className="w-3 h-3" />
+                              WhatsApp
+                            </a>
+                            <a
+                              href={`tel:${phone}`}
+                              onClick={() => handleMarkContacted(r)}
+                              className="py-1.5 px-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-black flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                              title="Appeler (marque contacté)"
+                            >
+                              <Phone className="w-3 h-3" />
+                              Appeler
+                            </a>
+                            <button
+                              onClick={() => navigate('/prospects')}
+                              className="py-1.5 px-2 text-slate-400 hover:text-amber-500 rounded-lg text-[10px] font-bold flex items-center gap-0.5 active:scale-95 transition-all cursor-pointer"
+                              title="Ouvrir le pipeline prospects"
+                            >
+                              Fiche
+                              <ChevronRight className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+              {/* A-ter. SUIVIS POST-ACHAT */}
+              {(activeTab === 'all' || activeTab === 'purchases') &&
+                duePurchaseFollowUps.map((fu) => {
+                  const cust = fu.customer;
+                  const isDueNow = fu.urgency === 'due';
+                  return (
+                    <div
+                      key={`notify_purchase_${fu.order.id}`}
+                      className={`p-3.5 hover:bg-slate-50/70 dark:hover:bg-[#25252a]/40 transition-colors relative border-l-4 ${
+                        isDueNow
+                          ? 'border-l-emerald-500 bg-emerald-500/5'
+                          : 'border-l-violet-400 bg-violet-500/5'
+                      }`}
+                      id={`notify_purchase_row_${fu.order.id}`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-white text-sm shadow-sm ${
+                            isDueNow
+                              ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30'
+                              : 'bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-500/30'
+                          }`}
+                        >
+                          🛒
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              className={`text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                isDueNow
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                  : 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
+                              }`}
+                            >
+                              {fu.milestone} · {fu.title}
+                            </span>
+                            <span className="text-[9px] font-bold text-slate-400">
+                              {cust?.name || fu.order.customerName}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-snug">
+                            {fu.message}
+                          </p>
+                          <p className="text-[9px] text-slate-400 mt-0.5">
+                            {fu.order.refCommande || fu.order.id} · achat le{' '}
+                            {purchaseAnchorDate(fu.order)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+              {/* A. PENDING ORDERS */}
+              {(activeTab === 'all' || activeTab === 'deadlines') &&
+                pendingOrders.map((order) => {
+                  const daysPending = getDaysPending(order.date);
+                  const isUrgent = daysPending >= 2;
+                  const clientObj = getContactInfo(order.customerName);
+                  const resolvedPhone = clientObj?.phone || '';
+
+                  return (
+                    <div
+                      key={`notify_order_${order.id}`}
+                      className={`p-3.5 hover:bg-slate-50/70 dark:hover:bg-[#25252a]/40 transition-colors space-y-2.5 relative border-l-4 ${
+                        isUrgent ? 'border-l-rose-500 bg-rose-500/5' : 'border-l-amber-400'
+                      }`}
+                      id={`notify_order_row_${order.id}`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center mt-0.5 shrink-0">
+                          <ShoppingBag className="w-4 h-4" />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                              Commande En Attente
+                            </span>
+                            <span className="text-[9.5px] font-bold text-slate-400 flex items-center gap-0.5 select-none">
+                              <Clock className="w-3 h-3" />
+                              Placée le {order.date}
+                            </span>
+                          </div>
+
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-slate-50 leading-tight mt-1">
+                            Commande de{' '}
+                            <strong className="text-amber-600 dark:text-amber-400">
+                              {order.customerName}
+                            </strong>
+                          </h4>
+
+                          <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                            {order.items.map((i) => `${i.quantity}x ${i.productName}`).join(', ')}
+                          </p>
+
+                          <p className="text-[9.5px] font-bold text-slate-600 dark:text-slate-350 mt-1">
+                            Valeur :{' '}
+                            <span className="text-slate-900 dark:text-slate-100 font-extrabold">
+                              {order.totalRetail.toLocaleString()} F
+                            </span>{' '}
+                            ({order.totalCC.toFixed(3)} CC)
+                          </p>
+
+                          <div className="mt-2 flex items-center gap-1 text-[9.5px] font-black uppercase text-rose-500 bg-rose-500/10 py-1 px-2.5 rounded-lg w-max">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                            <span>
+                              {daysPending === 0
+                                ? "Commandée Aujourd'hui — Valider sous 72h"
+                                : `En suspens depuis ${daysPending} jour(s) — Délai limite`}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100/50 dark:border-slate-800/50 pl-9">
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          Actions directes :
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {resolvedPhone && (
+                            <>
+                              <a
+                                href={`tel:${resolvedPhone}`}
+                                className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center active:scale-95 transition-all border border-amber-200/20"
+                                title="Appeler le client"
+                                id={`call_order_customer_btn_${order.id}`}
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                              </a>
+                              <a
+                                href={`https://wa.me/${cleanPhoneForWhatsApp(resolvedPhone)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-[#1a412c]/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center active:scale-95 transition-all border border-emerald-200/20"
+                                title="WhatsApp client"
+                                id={`whatsapp_order_customer_btn_${order.id}`}
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </a>
+                            </>
+                          )}
                           <button
-                            onClick={() => navigate('/prospects')}
-                            className="py-1.5 px-2 text-slate-400 hover:text-amber-500 rounded-lg text-[10px] font-bold flex items-center gap-0.5 active:scale-95 transition-all cursor-pointer"
-                            title="Ouvrir le pipeline prospects"
+                            onClick={() => handleValidateOrder(order)}
+                            className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-black uppercase text-[9px] rounded-lg shadow-sm transition-all flex items-center gap-0.5 cursor-pointer h-7"
+                            title="Valider la commande et l'inscrire au chiffre d'affaires"
+                            id={`validate_order_btn_${order.id}`}
                           >
-                            Fiche
-                            <ChevronRight className="w-3 h-3" />
+                            <Check className="w-3 h-3" />
+                            Valider
                           </button>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
 
-              {/* A-ter. SUIVIS POST-ACHAT (J+3 / J+7 / J+10) */}
-              {(activeTab === 'all' || activeTab === 'purchases') && duePurchaseFollowUps.map(fu => {
-                const cust = fu.customer;
-                const phone = cust?.phone || '';
-                const isDueNow = fu.urgency === 'due';
-                return (
-                  <div
-                    key={`notify_purchase_${fu.order.id}`}
-                    className={`p-3.5 hover:bg-slate-50/70 dark:hover:bg-[#25252a]/40 transition-colors relative border-l-4 ${
-                      isDueNow ? 'border-l-emerald-500 bg-emerald-500/5' : 'border-l-violet-400 bg-violet-500/5'
-                    }`}
-                    id={`notify_purchase_row_${fu.order.id}`}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-white text-sm shadow-sm ${
-                        isDueNow
-                          ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30'
-                          : 'bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-500/30'
-                      }`}>
-                        🛒
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md ${
-                            isDueNow ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
-                          }`}>
-                            {fu.milestone} · {fu.title}
-                          </span>
-                          <span className="text-[9px] font-bold text-slate-400">
-                            {cust?.name || fu.order.customerName}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-snug">
-                          {fu.message}
-                        </p>
-                        <p className="text-[9px] text-slate-400 mt-0.5">
-                          {fu.order.refCommande || fu.order.id} · achat le {purchaseAnchorDate(fu.order)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* LIST ITEMS */}
-
-              {/* A. RENDER PENDING ORDERS DEADLINES */}
-              {(activeTab === 'all' || activeTab === 'deadlines') && pendingOrders.map(order => {
-                const daysPending = getDaysPending(order.date);
-                const isUrgent = daysPending >= 2;
-                const clientObj = getContactInfo(order.customerName);
-                const resolvedPhone = clientObj?.phone || '';
-
-                return (
-                  <div 
-                    key={`notify_order_${order.id}`} 
-                    className={`p-3.5 hover:bg-slate-50/70 dark:hover:bg-[#25252a]/40 transition-colors space-y-2.5 relative border-l-4 ${
-                      isUrgent ? 'border-l-rose-500 bg-rose-500/5' : 'border-l-amber-400'
-                    }`}
-                    id={`notify_order_row_${order.id}`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center mt-0.5 shrink-0">
-                        <ShoppingBag className="w-4 h-4" />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                            Commande En Attente
-                          </span>
-                          <span className="text-[9.5px] font-bold text-slate-400 flex items-center gap-0.5 select-none">
-                            <Clock className="w-3 h-3" />
-                            Placée le {order.date}
-                          </span>
-                        </div>
-
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-slate-50 leading-tight mt-1">
-                          Commande de <strong className="text-amber-600 dark:text-amber-400">{order.customerName}</strong>
-                        </h4>
-
-                        <p className="text-[10px] text-slate-500 truncate mt-0.5">
-                          {order.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}
-                        </p>
-                        
-                        <p className="text-[9.5px] font-bold text-slate-600 dark:text-slate-350 mt-1">
-                          Valeur : <span className="text-slate-900 dark:text-slate-100 font-extrabold">{order.totalRetail.toLocaleString()} F</span> ({order.totalCC.toFixed(3)} CC)
-                        </p>
-
-                        {/* Urgent timer alarm */}
-                        <div className="mt-2 flex items-center gap-1 text-[9.5px] font-black uppercase text-rose-500 bg-rose-500/10 py-1 px-2.5 rounded-lg w-max">
-                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                          <span>
-                            {daysPending === 0 
-                              ? "Commandée Aujourd'hui — Valider sous 72h" 
-                              : `En suspens depuis ${daysPending} jour(s) — Délai limite`}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Transaction Quick Controls */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100/50 dark:border-slate-800/50 pl-9">
-                      <span className="text-[10px] text-slate-400 font-medium">Actions directes :</span>
-                      <div className="flex items-center gap-1.5">
-                        {resolvedPhone && (
-                          <>
-                            <a
-                              href={`tel:${resolvedPhone}`}
-                              className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center active:scale-95 transition-all border border-amber-200/20"
-                              title="Appeler le client"
-                              id={`call_order_customer_btn_${order.id}`}
-                            >
-                              <Phone className="w-3.5 h-3.5" />
-                            </a>
-                            <a
-                              href={`https://wa.me/${cleanPhoneForWhatsApp(resolvedPhone)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-[#1a412c]/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center active:scale-95 transition-all border border-emerald-200/20"
-                              title="WhatsApp client"
-                              id={`whatsapp_order_customer_btn_${order.id}`}
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                            </a>
-                          </>
-                        )}
+              {/* B. DELIVERY ALARMS */}
+              {(activeTab === 'all' || activeTab === 'deadlines') &&
+                deliveryAlarms.map((item) => {
+                  const isOverdue = item.date < todayStr;
+                  return (
+                    <div
+                      key={`notify_delivery_${item.id}`}
+                      className={`p-3.5 hover:bg-slate-50/70 dark:hover:bg-[#25252a]/40 transition-colors space-y-2.5 border-l-4 border-l-blue-500 ${isOverdue ? 'bg-rose-500/5' : ''}`}
+                      id={`notify_delivery_row_${item.id}`}
+                    >
+                      <div className="flex items-start gap-2.5">
                         <button
-                          onClick={() => handleValidateOrder(order)}
-                          className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-black uppercase text-[9px] rounded-lg shadow-sm transition-all flex items-center gap-0.5 cursor-pointer h-7"
-                          title="Valider la commande et l'inscrire au chiffre d'affaires"
-                          id={`validate_order_btn_${order.id}`}
+                          onClick={() => toggleAgendaItemCompleted(item.id)}
+                          className="mt-0.5 w-5 h-5 rounded-full border border-slate-300 dark:border-slate-700 hover:border-emerald-500 flex items-center justify-center group active:scale-90 transition-all cursor-pointer shrink-0"
+                          title="Marquer la livraison comme exécutée"
+                          id={`complete_delivery_btn_${item.id}`}
                         >
-                          <Check className="w-3 h-3" />
-                          Valider
+                          <Check className="w-3 h-3 text-transparent group-hover:text-emerald-500 transition-colors" />
                         </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
 
-
-              {/* B. RENDER DELIVERY AGENDA REMINDERS */}
-              {(activeTab === 'all' || activeTab === 'deadlines') && deliveryAlarms.map(item => {
-                const isOverdue = item.date < todayStr;
-                return (
-                  <div 
-                    key={`notify_delivery_${item.id}`}
-                    className={`p-3.5 hover:bg-slate-50/70 dark:hover:bg-[#25252a]/40 transition-colors space-y-2.5 border-l-4 border-l-blue-500 ${isOverdue ? 'bg-rose-500/5' : ''}`}
-                    id={`notify_delivery_row_${item.id}`}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <button
-                        onClick={() => toggleAgendaItemCompleted(item.id)}
-                        className="mt-0.5 w-5 h-5 rounded-full border border-slate-300 dark:border-slate-700 hover:border-emerald-500 flex items-center justify-center group active:scale-90 transition-all cursor-pointer shrink-0"
-                        title="Marquer la livraison comme exécutée"
-                        id={`complete_delivery_btn_${item.id}`}
-                      >
-                        <Check className="w-3 h-3 text-transparent group-hover:text-emerald-500 transition-colors" />
-                      </button>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                            Livraison Client
-                          </span>
-                          <span className={`text-[9.5px] font-extrabold flex items-center gap-0.5 px-2 py-0.5 rounded-md ${
-                            isOverdue ? 'bg-rose-500/10 text-rose-500' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'
-                          }`}>
-                            <AlertCircle className="w-3 h-3" />
-                            {isOverdue ? "RETARD" : item.date === todayStr ? "AUJOURD'HUI" : item.date}
-                          </span>
-                        </div>
-
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-slate-50 leading-tight mt-1 truncate">
-                          {item.title}
-                        </h4>
-
-                        {item.notes && (
-                          <p className="text-[10px] text-slate-500 italic mt-0.5 truncate">
-                            "{item.notes}"
-                          </p>
-                        )}
-                        
-                        {item.contactName && (
-                          <div className="mt-1 text-[10px] text-slate-600 dark:text-slate-400 font-semibold truncate">
-                            FBO Livraison : <strong className="text-slate-800 dark:text-slate-200">{item.contactName}</strong>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                              Livraison Client
+                            </span>
+                            <span
+                              className={`text-[9.5px] font-extrabold flex items-center gap-0.5 px-2 py-0.5 rounded-md ${
+                                isOverdue
+                                  ? 'bg-rose-500/10 text-rose-500'
+                                  : 'bg-slate-100 text-slate-500 dark:bg-slate-800'
+                              }`}
+                            >
+                              <AlertCircle className="w-3 h-3" />
+                              {isOverdue
+                                ? 'RETARD'
+                                : item.date === todayStr
+                                  ? "AUJOURD'HUI"
+                                  : item.date}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                    </div>
 
-                    {/* Actions and Snooze */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100/50 dark:border-slate-800/50 pl-7.5">
-                      <span className="text-[10px] text-slate-400 font-medium">Rappels :</span>
-                      <div className="flex items-center gap-1">
-                        {item.contactPhone && (
-                          <>
-                            <a
-                              href={`tel:${item.contactPhone}`}
-                              className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center active:scale-95 transition-all"
-                              title="Appeler"
-                            >
-                              <Phone className="w-3.5 h-3.5" />
-                            </a>
-                            <a
-                              href={`https://wa.me/${cleanPhoneForWhatsApp(item.contactPhone)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-[#1a412c]/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center active:scale-95 transition-all"
-                              title="WhatsApp"
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                            </a>
-                          </>
-                        )}
-                        <button
-                          onClick={() => handleSnooze(item)}
-                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white text-slate-600 dark:text-slate-350 font-black uppercase text-[9px] rounded-lg transition-all cursor-pointer h-7"
-                          title="Snoozer (Reporter à demain)"
-                          id={`snooze_delivery_btn_${item.id}`}
-                        >
-                          Snoozer
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-slate-50 leading-tight mt-1 truncate">
+                            {item.title}
+                          </h4>
 
+                          {item.notes && (
+                            <p className="text-[10px] text-slate-500 italic mt-0.5 truncate">
+                              "{item.notes}"
+                            </p>
+                          )}
 
-              {/* C. RENDER FOLLOW-UP AGENDA REMINDERS */}
-              {(activeTab === 'all' || activeTab === 'followups') && followUpAlarms.map(item => {
-                const isOverdue = item.date < todayStr;
-                return (
-                  <div 
-                    key={`notify_followup_${item.id}`}
-                    className={`p-3.5 hover:bg-slate-50/70 dark:hover:bg-[#25252a]/40 transition-colors space-y-2.5 border-l-4 border-l-amber-500 ${isOverdue ? 'bg-amber-500/5' : ''}`}
-                    id={`notify_followup_row_${item.id}`}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <button
-                        onClick={() => toggleAgendaItemCompleted(item.id)}
-                        className="mt-0.5 w-5 h-5 rounded-full border border-slate-300 dark:border-slate-700 hover:border-emerald-500 flex items-center justify-center group active:scale-90 transition-all cursor-pointer shrink-0"
-                        title="Marquer le suivi comme accompli"
-                        id={`complete_followup_btn_${item.id}`}
-                      >
-                        <Check className="w-3 h-3 text-transparent group-hover:text-emerald-500 transition-colors" />
-                      </button>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                            {item.type === 'PRESENTATION' ? 'Présentation FLP' : 'Suivi Prospect'}
-                          </span>
-                          <span className={`text-[9.5px] font-extrabold flex items-center gap-0.5 px-2 py-0.5 rounded-md ${
-                            isOverdue ? 'bg-rose-500/10 text-rose-500' : 'bg-amber-500/10 text-amber-600'
-                          }`}>
-                            <Clock className="w-3 h-3" />
-                            {isOverdue ? "EN RETARD" : "CE JOUR"}
-                          </span>
+                          {item.contactName && (
+                            <div className="mt-1 text-[10px] text-slate-600 dark:text-slate-400 font-semibold truncate">
+                              FBO Livraison :{' '}
+                              <strong className="text-slate-800 dark:text-slate-200">
+                                {item.contactName}
+                              </strong>
+                            </div>
+                          )}
                         </div>
+                      </div>
 
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-slate-50 leading-tight mt-1 truncate">
-                          {item.title}
-                        </h4>
-
-                        {item.notes && (
-                          <p className="text-[10px] text-slate-500 italic mt-0.5 truncate">
-                            "{item.notes}"
-                          </p>
-                        )}
-                        
-                        {item.contactName && (
-                          <div className="mt-1 text-[10px] text-slate-600 dark:text-slate-400 font-semibold truncate">
-                            Client/Prospect : <strong className="text-slate-800 dark:text-slate-200">{item.contactName}</strong>
-                          </div>
-                        )}
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100/50 dark:border-slate-800/50 pl-7.5">
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          Rappels :
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {item.contactPhone && (
+                            <>
+                              <a
+                                href={`tel:${item.contactPhone}`}
+                                className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center active:scale-95 transition-all"
+                                title="Appeler"
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                              </a>
+                              <a
+                                href={`https://wa.me/${cleanPhoneForWhatsApp(item.contactPhone)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-[#1a412c]/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center active:scale-95 transition-all"
+                                title="WhatsApp"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </a>
+                            </>
+                          )}
+                          <button
+                            onClick={() => handleSnooze(item)}
+                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white text-slate-600 dark:text-slate-350 font-black uppercase text-[9px] rounded-lg transition-all cursor-pointer h-7"
+                            title="Snoozer (Reporter à demain)"
+                            id={`snooze_delivery_btn_${item.id}`}
+                          >
+                            Snoozer
+                          </button>
+                        </div>
                       </div>
                     </div>
+                  );
+                })}
 
-                    {/* Direct calling and snooze */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100/50 dark:border-slate-800/50 pl-7.5">
-                      <span className="text-[10px] text-slate-400 font-medium">Actions :</span>
-                      <div className="flex items-center gap-1">
-                        {item.contactPhone && (
-                          <>
-                            <a
-                              href={`tel:${item.contactPhone}`}
-                              className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center active:scale-95 transition-all"
-                              title="Appeler"
-                            >
-                              <Phone className="w-3.5 h-3.5" />
-                            </a>
-                            <a
-                              href={`https://wa.me/${cleanPhoneForWhatsApp(item.contactPhone)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-[#1a412c]/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center active:scale-95 transition-all"
-                              title="WhatsApp"
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                            </a>
-                          </>
-                        )}
+              {/* C. FOLLOW-UP ALARMS */}
+              {(activeTab === 'all' || activeTab === 'followups') &&
+                followUpAlarms.map((item) => {
+                  const isOverdue = item.date < todayStr;
+                  return (
+                    <div
+                      key={`notify_followup_${item.id}`}
+                      className={`p-3.5 hover:bg-slate-50/70 dark:hover:bg-[#25252a]/40 transition-colors space-y-2.5 border-l-4 border-l-amber-500 ${isOverdue ? 'bg-amber-500/5' : ''}`}
+                      id={`notify_followup_row_${item.id}`}
+                    >
+                      <div className="flex items-start gap-2.5">
                         <button
-                          onClick={() => handleSnooze(item)}
-                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white text-slate-600 dark:text-slate-350 font-black uppercase text-[9px] rounded-lg transition-all cursor-pointer h-7"
-                          title="Snoozer (Reporter à demain)"
-                          id={`snooze_followup_btn_${item.id}`}
+                          onClick={() => toggleAgendaItemCompleted(item.id)}
+                          className="mt-0.5 w-5 h-5 rounded-full border border-slate-300 dark:border-slate-700 hover:border-emerald-500 flex items-center justify-center group active:scale-90 transition-all cursor-pointer shrink-0"
+                          title="Marquer le suivi comme accompli"
+                          id={`complete_followup_btn_${item.id}`}
                         >
-                          Snoozer
+                          <Check className="w-3 h-3 text-transparent group-hover:text-emerald-500 transition-colors" />
                         </button>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                              {item.type === 'PRESENTATION'
+                                ? 'Présentation FLP'
+                                : 'Suivi Prospect'}
+                            </span>
+                            <span
+                              className={`text-[9.5px] font-extrabold flex items-center gap-0.5 px-2 py-0.5 rounded-md ${
+                                isOverdue
+                                  ? 'bg-rose-500/10 text-rose-500'
+                                  : 'bg-amber-500/10 text-amber-600'
+                              }`}
+                            >
+                              <Clock className="w-3 h-3" />
+                              {isOverdue ? 'EN RETARD' : 'CE JOUR'}
+                            </span>
+                          </div>
+
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-slate-50 leading-tight mt-1 truncate">
+                            {item.title}
+                          </h4>
+
+                          {item.notes && (
+                            <p className="text-[10px] text-slate-500 italic mt-0.5 truncate">
+                              "{item.notes}"
+                            </p>
+                          )}
+
+                          {item.contactName && (
+                            <div className="mt-1 text-[10px] text-slate-600 dark:text-slate-400 font-semibold truncate">
+                              Client/Prospect :{' '}
+                              <strong className="text-slate-800 dark:text-slate-200">
+                                {item.contactName}
+                              </strong>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100/50 dark:border-slate-800/50 pl-7.5">
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          Actions :
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {item.contactPhone && (
+                            <>
+                              <a
+                                href={`tel:${item.contactPhone}`}
+                                className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center active:scale-95 transition-all"
+                                title="Appeler"
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                              </a>
+                              <a
+                                href={`https://wa.me/${cleanPhoneForWhatsApp(item.contactPhone)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-[#1a412c]/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center active:scale-95 transition-all"
+                                title="WhatsApp"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </a>
+                            </>
+                          )}
+                          <button
+                            onClick={() => handleSnooze(item)}
+                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white text-slate-600 dark:text-slate-350 font-black uppercase text-[9px] rounded-lg transition-all cursor-pointer h-7"
+                            title="Snoozer (Reporter à demain)"
+                            id={`snooze_followup_btn_${item.id}`}
+                          >
+                            Snoozer
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-
+                  );
+                })}
             </div>
 
             {/* 4. Footer */}
             <div className="p-3 border-t border-slate-100 dark:border-slate-800 flex gap-2">
               <button
-                onClick={() => { setIsOpen(false); navigate('/agenda'); }}
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate('/agenda');
+                }}
                 className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1"
               >
                 Planner
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={() => { setIsOpen(false); navigate('/orders'); }}
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate('/orders');
+                }}
                 className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1"
               >
                 Mes ventes
@@ -989,7 +1066,7 @@ export const NotificationCenter: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* D. IMMERSIVE SLIDE-IN TOAST ALERT FOR OVERLAY NOTIFICATION */}
+      {/* D. TOAST */}
       <AnimatePresence>
         {showToast && alertsCount > 0 && (
           <motion.div
@@ -1010,7 +1087,8 @@ export const NotificationCenter: React.FC = () => {
                   Priorité du jour
                 </p>
                 <p className="text-[13px] text-slate-300 leading-snug">
-                  {alertsCount} rappel{alertsCount > 1 ? 's' : ''} ou délai{alertsCount > 1 ? 's' : ''} urgent{alertsCount > 1 ? 's' : ''} à traiter.
+                  {alertsCount} rappel{alertsCount > 1 ? 's' : ''} ou délai
+                  {alertsCount > 1 ? 's' : ''} urgent{alertsCount > 1 ? 's' : ''} à traiter.
                 </p>
               </div>
               <button
@@ -1024,7 +1102,10 @@ export const NotificationCenter: React.FC = () => {
             <div className="flex gap-2 px-4 pb-4">
               <button
                 type="button"
-                onClick={() => { setShowToast(false); setIsOpen(true); }}
+                onClick={() => {
+                  setShowToast(false);
+                  setIsOpen(true);
+                }}
                 className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-bold uppercase rounded-xl transition-all cursor-pointer tracking-wide"
               >
                 Consulter
@@ -1040,7 +1121,6 @@ export const NotificationCenter: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
   );
 };
