@@ -750,7 +750,7 @@ export const OrdersView: React.FC = () => {
             </div>
           )}
 
-          {/* Custom Discount Selection (bounded strictly to 5% - 15%) */
+          {/* Custom Discount Selection (bounded strictly to 5% - 15%) */}
           <div className="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-850 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
