@@ -36,7 +36,7 @@ export function calculateLivraisonFrais(totalRetail: number, mode: LivraisonMode
   }
 }
 
-function applyGeste(order: Partial<Order>, currentGrade: { tauxRemise: number }): Partial<Order> {
+function applyGeste(order: Partial<Order>): Partial<Order> {
   const updated = { ...order };
   switch (updated.geste) {
     case 'CLEAN9_-7K':
@@ -97,10 +97,8 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
       delaiLivraison: ord.delaiLivraison,
     };
 
-    // Appliquer geste avec le taux de remise RÉEL du grade du distributeur
-    // (l'ancien taux codé en dur 0.38 faussait gestes/marges pour grades != A)
-    const currentGrade = useAuthStore.getState().getCurrentGrade();
-    const withGeste = applyGeste(newOrd, currentGrade);
+    // Appliquer uniquement les gestes commerciaux ; le coût d'achat est déjà figé par ligne.
+    const withGeste = applyGeste(newOrd);
 
     // Optimistic update
     set((state) => ({
@@ -309,7 +307,8 @@ export function createOrderFromCart(params: {
   catalogTotal: number;
   /** Montant réellement perçu du client (après négociation/remise) */
   amountPaid?: number;
-  profileGrade: { tauxRemise: number };
+  profileGrade: import('../../types').GradeCode;
+  customerPriceType: import('../../types').CustomerPriceType;
 }): Omit<Order, 'id'> {
   // Prix catalogue (brut, sans remise) fourni par l'appelant
   const catalogRetail = params.catalogTotal;
@@ -320,13 +319,12 @@ export function createOrderFromCart(params: {
     ? Math.round(((catalogRetail - paid) / catalogRetail) * 100)
     : 0;
 
-  // FIX COMPTABILITÉ : le coût d'achat se calcule sur le PRIX CATALOGUE
-  // (ton coût = prix retail × (1 - ton taux remise grade)), jamais sur le
-  // prix remisé. L'ancien calcul gonflait la marge avec la remise client.
-  const totalCost = params.items.reduce((sum, i) => {
-    const qtyShare = catalogRetail > 0 ? ((i.unitPrice * i.quantity) / catalogRetail) : 0;
-    return sum + (catalogRetail * (1 - params.profileGrade.tauxRemise)) * qtyShare;
-  }, 0);
+  // Le coût provient du tarif officiel du grade partenaire, figé sur chaque ligne.
+  // Aucun pourcentage de remise générique n'est utilisé pour calculer le coût.
+  const totalCost = params.items.reduce(
+    (sum, item) => sum + (item.unitCost ?? 0) * item.quantity,
+    0
+  );
   // Marge RÉELLE : encaissement - coût d'achat - frais de livraison - geste commercial
   const livraisonFraisCalc = calculateLivraisonFrais(catalogRetail, params.livraisonMode);
   const gesteMontantCalc =
@@ -356,6 +354,8 @@ export function createOrderFromCart(params: {
     totalPV,
     totalBV,
     discountPercent: discountPercent > 0 ? discountPercent : undefined,
+    customerPriceType: params.customerPriceType,
+    partnerGrade: params.profileGrade,
     type: params.type,
     canal: params.canal,
     paiement: params.paiement,
@@ -384,5 +384,5 @@ export function createOrderFromCart(params: {
   };
 
   // Appliquer geste
-  return applyGeste(baseOrder, params.profileGrade) as Omit<Order, 'id'>;
+  return applyGeste(baseOrder) as Omit<Order, 'id'>;
 }
