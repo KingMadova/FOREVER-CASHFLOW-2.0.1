@@ -168,7 +168,7 @@ export const ProfileView: React.FC = () => {
         <div>
           <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">Identité Professionnelle</span>
           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-0.5">Mon Profil d'Activité FBO</h2>
-          <p className="text-xs text-slate-500">Configurez votre identité FLP de distributeur indépendant, vos marges de grade et coordonnées de facturation client.</p>
+          <p className="text-xs text-slate-500">Configurez votre identité FLP de distributeur indépendant, votre grille tarifaire d'achat et vos coordonnées de facturation client.</p>
         </div>
 
         <button
