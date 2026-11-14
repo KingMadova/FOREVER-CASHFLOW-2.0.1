@@ -142,14 +142,13 @@ export type GradeCode = 'AA' | 'A' | 'MA' | 'M';
 export interface Grade {
   code: GradeCode;
   label: string;
-  tauxRemise: number;
 }
 
 export const GRADES: Grade[] = [
-  { code: 'AA', label: 'Assistant Animateur', tauxRemise: 0.30 },
-  { code: 'A',  label: 'Animateur',           tauxRemise: 0.38 },
-  { code: 'MA', label: 'Manager Adjoint',     tauxRemise: 0.43 },
-  { code: 'M',  label: 'Manager',             tauxRemise: 0.48 },
+  { code: 'AA', label: 'Assistant Animateur' },
+  { code: 'A',  label: 'Animateur' },
+  { code: 'MA', label: 'Manager Adjoint' },
+  { code: 'M',  label: 'Manager' },
 ];
 
 export interface PackSlot {
