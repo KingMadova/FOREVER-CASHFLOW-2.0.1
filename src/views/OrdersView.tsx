@@ -10,7 +10,8 @@ import { useProductsStore } from '../store/slices/productsSlice';
 import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
-import { Order, OrderStatut, OrderStatus, Product, GRADES, CustomerStatus, OrderItem, OrderType, OrderCanal, OrderPaiement, OrderGeste, LivraisonMode } from '../types';
+import { Order, OrderStatut, OrderStatus, Product, GRADES, CustomerStatus, OrderItem, OrderType, OrderCanal, OrderPaiement, OrderGeste, LivraisonMode, CustomerPriceType } from '../types';
+import { getCustomerSalePrice, getPartnerPurchasePrice } from '../lib/pricing';
 import { 
   ShoppingBag, 
   Plus, 
@@ -184,11 +185,17 @@ export const OrdersView: React.FC = () => {
   const kanbanStatuses: OrderStatut[] = ['PENDING', 'VALIDATED', 'PAYE', 'LIVRE', 'CANCELLED', 'RETOUR', 'REMPLACEMENT'];
 
 
-  // Calculate prices based on FBO profile grade & discount logic
-  const currentGrade = GRADES.find(g => g.code === profile.grade) || GRADES[1]; // default Animateur (38%)
+  // Le grade partenaire et le statut tarifaire du client sont deux données distinctes.
+  const currentGrade = GRADES.find(g => g.code === profile.grade) || GRADES[1];
+  const selectedCustomer = customers.find(c => c.id === orderCustomer);
+  const customerPriceType: CustomerPriceType = selectedCustomer?.isCP ? 'CP' : 'PUBLIC';
+  const salePriceFor = (product: Product) => getCustomerSalePrice(product, customerPriceType);
+  const costPriceFor = (product: Product) => getPartnerPurchasePrice(product, currentGrade.code);
 
-  // Totaux live pour le modal de création (dual-mode remise)
-  const catalogTotal = invoiceItems.reduce((acc, slot) => acc + (slot.product.prixRetail * slot.quantity), 0);
+  // Totaux live : prix de vente selon le statut du client, coût selon le grade FBO.
+  const catalogTotal = invoiceItems.reduce((acc, slot) => acc + ((salePriceFor(slot.product) ?? 0) * slot.quantity), 0);
+  const totalCostGrade = invoiceItems.reduce((acc, slot) => acc + ((costPriceFor(slot.product) ?? 0) * slot.quantity), 0);
+  const hasUnavailablePrice = invoiceItems.some(slot => salePriceFor(slot.product) == null || costPriceFor(slot.product) == null);
   const livraisonFraisLive = calculateLivraisonFrais(catalogTotal, livraisonMode);
   const gesteLive =
     orderGeste === 'CLEAN9_-7K' ? 7166 :
@@ -196,7 +203,6 @@ export const OrdersView: React.FC = () => {
     orderGeste === 'REMISE_5' ? Math.max(0, Math.round(catalogTotal * 0.05)) : 0;
   const effectivePaid = amountPaidInput !== '' ? Math.max(0, parseInt(amountPaidInput) || 0) : catalogTotal;
   const effectiveDiscount = catalogTotal > 0 ? Math.max(0, Math.min(100, ((catalogTotal - effectivePaid) / catalogTotal) * 100)) : 0;
-  const totalCostGrade = catalogTotal * (1 - currentGrade.tauxRemise);
   const marginLive = effectivePaid - totalCostGrade - livraisonFraisLive - gesteLive;
   const marginPct = catalogTotal > 0 ? (marginLive / catalogTotal) * 100 : 0;
 
@@ -264,26 +270,39 @@ export const OrdersView: React.FC = () => {
 
       const selectedCust = customers.find(c => c.id === orderCustomer);
       if (!selectedCust) return;
+      const selectedPriceType: CustomerPriceType = selectedCust.isCP ? 'CP' : 'PUBLIC';
+      const orderCatalogTotal = invoiceItems.reduce(
+        (sum, item) => sum + (getCustomerSalePrice(item.product, selectedPriceType) ?? 0) * item.quantity,
+        0
+      );
+      const hasMissingTariff = invoiceItems.some(item =>
+        getCustomerSalePrice(item.product, selectedPriceType) == null ||
+        getPartnerPurchasePrice(item.product, currentGrade.code) == null
+      );
+      if (hasMissingTariff) {
+        setOrderFormError('Un tarif officiel est indisponible pour ce produit et votre grade. Retirez-le du panier ou vérifiez le catalogue.');
+        return;
+      }
 
-      // Build the list of order items — les items gardent leur PRIX CATALOGUE ;
+      // Build each order line with the official customer sale price and FBO purchase cost.
       // la négociation est portée par amountPaid (la remise en découle).
-      const parsedItems: OrderItem[] = invoiceItems.map(item => {
-        return {
-          productId: item.product.id,
-          productName: item.product.name,
-          quantity: item.quantity,
-          unitPrice: item.product.prixRetail,
-          unitCC: item.product.unitCC,
-          unitPV: item.product.unitPV,
-          isDiscounted: applyDiscount
-        };
-      });
+      const parsedItems: OrderItem[] = invoiceItems.map(item => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        unitPrice: getCustomerSalePrice(item.product, selectedPriceType)!,
+        unitCost: getPartnerPurchasePrice(item.product, currentGrade.code)!,
+        priceCategory: selectedPriceType,
+        unitCC: item.product.unitCC,
+        unitPV: item.product.unitPV,
+        isDiscounted: applyDiscount
+      }));
 
       // Montant réellement perçu : saisie directe OU dérivé du %
       const paidAmount = applyDiscount
         ? (amountPaidInput !== ''
             ? Math.max(0, parseInt(amountPaidInput) || 0)
-            : Math.round(catalogTotal * (1 - discountPercent / 100)))
+            : Math.round(orderCatalogTotal * (1 - discountPercent / 100)))
         : undefined;
 
       // Use the helper to create complete order with all fields
@@ -300,9 +319,10 @@ export const OrdersView: React.FC = () => {
         distributeurId: profile.fboId || '',
         tags: orderTags.split(',').map(t => t.trim()).filter(Boolean),
         notes: orderNotes,
-        catalogTotal,
+        catalogTotal: orderCatalogTotal,
         amountPaid: paidAmount,
-        profileGrade: currentGrade,
+        profileGrade: currentGrade.code,
+        customerPriceType: selectedPriceType,
       });
 
       if (isEditMode && editingOrderId) {
@@ -837,7 +857,7 @@ export const OrdersView: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-[8px] text-slate-400 italic">
-                    Coût d'achat grade {currentGrade.code} ({(currentGrade.tauxRemise * 100).toFixed(0)}%) déduit, livraison et geste inclus.
+                    Coût d'achat officiel du grade {currentGrade.code === 'M' ? 'MGR' : currentGrade.code} déduit, livraison et geste inclus.
                   </p>
                 </div>
               </div>
@@ -932,7 +952,7 @@ export const OrdersView: React.FC = () => {
                              <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">{p.name}</span>
                              <span className="text-[10px] text-slate-500 font-medium">Code: {p.id} • {p.unitCC.toFixed(3)} CC</span>
                            </div>
-                           <span className="text-xs font-black text-amber-600 shrink-0">{p.prixRetail.toLocaleString()} F</span>
+                           <span className="text-xs font-black text-amber-600 shrink-0">{(getCustomerSalePrice(p, customerPriceType) ?? 0).toLocaleString()} F</span>
                          </button>
                        ))}
                      {products.filter(p => 
@@ -966,7 +986,7 @@ export const OrdersView: React.FC = () => {
             ) : (
               <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
                 {invoiceItems.map((slot, index) => {
-                  const itemPrice = applyDiscount ? slot.product.prixRetail * (1 - discountPercent / 100) : slot.product.prixRetail;
+                  const itemPrice = applyDiscount ? (getCustomerSalePrice(slot.product, customerPriceType) ?? 0) * (1 - discountPercent / 100) : slot.product.prixRetail;
 
                   return (
                     <div 
