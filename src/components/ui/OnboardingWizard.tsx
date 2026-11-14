@@ -282,7 +282,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                 <div className="space-y-2">
                   <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-650 dark:text-slate-300 flex items-center gap-1 select-none">
                     <Award className="w-4 h-4 text-amber-500" />
-                    Votre Grade Actuel (Niveau de remise)
+                    Votre grade partenaire
                   </label>
                   <p className="text-[10px] text-slate-400 leading-normal">
                     Votre marge commerciale de revente directe correspond à la différence entre le prix public conseillé et votre tarif grossiste basé sur votre niveau :
@@ -489,7 +489,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                     <span className="text-amber-505 text-lg">💰</span>
                     <h4 className="text-[11px] font-black uppercase text-slate-900 dark:text-slate-100">Calculateur Marge</h4>
                     <p className="text-[10px] text-slate-450 dark:text-slate-500 leading-normal">
-                      Vendez au prix Retail préconisé. L'application déduira automatiquement votre taux d'achat grossiste selon votre niveau.
+                      Vendez au prix officiel correspondant à votre client. L'application utilisera automatiquement le coût d'achat officiel de votre grade.
                     </p>
                   </div>
 
