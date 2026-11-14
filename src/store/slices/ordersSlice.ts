@@ -310,6 +310,10 @@ export function createOrderFromCart(params: {
   profileGrade: import('../../types').GradeCode;
   customerPriceType: import('../../types').CustomerPriceType;
 }): Omit<Order, 'id'> {
+  if (params.items.some(item => item.unitCost == null || !Number.isFinite(item.unitCost))) {
+    throw new Error('Impossible de créer la commande : coût d’achat officiel manquant pour un produit.');
+  }
+
   // Prix catalogue (brut, sans remise) fourni par l'appelant
   const catalogRetail = params.catalogTotal;
   // Ce que le client paie réellement (fallback : catalogue si non négocié)
@@ -322,7 +326,7 @@ export function createOrderFromCart(params: {
   // Le coût provient du tarif officiel du grade partenaire, figé sur chaque ligne.
   // Aucun pourcentage de remise générique n'est utilisé pour calculer le coût.
   const totalCost = params.items.reduce(
-    (sum, item) => sum + (item.unitCost ?? 0) * item.quantity,
+    (sum, item) => sum + item.unitCost! * item.quantity,
     0
   );
   // Marge RÉELLE : encaissement - coût d'achat - frais de livraison - geste commercial
