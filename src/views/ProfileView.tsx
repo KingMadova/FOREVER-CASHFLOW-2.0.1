@@ -294,7 +294,7 @@ export const ProfileView: React.FC = () => {
                 >
                   {GRADES.map(g => (
                     <option key={g.code} value={g.code}>
-                      {g.label} - Remise d'achat {Math.round(g.tauxRemise * 100)}%
+                      {g.label} — Tarif {g.code === 'M' ? 'MGR' : g.code}
                     </option>
                   ))}
                 </select>
@@ -302,9 +302,9 @@ export const ProfileView: React.FC = () => {
 
               <div className="flex items-center md:col-span-2">
                 <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-3.5 rounded-2xl w-full text-xs shrink-0 self-end h-12 flex items-center justify-between">
-                  <span className="text-slate-500 font-bold">Marge brute assurée:</span>
+                  <span className="text-slate-500 font-bold">Grille tarifaire active:</span>
                   <span className="text-amber-600 dark:text-amber-400 font-black text-sm">
-                    {Math.round(currentGrade.tauxRemise * 100)} %
+                    {currentGrade.code === 'M' ? 'MGR' : currentGrade.code}
                   </span>
                 </div>
               </div>
