@@ -342,7 +342,7 @@ export const DashboardView: React.FC = () => {
             Bonjour, {profile.name}
           </h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-            Suivi de votre activité commerciale et financière. Grade actuel : <strong className="text-slate-700 dark:text-slate-200">{currentGrade.label} ({Math.round(currentGrade.tauxRemise * 100)}%)</strong>
+            Suivi de votre activité commerciale et financière. Grade actuel : <strong className="text-slate-700 dark:text-slate-200">{currentGrade.label} · tarif {currentGrade.code === 'M' ? 'MGR' : currentGrade.code}</strong>
           </p>
         </div>
         <div className="flex items-center gap-2">
