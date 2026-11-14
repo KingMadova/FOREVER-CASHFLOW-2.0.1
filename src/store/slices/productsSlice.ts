@@ -107,7 +107,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         const saved = localStorage.getItem('fcf-products');
         if (saved) {
           const parsed = JSON.parse(saved) as Product[];
-          const cleaned = parsed.filter((p) => !p.id.includes('_new'));
+          const cleaned = parsed.filter((p) => !p.id.includes('_new')).map(withOfficialProductPrices);
           if (cleaned.length < DEFAULT_PRODUCTS.length / 2) {
             localStorage.setItem('fcf-products', JSON.stringify(DEFAULT_PRODUCTS));
             set({ products: DEFAULT_PRODUCTS });
