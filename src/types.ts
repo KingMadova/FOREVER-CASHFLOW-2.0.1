@@ -77,7 +77,7 @@ export interface OrderItem {
   priceCategory?: CustomerPriceType;
   unitCC: number;
   unitPV?: number;
-  isDiscounted: boolean; // Si Client Privilégié (-5%) par exemple
+  isDiscounted: boolean; // Remise commerciale négociée, indépendante du statut CP
   estPack?: boolean;           // Si cet item est un pack prédéfini
   packId?: string;             // Référence vers pack prédéfini
 }
