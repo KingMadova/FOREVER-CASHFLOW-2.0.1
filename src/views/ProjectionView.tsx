@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
 import './ProjectionView.css';
 import { Product, GRADES } from '../types';
+import { getCustomerSalePrice, getPartnerPurchasePrice } from '../lib/pricing';
 import { 
   Plus,
   Minus,
@@ -44,8 +45,8 @@ export const ProjectionView: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [projProductSearch, setProjProductSearch] = useState('');
 
-  // Remise Grade FBO
-  const currentGrade = GRADES.find(g => g.code === profile.grade) || GRADES[1]; // default Animateur (38%)
+  // Grille tarifaire officielle du grade partenaire.
+  const currentGrade = GRADES.find(g => g.code === profile.grade) || GRADES[1];
 
   // Build standard Pack designs
   const PREMADE_PACKS: CustomPack[] = [
@@ -89,7 +90,7 @@ export const ProjectionView: React.FC = () => {
     .filter((slot): slot is PackProductSlot => slot !== null);
 
   const customUnitCC = customSlots.reduce((sum, s) => sum + (s.product.unitCC * s.ratio), 0);
-  const customTotalRetail = customSlots.reduce((sum, s) => sum + (s.product.prixRetail * s.ratio), 0);
+  const customTotalRetail = customSlots.reduce((sum, s) => sum + ((getCustomerSalePrice(s.product, 'PUBLIC') ?? 0) * s.ratio), 0);
   
   const customPackName = customSlots.length > 0 
     ? "Mon Pack Personnalisé" 
@@ -106,11 +107,18 @@ export const ProjectionView: React.FC = () => {
     ? (PREMADE_PACKS[selectedPackIndex] || PREMADE_PACKS[0])
     : customPack;
 
-  // Algorithme:
-  // FBO margin of selling 1 unit of pack = Pack retail price * FBO Grade Discount Taux
-  const fboMarginPerPack = Math.round(currentPack.totalRetail * currentGrade.tauxRemise);
+  // Marge réelle estimée = prix de vente public du pack - coûts d'achat officiels
+  // des produits qui le composent, selon le grade du partenaire.
+  const packCostAvailable = currentPack.slots.every(slot =>
+    getPartnerPurchasePrice(slot.product, currentGrade.code) != null
+  );
+  const packPurchaseCost = currentPack.slots.reduce(
+    (sum, slot) => sum + (getPartnerPurchasePrice(slot.product, currentGrade.code) ?? 0) * slot.ratio,
+    0
+  );
+  const fboMarginPerPack = packCostAvailable ? currentPack.totalRetail - packPurchaseCost : 0;
 
-  // Units required to clear target = target / margin per pack
+  // Units required to clear target = target / actual margin per pack
   const unitsRequired = fboMarginPerPack > 0 ? Math.ceil(targetMargin / fboMarginPerPack) : 0;
   
   // Total Case Credits generated = units required * individual pack CC
@@ -123,9 +131,9 @@ export const ProjectionView: React.FC = () => {
   const shareString = `🎯 *Forever CashFlow - Mon Plan d'Action* 🎯
 -----------------------------------------
 • *Objectif Marge* : ${targetMargin.toLocaleString()} FCFA
-• *Grade FBO* : ${currentGrade.label} (${Math.round(currentGrade.tauxRemise * 100)}% de marge)
+• *Grade FBO* : ${currentGrade.label} (tarif officiel ${currentGrade.code === 'M' ? 'MGR' : currentGrade.code})
 • *Pack de Vente* : ${currentPack.name}
-${activeTab === 'custom' ? `• *Composition du Pack personnalisé* :\n${customSlots.map(s => `  - ${s.ratio}x ${s.product.name} (${s.product.prixRetail.toLocaleString()} F / ${s.product.unitCC} CC)`).join('\n')}` : ''}
+${activeTab === 'custom' ? `• *Composition du Pack personnalisé* :\n${customSlots.map(s => `  - ${s.ratio}x ${s.product.name} (${(getCustomerSalePrice(s.product, 'PUBLIC') ?? 0).toLocaleString()} F / ${s.product.unitCC} CC)`).join('\n')}` : ''}
 -----------------------------------------
 🚀 *Plan de Vente Requis* :
 👉 Vendre exactement *${unitsRequired}* unités de ce pack !
@@ -235,6 +243,9 @@ _Calculé instantanément sur Forever CashFlow CRM_ 🔥`;
               <div className="space-y-3">
                 {PREMADE_PACKS.map((pk, idx) => {
                   const active = idx === selectedPackIndex;
+                  const packCostAvailable = pk.slots.every(slot => getPartnerPurchasePrice(slot.product, currentGrade.code) != null);
+                  const packCost = pk.slots.reduce((sum, slot) => sum + (getPartnerPurchasePrice(slot.product, currentGrade.code) ?? 0) * slot.ratio, 0);
+                  const packMargin = packCostAvailable ? pk.totalRetail - packCost : null;
                   return (
                     <button
                       key={idx}
@@ -267,7 +278,7 @@ _Calculé instantanément sur Forever CashFlow CRM_ 🔥`;
                           {pk.unitCC.toFixed(3)} CC
                         </span>
                         <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 mt-2">
-                          +{Math.round(pk.totalRetail * currentGrade.tauxRemise).toLocaleString()} F Marge
+                          {packMargin == null ? 'Tarif indisponible' : `${packMargin.toLocaleString()} F Marge`}
                         </p>
                       </div>
                     </button>
@@ -350,7 +361,7 @@ _Calculé instantanément sur Forever CashFlow CRM_ 🔥`;
                             <h4 className="font-extrabold text-[12px] text-slate-800 dark:text-slate-200 leading-snug truncate">{prod.name}</h4>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className="text-[10px] font-black text-slate-900 dark:text-slate-100">
-                                {prod.prixRetail.toLocaleString()} FCFA
+                                {(getCustomerSalePrice(prod, 'PUBLIC') ?? 0).toLocaleString()} FCFA
                               </span>
                               <span className="text-[9px] text-slate-400 dark:text-slate-500">•</span>
                               <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/50 px-1.5 py-0.2 rounded">
@@ -445,8 +456,8 @@ _Calculé instantanément sur Forever CashFlow CRM_ 🔥`;
 
                     <div className="space-y-2 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Remise Grade ({currentGrade.label}):</span>
-                        <span className="text-white font-bold">{Math.round(currentGrade.tauxRemise * 100)}%</span>
+                        <span className="text-slate-400">Grille d'achat appliquée :</span>
+                        <span className="text-white font-bold">{currentGrade.code === 'M' ? 'MGR' : currentGrade.code}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Chiffre d’Affaire Requis:</span>
