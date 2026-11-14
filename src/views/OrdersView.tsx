@@ -195,6 +195,7 @@ export const OrdersView: React.FC = () => {
   // Totaux live : prix de vente selon le statut du client, coût selon le grade FBO.
   const catalogTotal = invoiceItems.reduce((acc, slot) => acc + ((salePriceFor(slot.product) ?? 0) * slot.quantity), 0);
   const totalCostGrade = invoiceItems.reduce((acc, slot) => acc + ((costPriceFor(slot.product) ?? 0) * slot.quantity), 0);
+  const hasUnavailablePrice = invoiceItems.some(slot => salePriceFor(slot.product) == null || costPriceFor(slot.product) == null);
   const livraisonFraisLive = calculateLivraisonFrais(catalogTotal, livraisonMode);
   const gesteLive =
     orderGeste === 'CLEAN9_-7K' ? 7166 :
@@ -202,7 +203,7 @@ export const OrdersView: React.FC = () => {
     orderGeste === 'REMISE_5' ? Math.max(0, Math.round(catalogTotal * 0.05)) : 0;
   const effectivePaid = amountPaidInput !== '' ? Math.max(0, parseInt(amountPaidInput) || 0) : catalogTotal;
   const effectiveDiscount = catalogTotal > 0 ? Math.max(0, Math.min(100, ((catalogTotal - effectivePaid) / catalogTotal) * 100)) : 0;
-  const marginLive = effectivePaid - totalCostGrade - livraisonFraisLive - gesteLive;
+  const marginLive = hasUnavailablePrice ? 0 : effectivePaid - totalCostGrade - livraisonFraisLive - gesteLive;
   const marginPct = catalogTotal > 0 ? (marginLive / catalogTotal) * 100 : 0;
 
   // Helper to add or increment item in order
@@ -859,15 +860,23 @@ export const OrdersView: React.FC = () => {
                       <span className="text-slate-500">-{gesteLive.toLocaleString()} F</span>
                     </div>
                   )}
-                  <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-700">
-                    <span className="text-slate-500 font-black uppercase tracking-wider">Marge nette estimée</span>
-                    <span className={`font-black ${marginLive >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                      {marginLive.toLocaleString()} F ({marginPct.toFixed(0)}%)
-                    </span>
-                  </div>
-                  <p className="text-[8px] text-slate-400 italic">
-                    Coût d'achat officiel du grade {currentGrade.code === 'M' ? 'MGR' : currentGrade.code} déduit, livraison et geste inclus.
-                  </p>
+                  {hasUnavailablePrice ? (
+                    <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 pt-2">
+                      Marge indisponible : un tarif officiel manque pour au moins un produit de ce panier.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-700">
+                        <span className="text-slate-500 font-black uppercase tracking-wider">Marge nette estimée</span>
+                        <span className={`font-black ${marginLive >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                          {marginLive.toLocaleString()} F ({marginPct.toFixed(0)}%)
+                        </span>
+                      </div>
+                      <p className="text-[8px] text-slate-400 italic">
+                        Coût d'achat officiel du grade {currentGrade.code === 'M' ? 'MGR' : currentGrade.code} déduit, livraison et geste inclus.
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             )}
