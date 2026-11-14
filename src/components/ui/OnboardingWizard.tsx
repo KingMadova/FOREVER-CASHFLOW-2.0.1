@@ -314,7 +314,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                           
                           <div className="flex items-center gap-1.5 md:gap-2.5 shrink-0 text-right">
                             <span className="text-[11px] font-black text-amber-600 dark:text-amber-500 leading-none">
-                              Remise: {g.tauxRemise * 100}%
+                              Tarif {g.code === 'M' ? 'MGR' : g.code}
                             </span>
                             <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
                               selected ? 'bg-amber-500 border-amber-500 text-slate-950' : 'border-slate-350 dark:border-slate-700'
@@ -497,7 +497,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                     <span className="text-sky-502 text-lg">📲</span>
                     <h4 className="text-[11px] font-black uppercase text-slate-900 dark:text-slate-100">Relances & Agenda</h4>
                     <p className="text-[10px] text-slate-450 dark:text-slate-500 leading-normal">
-                      Notre nouveau Centre de Rappels vous alertera chaque matin de vos livraisons et suivis du jour à recontacter sur WhatsApp.
+                      Le catalogue applique automatiquement vos tarifs officiels selon votre grade partenaire.
                     </p>
                   </div>
                 </div>
@@ -513,9 +513,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                     <div className="text-left font-normal text-slate-450">Nom du FBO :</div>
                     <div className="text-right">{fboName}</div>
 
-                    <div className="text-left font-normal text-slate-450">Remise grossiste calculée :</div>
+                    <div className="text-left font-normal text-slate-450">Grade partenaire :</div>
                     <div className="text-right text-amber-600 dark:text-amber-500 font-black">
-                      {fboGrade === 'AA' ? 'Assistant Animateur (-30%)' : fboGrade === 'A' ? 'Animateur (-38%)' : fboGrade === 'MA' ? 'Manager Adjoint (-43%)' : 'Manager (-48%)'}
+                      {GRADES.find(g => g.code === fboGrade)?.label || 'Non défini'} ({fboGrade === 'M' ? 'MGR' : fboGrade})
                     </div>
 
                     <div className="text-left font-normal text-slate-450">Numéros mobiles connectés :</div>
