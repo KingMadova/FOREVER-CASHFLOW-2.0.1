@@ -195,7 +195,6 @@ export const OrdersView: React.FC = () => {
   // Totaux live : prix de vente selon le statut du client, coût selon le grade FBO.
   const catalogTotal = invoiceItems.reduce((acc, slot) => acc + ((salePriceFor(slot.product) ?? 0) * slot.quantity), 0);
   const totalCostGrade = invoiceItems.reduce((acc, slot) => acc + ((costPriceFor(slot.product) ?? 0) * slot.quantity), 0);
-  const hasUnavailablePrice = invoiceItems.some(slot => salePriceFor(slot.product) == null || costPriceFor(slot.product) == null);
   const livraisonFraisLive = calculateLivraisonFrais(catalogTotal, livraisonMode);
   const gesteLive =
     orderGeste === 'CLEAN9_-7K' ? 7166 :
@@ -741,7 +740,17 @@ export const OrdersView: React.FC = () => {
             )}
           </div>
 
-          {/* Custom Discount Selection (bounded strictly to 5% - 15%) */}
+          {selectedCustomer && (
+            <div className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 ${selectedCustomer.isCP ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800' : 'border-slate-200 bg-slate-50 dark:bg-slate-800/30 dark:border-slate-700'}`}>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tarif de vente appliqué</p>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{selectedCustomer.isCP ? 'Client privilégié (CP)' : 'Prix public'}</p>
+              </div>
+              <span className="text-[10px] font-black px-2 py-1 rounded-lg bg-white/80 dark:bg-slate-900/70 text-amber-700 dark:text-amber-400">{customerPriceType}</span>
+            </div>
+          )}
+
+          {/* Custom Discount Selection (bounded strictly to 5% - 15%) */
           <div className="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-850 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -986,7 +995,7 @@ export const OrdersView: React.FC = () => {
             ) : (
               <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
                 {invoiceItems.map((slot, index) => {
-                  const itemPrice = applyDiscount ? (getCustomerSalePrice(slot.product, customerPriceType) ?? 0) * (1 - discountPercent / 100) : slot.product.prixRetail;
+                  const itemPrice = applyDiscount ? (getCustomerSalePrice(slot.product, customerPriceType) ?? 0) * (1 - discountPercent / 100) : (getCustomerSalePrice(slot.product, customerPriceType) ?? 0);
 
                   return (
                     <div 
@@ -1009,7 +1018,7 @@ export const OrdersView: React.FC = () => {
                           <span>{Math.round(itemPrice).toLocaleString()} F Unit.</span>
                           {applyDiscount && (
                             <span className="text-emerald-500 font-bold ml-1">
-                              (-{discountPercent}%) <span className="line-through text-slate-300 dark:text-slate-600 font-normal">{slot.product.prixRetail.toLocaleString()} F</span>
+                              (-{discountPercent}%) <span className="line-through text-slate-300 dark:text-slate-600 font-normal">{(getCustomerSalePrice(slot.product, customerPriceType) ?? 0).toLocaleString()} F</span>
                             </span>
                           )}
                         </div>
@@ -1070,7 +1079,7 @@ export const OrdersView: React.FC = () => {
                       <div className="flex justify-between">
                         <span className="text-slate-400 font-bold">Total Brut Retail:</span>
                         <span className="text-slate-800 dark:text-slate-200 font-bold">
-                          {invoiceItems.reduce((acc, slot) => acc + (slot.product.prixRetail * slot.quantity), 0).toLocaleString()} F
+                          {invoiceItems.reduce((acc, slot) => acc + ((getCustomerSalePrice(slot.product, customerPriceType) ?? 0) * slot.quantity), 0).toLocaleString()} F
                         </span>
                       </div>
                       {applyDiscount && (
