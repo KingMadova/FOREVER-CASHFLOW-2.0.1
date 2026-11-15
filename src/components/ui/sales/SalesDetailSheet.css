@@ -1,0 +1,229 @@
+/* SalesDetailSheet — bottom sheet mobile / modal desktop */
+
+.sales-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(25 18 13 / .48);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.sales-detail-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 82dvh;
+  background: var(--fcf-surface);
+  border: 1px solid var(--fcf-border);
+  border-bottom: 0;
+  border-radius: 1rem 1rem 0 0;
+  box-shadow: 0 -12px 38px rgb(41 35 31 / .18);
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.sales-detail-handle {
+  width: 2.3rem;
+  height: 4px;
+  margin: .55rem auto .35rem;
+  border-radius: 999px;
+  background: var(--fcf-border);
+}
+
+.sales-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .6rem;
+  padding: .2rem 1rem .7rem;
+  border-bottom: 1px solid var(--fcf-border);
+}
+.sales-detail-header h3 {
+  margin: 0;
+  color: var(--fcf-foreground);
+  font-family: var(--font-display);
+  font-size: .95rem;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+.sales-detail-header p {
+  margin: .15rem 0 0;
+  color: var(--fcf-muted);
+  font-size: .64rem;
+  line-height: 1.35;
+}
+.sales-detail-close {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 2rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .45rem;
+  background: var(--fcf-background);
+  color: var(--fcf-muted);
+  cursor: pointer;
+}
+.sales-detail-close:hover {
+  background: var(--fcf-surface-muted);
+}
+
+.sales-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: .4rem;
+  padding: .6rem 1rem;
+  border-bottom: 1px solid var(--fcf-border);
+  background: var(--fcf-background);
+}
+.sales-detail-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+}
+.sales-detail-summary span {
+  color: var(--fcf-muted);
+  font-size: .55rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.sales-detail-summary strong {
+  color: var(--fcf-foreground);
+  font-family: var(--font-display);
+  font-size: .82rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-detail-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: .55rem;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+.sales-detail-empty {
+  margin: 1.5rem 0;
+  color: var(--fcf-muted);
+  font-size: .72rem;
+  text-align: center;
+}
+
+.sales-detail-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .6rem .65rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .55rem;
+  background: var(--fcf-surface);
+  text-align: left;
+}
+.sales-detail-icon {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: .5rem;
+  background: var(--fcf-surface-muted);
+  color: var(--fcf-brand-terracotta);
+}
+.sales-detail-icon.is-paye {
+  background: color-mix(in oklab, var(--fcf-success) 12%, var(--fcf-surface));
+  color: var(--fcf-success);
+}
+.sales-detail-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: .08rem;
+}
+.sales-detail-main strong {
+  color: var(--fcf-foreground);
+  font-size: .78rem;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sales-detail-main span {
+  color: var(--fcf-muted);
+  font-size: .58rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sales-detail-pay {
+  color: var(--fcf-muted) !important;
+  font-size: .56rem !important;
+}
+.sales-detail-trailing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .12rem;
+  flex: 0 0 auto;
+}
+.sales-detail-trailing strong {
+  color: var(--fcf-foreground);
+  font-family: var(--font-display);
+  font-size: .76rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sales-detail-paid {
+  color: var(--fcf-success);
+  font-size: .54rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.sales-detail-status {
+  display: inline-flex;
+  padding: .1rem .4rem;
+  border-radius: 999px;
+  background: var(--fcf-surface-muted);
+  color: var(--fcf-brand-terracotta);
+  font-size: .52rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.sales-detail-status.is-paye {
+  background: color-mix(in oklab, var(--fcf-success) 12%, var(--fcf-surface));
+  color: var(--fcf-success);
+}
+
+/* Desktop : modal centré */
+@media (min-width: 768px) {
+  .sales-detail-backdrop {
+    align-items: center;
+    padding: 1.5rem;
+  }
+  .sales-detail-panel {
+    max-width: 640px;
+    max-height: 85dvh;
+    border: 1px solid var(--fcf-border);
+    border-radius: 1rem;
+    box-shadow: 0 24px 60px rgb(41 35 31 / .22);
+  }
+  .sales-detail-handle { display: none; }
+  .sales-detail-header { padding-top: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-detail-backdrop,
+  .sales-detail-panel,
+  .sales-detail-close { transition: none; }
+}

@@ -1,76 +1,529 @@
-#sales_view_container.sales-view{display:flex;flex-direction:column;gap:1rem;min-width:0;color:var(--fcf-foreground)}
-#sales_view_container .sales-header{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;padding:.1rem 0 .85rem;border-bottom:1px solid var(--fcf-border)}
-#sales_view_container .sales-eyebrow{margin-bottom:.25rem;color:var(--fcf-brand-terracotta);font-size:.59rem;font-weight:800;letter-spacing:.12em}
-#sales_view_container .sales-header h1{margin:0;font-size:1.35rem;line-height:1.25;font-weight:750;letter-spacing:-.045em}
-#sales_view_container .sales-header p{margin:.25rem 0 0;color:var(--fcf-muted);font-size:.72rem}
-#sales_view_container .sales-header-actions{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap}
-#sales_view_container .sales-period-control{display:flex;align-items:center;padding:.2rem;border:1px solid var(--fcf-border);border-radius:.55rem;background:var(--fcf-surface)}
-#sales_view_container .sales-period-control button{height:1.9rem;padding:0 .65rem;border-radius:.38rem;color:var(--fcf-muted);font-size:.64rem;font-weight:700;white-space:nowrap}
-#sales_view_container .sales-period-control button.is-active{background:var(--fcf-surface-muted);color:var(--fcf-brand-terracotta)}
-#sales_view_container .sales-export-button{display:inline-flex;align-items:center;gap:.4rem;height:2.3rem;padding:0 .75rem;border:1px solid var(--fcf-border);border-radius:.55rem;background:var(--fcf-surface);color:var(--fcf-foreground);font-size:.68rem;font-weight:700}
-#sales_view_container .sales-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem}
-#sales_view_container .sales-kpi{position:relative;display:flex;flex-direction:column;gap:.3rem;min-width:0;min-height:6rem;padding:.8rem .9rem;border:1px solid var(--fcf-border);border-radius:.65rem;background:var(--fcf-surface)}
-#sales_view_container .sales-kpi>span{color:var(--fcf-muted);font-size:.64rem;font-weight:650}
-#sales_view_container .sales-kpi>strong{overflow:hidden;color:var(--fcf-foreground);font-size:clamp(1.05rem,1.7vw,1.45rem);font-weight:800;letter-spacing:-.045em;line-height:1.2;font-variant-numeric:tabular-nums;text-overflow:ellipsis;white-space:nowrap}
-#sales_view_container .sales-kpi>small{overflow:hidden;color:var(--fcf-muted);font-size:.58rem;text-overflow:ellipsis;white-space:nowrap}
-#sales_view_container .sales-kpi>svg{position:absolute;top:.75rem;right:.75rem;color:var(--fcf-brand-terracotta);opacity:.7}
-#sales_view_container .sales-kpi-primary{border-top:2px solid var(--fcf-brand-orange)}
-#sales_view_container .sales-main-grid{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(16rem,.9fr);gap:.75rem;align-items:start}
-#sales_view_container .sales-list-panel,#sales_view_container .sales-analysis-card{min-width:0;border:1px solid var(--fcf-border);border-radius:.7rem;background:var(--fcf-surface);overflow:hidden}
-#sales_view_container .sales-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.85rem .9rem;border-bottom:1px solid var(--fcf-border)}
-#sales_view_container .sales-panel-heading h2,#sales_view_container .sales-analysis-title h2{margin:0;color:var(--fcf-foreground);font-size:.79rem;font-weight:800}
-#sales_view_container .sales-panel-heading>div>span,#sales_view_container .sales-analysis-title span{display:block;margin-top:.15rem;color:var(--fcf-muted);font-size:.6rem}
-#sales_view_container .sales-search{display:flex;align-items:center;gap:.4rem;width:min(18rem,48%);height:2.15rem;padding:0 .6rem;border:1px solid var(--fcf-border);border-radius:.5rem;color:var(--fcf-muted)}
-#sales_view_container .sales-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--fcf-foreground);font-size:.65rem}
-#sales_view_container .sales-table-wrap{max-width:100%;overflow:auto}
-#sales_view_container .sales-table{width:100%;border-collapse:collapse;text-align:left;font-size:.66rem}
-#sales_view_container .sales-table th{height:2.4rem;padding:.45rem .65rem;border-bottom:1px solid var(--fcf-border);background:var(--fcf-background);color:var(--fcf-muted);font-size:.57rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
-#sales_view_container .sales-table td{height:3.35rem;padding:.45rem .65rem;border-bottom:1px solid color-mix(in oklab,var(--fcf-border) 72%,transparent);color:var(--fcf-muted);white-space:nowrap}
-#sales_view_container .sales-table tbody tr:last-child td{border-bottom:0}
-#sales_view_container .sales-table .numeric{text-align:right;font-variant-numeric:tabular-nums}
-#sales_view_container .sales-date{font-weight:700}
-#sales_view_container .sales-order-identity{display:flex;flex-direction:column;gap:.12rem}
-#sales_view_container .sales-order-identity strong{color:var(--fcf-foreground);font-size:.67rem;font-weight:750}
-#sales_view_container .sales-order-identity span{color:var(--fcf-muted);font-size:.6rem}
-#sales_view_container .sales-payment{font-size:.61rem}
-#sales_view_container .sales-amount{color:var(--fcf-foreground)!important;font-weight:750}
-#sales_view_container .sales-paid{color:var(--fcf-success)!important;font-weight:750}
-#sales_view_container .sales-status{display:inline-flex;padding:.22rem .45rem;border-radius:999px;background:var(--fcf-surface-muted);color:var(--fcf-brand-terracotta);font-size:.57rem;font-weight:750}
-#sales_view_container .sales-status-paye{background:color-mix(in oklab,var(--fcf-success) 12%,var(--fcf-surface));color:var(--fcf-success)}
-#sales_view_container .sales-empty{height:7rem;text-align:center;color:var(--fcf-muted);font-size:.7rem}
-#sales_view_container .sales-analysis{display:flex;flex-direction:column;gap:.7rem}
-#sales_view_container .sales-analysis-card{padding:.85rem}
-#sales_view_container .sales-analysis-title{display:flex;align-items:center;justify-content:space-between}
-#sales_view_container .sales-bars{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.4rem;height:9rem;margin-top:.8rem}
-#sales_view_container .sales-bar-column{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:.35rem;min-width:0}
-#sales_view_container .sales-bar-column>strong{color:var(--fcf-muted);font-size:.53rem;font-weight:700;font-variant-numeric:tabular-nums}
-#sales_view_container .sales-bar-track{display:flex;align-items:flex-end;justify-content:center;width:100%;height:5.8rem;border-radius:.35rem;background:var(--fcf-background);overflow:hidden}
-#sales_view_container .sales-bar-track span{display:block;width:65%;min-height:0;border-radius:.25rem .25rem 0 0;background:var(--fcf-brand-terracotta)}
-#sales_view_container .sales-bar-column small{color:var(--fcf-muted);font-size:.56rem;text-transform:capitalize}
-#sales_view_container .sales-payment-row{margin-top:.7rem}
-#sales_view_container .sales-payment-row>div:first-child{display:flex;justify-content:space-between;gap:.5rem;color:var(--fcf-muted);font-size:.63rem}
-#sales_view_container .sales-payment-row strong{color:var(--fcf-foreground);font-variant-numeric:tabular-nums}
-#sales_view_container .sales-payment-track{height:.32rem;margin-top:.3rem;border-radius:999px;background:var(--fcf-background);overflow:hidden}
-#sales_view_container .sales-payment-track span{display:block;height:100%;border-radius:inherit;background:var(--fcf-brand-orange)}
-#sales_view_container .sales-analysis-empty{margin:.8rem 0 0;color:var(--fcf-muted);font-size:.65rem}
-#sales_view_container .sales-data-note{padding:.65rem .75rem;border-left:2px solid var(--fcf-brand-gold);background:var(--fcf-surface-muted);color:var(--fcf-muted);font-size:.6rem;line-height:1.5}
-@media(max-width:1023px){#sales_view_container .sales-main-grid{grid-template-columns:1fr}#sales_view_container .sales-analysis{display:grid;grid-template-columns:1fr 1fr}}
-@media(max-width:767px){
- #sales_view_container.sales-view{gap:.75rem}
- #sales_view_container .sales-header{align-items:flex-start;flex-direction:column;gap:.7rem;padding-bottom:.7rem}
- #sales_view_container .sales-header h1{font-size:1.2rem}
- #sales_view_container .sales-header p{max-width:35rem;font-size:.66rem}
- #sales_view_container .sales-header-actions{width:100%;justify-content:space-between}
- #sales_view_container .sales-period-control{flex:1;justify-content:space-between}
- #sales_view_container .sales-period-control button{flex:1;padding:0 .35rem;font-size:.59rem}
- #sales_view_container .sales-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem}
- #sales_view_container .sales-kpi{min-height:5.5rem;padding:.65rem}
- #sales_view_container .sales-kpi>strong{font-size:1.05rem}
- #sales_view_container .sales-kpi>small{font-size:.53rem}
- #sales_view_container .sales-kpi>svg{top:.6rem;right:.6rem;width:15px;height:15px}
- #sales_view_container .sales-panel-heading{align-items:flex-start;flex-direction:column}
- #sales_view_container .sales-search{width:100%}
- #sales_view_container .sales-table{min-width:42rem}
- #sales_view_container .sales-analysis{display:flex}
- #sales_view_container .sales-bars{height:8rem}
+#sales_view_container.sales-view {
+  display: flex;
+  flex-direction: column;
+  gap: .85rem;
+  min-width: 0;
+  color: var(--fcf-foreground);
+}
+
+/* --- 1. Header --- */
+.sales-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: .85rem;
+  padding: .1rem 0 .75rem;
+  border-bottom: 1px solid var(--fcf-border);
+}
+.sales-eyebrow {
+  margin-bottom: .15rem;
+  color: var(--fcf-brand-terracotta);
+  font-size: .55rem;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+.sales-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -.045em;
+}
+.sales-header p {
+  margin: .2rem 0 0;
+  color: var(--fcf-muted);
+  font-size: .68rem;
+  line-height: 1.4;
+}
+.sales-header-actions {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  flex-wrap: wrap;
+}
+.sales-period-control {
+  display: flex;
+  align-items: center;
+  padding: .18rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .5rem;
+  background: var(--fcf-surface);
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-width: 100%;
+}
+.sales-period-control::-webkit-scrollbar { display: none; }
+.sales-period-control button {
+  flex-shrink: 0;
+  height: 1.85rem;
+  padding: 0 .55rem;
+  border: 0;
+  border-radius: .35rem;
+  background: transparent;
+  color: var(--fcf-muted);
+  font-size: .6rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+.sales-period-control button.is-active {
+  background: var(--fcf-surface-muted);
+  color: var(--fcf-brand-terracotta);
+}
+.sales-export-button {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  height: 2.2rem;
+  padding: 0 .7rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .5rem;
+  background: var(--fcf-surface);
+  color: var(--fcf-foreground);
+  font-size: .64rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .12s ease;
+}
+.sales-export-button:hover { background: var(--fcf-surface-muted); }
+.sales-export-label { display: inline; }
+
+/* --- 2. KPI grid --- */
+.sales-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .55rem;
+}
+@media (min-width: 1024px) {
+  .sales-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; }
+}
+
+.sales-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+  min-width: 0;
+  padding: .75rem .85rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .75rem;
+  background: var(--fcf-surface);
+}
+.sales-kpi-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .35rem;
+  margin-bottom: .1rem;
+}
+.sales-kpi-label {
+  color: var(--fcf-muted);
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  line-height: 1.25;
+}
+.sales-kpi-icon {
+  display: inline-flex;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex: 0 0 1.85rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: .55rem;
+}
+.sales-kpi-icon.is-gold {
+  background: color-mix(in oklab, var(--fcf-brand-gold) 16%, var(--fcf-surface));
+  color: var(--fcf-brand-terracotta);
+}
+.sales-kpi-icon.is-emerald {
+  background: color-mix(in oklab, var(--fcf-success) 13%, var(--fcf-surface));
+  color: var(--fcf-success);
+}
+.sales-kpi-icon.is-blue {
+  background: color-mix(in oklab, var(--fcf-info) 13%, var(--fcf-surface));
+  color: var(--fcf-info);
+}
+.sales-kpi-icon.is-violet {
+  background: color-mix(in oklab, #7C3AED 13%, var(--fcf-surface));
+  color: #7C3AED;
+}
+
+/* Valeur = montant complet en FCFA. clamp() pour rester lisible même à 375px. */
+.sales-kpi-value {
+  margin: .15rem 0 0;
+  color: var(--fcf-foreground);
+  font-family: var(--font-display);
+  font-size: clamp(.85rem, 2.9vw, 1.15rem);
+  font-weight: 800;
+  letter-spacing: -.04em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.sales-kpi-delta-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .3rem;
+  margin: .25rem 0 .1rem;
+  font-size: .6rem;
+  line-height: 1.35;
+}
+.sales-kpi-delta {
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.sales-kpi-delta.is-positive { color: var(--fcf-success); }
+.sales-kpi-delta.is-negative { color: var(--fcf-danger); }
+.sales-kpi-delta.is-neutral  { color: var(--fcf-muted); }
+.sales-kpi-vs {
+  color: var(--fcf-muted);
+  font-weight: 600;
+  font-size: .55rem;
+}
+.sales-kpi-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .1rem;
+  align-self: flex-start;
+  margin-top: .15rem;
+  padding: .12rem .42rem;
+  border-radius: 999px;
+  font-size: .56rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.sales-kpi-badge.is-positive {
+  background: color-mix(in oklab, var(--fcf-success) 14%, var(--fcf-surface));
+  color: var(--fcf-success);
+}
+.sales-kpi-badge.is-negative {
+  background: color-mix(in oklab, var(--fcf-danger) 12%, var(--fcf-surface));
+  color: var(--fcf-danger);
+}
+.sales-kpi-badge.is-neutral {
+  background: var(--fcf-surface-muted);
+  color: var(--fcf-muted);
+}
+
+@media (min-width: 1024px) {
+  .sales-kpi-card { padding: .9rem 1rem; border-radius: .8rem; }
+  .sales-kpi-value { font-size: 1.3rem; }
+  .sales-kpi-label { font-size: .66rem; }
+  .sales-kpi-icon { width: 2rem; height: 2rem; flex-basis: 2rem; border-radius: .6rem; }
+  .sales-kpi-delta-line { font-size: .66rem; }
+  .sales-kpi-vs { font-size: .6rem; }
+  .sales-kpi-badge { font-size: .6rem; padding: .14rem .48rem; }
+}
+
+/* --- 3. Bandeau écart --- */
+.sales-ecart-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .35rem .75rem;
+  padding: .55rem .75rem;
+  border: 1px solid var(--fcf-border);
+  border-left: 3px solid var(--fcf-brand-gold);
+  border-radius: .55rem;
+  background: var(--fcf-surface-muted);
+}
+.sales-ecart-strip > div { display: flex; align-items: baseline; gap: .5rem; }
+.sales-ecart-strip span { color: var(--fcf-muted); font-size: .6rem; font-weight: 650; }
+.sales-ecart-strip strong {
+  color: var(--fcf-foreground);
+  font-family: var(--font-display);
+  font-size: .82rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.sales-ecart-strip small { color: var(--fcf-muted); font-size: .55rem; line-height: 1.35; }
+
+/* --- 4-9 : inchangé --- */
+.sales-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(16rem, .9fr);
+  gap: .7rem;
+  align-items: start;
+}
+.sales-list-panel, .sales-analysis-card {
+  min-width: 0;
+  border: 1px solid var(--fcf-border);
+  border-radius: .7rem;
+  background: var(--fcf-surface);
+  overflow: hidden;
+}
+.sales-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .7rem;
+  padding: .75rem .85rem;
+  border-bottom: 1px solid var(--fcf-border);
+}
+.sales-panel-heading h2, .sales-analysis-title h2 {
+  margin: 0;
+  color: var(--fcf-foreground);
+  font-family: var(--font-display);
+  font-size: .78rem;
+  font-weight: 800;
+}
+.sales-panel-heading > div > span, .sales-analysis-title span {
+  display: block;
+  margin-top: .1rem;
+  color: var(--fcf-muted);
+  font-size: .58rem;
+}
+.sales-search {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  width: min(18rem, 48%);
+  height: 2.05rem;
+  padding: 0 .55rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .45rem;
+  color: var(--fcf-muted);
+  background: var(--fcf-background);
+}
+.sales-search input {
+  width: 100%; min-width: 0; border: 0; outline: 0; background: transparent;
+  color: var(--fcf-foreground); font-size: .64rem;
+}
+.sales-table-wrap { max-width: 100%; overflow: auto; }
+.sales-table { width: 100%; border-collapse: collapse; text-align: left; font-size: .64rem; }
+.sales-table th {
+  height: 2.25rem; padding: .4rem .6rem; border-bottom: 1px solid var(--fcf-border);
+  background: var(--fcf-background); color: var(--fcf-muted); font-size: .55rem;
+  font-weight: 800; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap;
+}
+.sales-table td {
+  height: 3.15rem; padding: .4rem .6rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--fcf-border) 72%, transparent);
+  color: var(--fcf-muted); white-space: nowrap;
+}
+.sales-table tbody tr:last-child td { border-bottom: 0; }
+.sales-table tbody tr:hover { background: color-mix(in oklab, var(--fcf-brand-gold) 4%, var(--fcf-surface)); }
+.sales-table .numeric { text-align: right; font-variant-numeric: tabular-nums; }
+.sales-date { font-weight: 700; }
+.sales-order-identity { display: flex; flex-direction: column; gap: .1rem; }
+.sales-order-identity strong { color: var(--fcf-foreground); font-size: .66rem; font-weight: 750; }
+.sales-order-identity span { color: var(--fcf-muted); font-size: .58rem; }
+.sales-payment { font-size: .6rem; }
+.sales-amount { color: var(--fcf-foreground) !important; font-weight: 750; }
+.sales-paid { color: var(--fcf-success) !important; font-weight: 750; }
+.sales-status {
+  display: inline-flex; padding: .2rem .42rem; border-radius: 999px;
+  background: var(--fcf-surface-muted); color: var(--fcf-brand-terracotta);
+  font-size: .55rem; font-weight: 750;
+}
+.sales-status-paye {
+  background: color-mix(in oklab, var(--fcf-success) 12%, var(--fcf-surface));
+  color: var(--fcf-success);
+}
+.sales-empty { height: 6rem; text-align: center; color: var(--fcf-muted); font-size: .68rem; }
+.sales-cards-wrap { display: none; flex-direction: column; gap: .35rem; padding: .55rem; }
+.sales-card {
+  display: flex; align-items: center; gap: .6rem; padding: .65rem .7rem;
+  border: 1px solid var(--fcf-border); border-radius: .55rem;
+  background: var(--fcf-surface); text-align: left;
+}
+.sales-card-icon {
+  display: inline-flex; width: 2rem; height: 2rem; flex: 0 0 2rem;
+  align-items: center; justify-content: center; border-radius: .5rem;
+  background: var(--fcf-surface-muted); color: var(--fcf-brand-terracotta);
+}
+.sales-card-icon.is-paye {
+  background: color-mix(in oklab, var(--fcf-success) 12%, var(--fcf-surface));
+  color: var(--fcf-success);
+}
+.sales-card-main { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: .12rem; }
+.sales-card-main strong {
+  color: var(--fcf-foreground); font-size: .78rem; font-weight: 750;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sales-card-main span {
+  color: var(--fcf-muted); font-size: .58rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sales-card-trailing { display: flex; flex-direction: column; align-items: flex-end; flex: 0 0 auto; gap: .15rem; }
+.sales-card-trailing strong {
+  color: var(--fcf-foreground); font-family: var(--font-display);
+  font-size: .78rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.sales-card-trailing .sales-paid { font-size: .55rem; font-weight: 750; }
+.sales-empty-card {
+  padding: 1.5rem 1rem; border: 1px dashed var(--fcf-border); border-radius: .55rem;
+  color: var(--fcf-muted); font-size: .68rem; text-align: center;
+}
+.sales-analysis { display: flex; flex-direction: column; gap: .65rem; }
+.sales-analysis-card { padding: .8rem; }
+.sales-analysis-title { display: flex; align-items: center; justify-content: space-between; }
+.sales-bars {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: .35rem; height: 8.5rem; margin-top: .7rem;
+}
+.sales-bar-column {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: .3rem; min-width: 0;
+}
+.sales-bar-column > strong {
+  color: var(--fcf-muted); font-size: .52rem; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sales-bar-track {
+  display: flex; align-items: flex-end; justify-content: center;
+  width: 100%; height: 5.5rem; border-radius: .3rem;
+  background: var(--fcf-background); overflow: hidden;
+}
+.sales-bar-track span {
+  display: block; width: 65%; min-height: 0;
+  border-radius: .25rem .25rem 0 0; background: var(--fcf-brand-terracotta);
+}
+.sales-bar-column small { color: var(--fcf-muted); font-size: .54rem; text-transform: capitalize; }
+.sales-payment-row { margin-top: .6rem; }
+.sales-payment-row > div:first-child {
+  display: flex; justify-content: space-between; gap: .5rem;
+  color: var(--fcf-muted); font-size: .62rem;
+}
+.sales-payment-row strong { color: var(--fcf-foreground); font-variant-numeric: tabular-nums; }
+.sales-payment-track {
+  height: .3rem; margin-top: .28rem; border-radius: 999px;
+  background: var(--fcf-background); overflow: hidden;
+}
+.sales-payment-track span {
+  display: block; height: 100%; border-radius: inherit; background: var(--fcf-brand-orange);
+}
+.sales-analysis-empty { margin: .7rem 0 0; color: var(--fcf-muted); font-size: .64rem; }
+.sales-data-note {
+  padding: .6rem .7rem; border-left: 2px solid var(--fcf-brand-gold);
+  background: var(--fcf-surface-muted); color: var(--fcf-muted);
+  font-size: .58rem; line-height: 1.5; border-radius: 0 .4rem .4rem 0;
+}
+
+/* --- Responsive --- */
+@media (max-width: 1023px) {
+  .sales-main-grid { grid-template-columns: 1fr; }
+  .sales-analysis { display: grid; grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 767px) {
+  #sales_view_container.sales-view { gap: .65rem; }
+  .sales-header {
+    align-items: stretch; flex-direction: column; gap: .55rem; padding-bottom: .65rem;
+  }
+  .sales-header h1 { font-size: 1.1rem; }
+  .sales-header p { font-size: .62rem; }
+  .sales-header-actions { width: 100%; justify-content: space-between; }
+  .sales-period-control { flex: 1; justify-content: flex-start; }
+  .sales-period-control button { padding: 0 .45rem; font-size: .58rem; }
+  .sales-export-button { padding-inline: .55rem; }
+  .sales-export-label { display: none; }
+  .sales-export-button { width: 2.2rem; justify-content: center; padding: 0; }
+
+  .sales-kpi-grid { gap: .4rem; }
+  .sales-kpi-card { padding: .65rem .7rem; border-radius: .65rem; }
+  .sales-kpi-icon { width: 1.7rem; height: 1.7rem; flex-basis: 1.7rem; border-radius: .5rem; }
+  .sales-kpi-value { font-size: clamp(.82rem, 3.1vw, 1.1rem); }
+  .sales-kpi-label { font-size: .56rem; }
+  .sales-kpi-delta-line { font-size: .55rem; gap: .2rem; }
+  .sales-kpi-vs { font-size: .5rem; }
+  .sales-kpi-badge { font-size: .52rem; padding: .1rem .35rem; }
+
+  .sales-ecart-strip { padding: .5rem .65rem; }
+  .sales-ecart-strip strong { font-size: .78rem; }
+
+  .sales-panel-heading { align-items: stretch; flex-direction: column; gap: .45rem; padding: .7rem; }
+  .sales-search { width: 100%; height: 2rem; }
+  .sales-table-wrap { display: none; }
+  .sales-cards-wrap { display: flex; }
+  .sales-analysis { display: flex; flex-direction: column; gap: .55rem; }
+  .sales-bars { height: 7.5rem; }
+  .sales-bar-track { height: 4.75rem; }
+  .sales-analysis-card { padding: .7rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #sales_view_container *, #sales_view_container *::before, #sales_view_container *::after {
+    transition-duration: .01ms !important; animation-duration: .01ms !important;
+  }
+}
+
+/* --- 10. Sections cliquables (KPI, barres, paiements, écart) --- */
+
+.sales-kpi-card.is-clickable {
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  text-align: left;
+}
+.sales-kpi-card.is-clickable:hover {
+  border-color: var(--fcf-brand-gold);
+  background: color-mix(in oklab, var(--fcf-brand-gold) 4%, var(--fcf-surface));
+  box-shadow: var(--shadow-resting);
+}
+.sales-kpi-card.is-clickable:focus-visible {
+  outline: 2px solid var(--fcf-focus);
+  outline-offset: 2px;
+}
+.sales-kpi-hint {
+  position: absolute;
+  top: .55rem;
+  right: 2.75rem;
+  color: var(--fcf-muted);
+  opacity: .45;
+  pointer-events: none;
+}
+.sales-kpi-card.is-clickable:hover .sales-kpi-hint {
+  opacity: .85;
+  color: var(--fcf-brand-terracotta);
+}
+.sales-kpi-card { position: relative; }
+
+.sales-ecart-strip.is-clickable {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-right: 1px solid var(--fcf-border);
+  transition: background .15s ease, border-color .15s ease;
+}
+.sales-ecart-strip.is-clickable:hover {
+  background: color-mix(in oklab, var(--fcf-brand-gold) 8%, var(--fcf-surface-muted));
+}
+.sales-ecart-strip.is-clickable:focus-visible {
+  outline: 2px solid var(--fcf-focus);
+  outline-offset: 2px;
+}
+
+.sales-bar-column.is-clickable {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: .35rem;
+  transition: background .12s ease;
+}
+.sales-bar-column.is-clickable:hover {
+  background: color-mix(in oklab, var(--fcf-brand-gold) 6%, transparent);
+}
+.sales-bar-column.is-clickable:focus-visible {
+  outline: 2px solid var(--fcf-focus);
+  outline-offset: 2px;
+}
+
+.sales-payment-row.is-clickable {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: .35rem 0;
+  text-align: left;
+  cursor: pointer;
+  border-radius: .35rem;
+  transition: background .12s ease;
+}
+.sales-payment-row.is-clickable:hover {
+  background: color-mix(in oklab, var(--fcf-brand-gold) 5%, transparent);
+}
+.sales-payment-row.is-clickable:focus-visible {
+  outline: 2px solid var(--fcf-focus);
+  outline-offset: 2px;
 }
