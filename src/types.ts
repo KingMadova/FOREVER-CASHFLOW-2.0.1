@@ -24,13 +24,28 @@ export interface Customer {
   lastContactDate: string;
   createdAt: string;
   notes?: string;
+  /** Client bénéficiant du tarif CP Forever. */
+  isCP?: boolean;
   synced?: boolean;
 }
+
+export interface ProductPriceTable {
+  MGR: number | null;
+  MA: number | null;
+  A: number | null;
+  AA: number | null;
+  CP: number | null;
+  PUBLIC: number | null;
+}
+
+export type CustomerPriceType = 'CP' | 'PUBLIC';
 
 export interface Product {
   id: string;
   name: string;
-  prixRetail: number; // en FCFA
+  prixRetail: number; // Prix public officiel (compatibilité avec les anciennes données)
+  /** Tarifs officiels par grade partenaire et catégorie de client. */
+  prices?: ProductPriceTable;
   unitCC: number;     // Case Credits (valeur FLP)
   unitPV?: number;     // Points Volume (FLP) - optionnel, calculé si absent
 }
@@ -55,10 +70,14 @@ export interface OrderItem {
   productId: string;
   productName: string;
   quantity: number;
-  unitPrice: number;
+  unitPrice: number; // Prix de vente appliqué au client, figé à la commande
+  /** Coût d'achat officiel du partenaire, figé à la commande. */
+  unitCost?: number;
+  /** Catégorie de tarif client appliquée à cette ligne. */
+  priceCategory?: CustomerPriceType;
   unitCC: number;
   unitPV?: number;
-  isDiscounted: boolean; // Si Client Privilégié (-5%) par exemple
+  isDiscounted: boolean; // Remise commerciale négociée, indépendante du statut CP
   estPack?: boolean;           // Si cet item est un pack prédéfini
   packId?: string;             // Référence vers pack prédéfini
 }
@@ -89,6 +108,10 @@ export interface Order {
   totalPV: number;              // Case Credits × ratio PV/CC (FLP)
   totalBV: number;              // Business Volume
   discountPercent?: number;
+  /** Tarif CP/PUBLIC appliqué lors de la vente (snapshot historique). */
+  customerPriceType?: CustomerPriceType;
+  /** Grade du partenaire lors de la vente (snapshot historique). */
+  partnerGrade?: GradeCode;
   synced?: boolean;
 
   // Nouveaux champs Notion/Obsidian
@@ -119,14 +142,13 @@ export type GradeCode = 'AA' | 'A' | 'MA' | 'M';
 export interface Grade {
   code: GradeCode;
   label: string;
-  tauxRemise: number;
 }
 
 export const GRADES: Grade[] = [
-  { code: 'AA', label: 'Assistant Animateur', tauxRemise: 0.30 },
-  { code: 'A',  label: 'Animateur',           tauxRemise: 0.38 },
-  { code: 'MA', label: 'Manager Adjoint',     tauxRemise: 0.43 },
-  { code: 'M',  label: 'Manager',             tauxRemise: 0.48 },
+  { code: 'AA', label: 'Assistant Animateur' },
+  { code: 'A',  label: 'Animateur' },
+  { code: 'MA', label: 'Manager Adjoint' },
+  { code: 'M',  label: 'Manager' },
 ];
 
 export interface PackSlot {

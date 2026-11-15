@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Product } from '../../types';
+import { withOfficialProductPrices } from '../../lib/pricing';
 import { useAuthStore } from './authSlice';
 import { db } from '../../lib/firebase';
 import { collection, doc, setDoc, deleteDoc, getDocs, query, orderBy, onSnapshot } from 'firebase/firestore';
@@ -59,7 +60,7 @@ const DEFAULT_PRODUCTS: Product[] = [
   { id: '612', name: 'ALOE ACTIVATOR', prixRetail: 12897, unitCC: 0.064 },
   { id: '646', name: 'ALOE BODY WASH', prixRetail: 18142, unitCC: 0.09 },
   { id: '647', name: 'ALOE BODY LOTION', prixRetail: 18338, unitCC: 0.091 },
-];
+].map(withOfficialProductPrices);
 
 interface ProductsState {
   products: Product[];
@@ -106,7 +107,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         const saved = localStorage.getItem('fcf-products');
         if (saved) {
           const parsed = JSON.parse(saved) as Product[];
-          const cleaned = parsed.filter((p) => !p.id.includes('_new'));
+          const cleaned = parsed.filter((p) => !p.id.includes('_new')).map(withOfficialProductPrices);
           if (cleaned.length < DEFAULT_PRODUCTS.length / 2) {
             localStorage.setItem('fcf-products', JSON.stringify(DEFAULT_PRODUCTS));
             set({ products: DEFAULT_PRODUCTS });
@@ -147,7 +148,8 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
               if (!remoteProd.id.includes('_new')) {
                 const index = base.findIndex((p) => p.id === remoteProd.id);
                 if (index >= 0) {
-                  base[index] = remoteProd;
+                  // Les tarifs officiels locaux priment sur les anciens prix distants.
+                  base[index] = withOfficialProductPrices({ ...base[index], ...remoteProd });
                 } else {
                   base.push(remoteProd);
                 }

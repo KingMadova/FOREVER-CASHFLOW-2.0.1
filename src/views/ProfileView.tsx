@@ -168,7 +168,7 @@ export const ProfileView: React.FC = () => {
         <div>
           <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">Identité Professionnelle</span>
           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-0.5">Mon Profil d'Activité FBO</h2>
-          <p className="text-xs text-slate-500">Configurez votre identité FLP de distributeur indépendant, vos marges de grade et coordonnées de facturation client.</p>
+          <p className="text-xs text-slate-500">Configurez votre identité FLP de distributeur indépendant, votre grille tarifaire d'achat et vos coordonnées de facturation client.</p>
         </div>
 
         <button
@@ -294,7 +294,7 @@ export const ProfileView: React.FC = () => {
                 >
                   {GRADES.map(g => (
                     <option key={g.code} value={g.code}>
-                      {g.label} - Remise d'achat {Math.round(g.tauxRemise * 100)}%
+                      {g.label} — Tarif {g.code === 'M' ? 'MGR' : g.code}
                     </option>
                   ))}
                 </select>
@@ -302,9 +302,9 @@ export const ProfileView: React.FC = () => {
 
               <div className="flex items-center md:col-span-2">
                 <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 p-3.5 rounded-2xl w-full text-xs shrink-0 self-end h-12 flex items-center justify-between">
-                  <span className="text-slate-500 font-bold">Marge brute assurée:</span>
+                  <span className="text-slate-500 font-bold">Grille tarifaire active:</span>
                   <span className="text-amber-600 dark:text-amber-400 font-black text-sm">
-                    {Math.round(currentGrade.tauxRemise * 100)} %
+                    {currentGrade.code === 'M' ? 'MGR' : currentGrade.code}
                   </span>
                 </div>
               </div>

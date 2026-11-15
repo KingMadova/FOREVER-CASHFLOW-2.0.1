@@ -104,6 +104,7 @@ export const ClientsView: React.FC = () => {
     const [newVille, setNewVille] = useState('');
     const [newDateNaissance, setNewDateNaissance] = useState('');
     const [newSourceProspection, setNewSourceProspection] = useState<'META_ADS' | 'RECOMMANDATION' | 'BOUCHE_OREILLE' | 'EVENEMENT' | 'AUTRE'>('AUTRE');
+    const [newIsCP, setNewIsCP] = useState(false);
     const [newNotes, setNewNotes] = useState('');
     const [notesSavedFeedback, setNotesSavedFeedback] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -123,6 +124,7 @@ export const ClientsView: React.FC = () => {
         ville: newVille,
         dateNaissance: newDateNaissance,
         sourceProspection: newSourceProspection,
+        isCP: newIsCP,
         status: CustomerStatus.CLIENT,
         pipelineStage: 'CLOSED_WON', // Won already as customer
         lastContactDate: new Date().toISOString().split('T')[0],
@@ -137,6 +139,7 @@ export const ClientsView: React.FC = () => {
       setNewVille('');
       setNewDateNaissance('');
       setNewSourceProspection('AUTRE');
+      setNewIsCP(false);
       setNewNotes('');
       setIsAddOpen(false);
     };
@@ -599,6 +602,15 @@ export const ClientsView: React.FC = () => {
             />
           </div>
 
+          <div className="rounded-2xl border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/60 dark:bg-amber-950/20 p-3.5 space-y-2">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block">Tarif client</label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={newIsCP} onChange={(e) => setNewIsCP(e.target.checked)} className="h-4 w-4 accent-amber-500" />
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-100">Ce client bénéficie du tarif CP</span>
+            </label>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">Le tarif CP sera appliqué automatiquement à ses prochaines commandes.</p>
+          </div>
+
           <div>
             <label className="text-xs font-bold text-slate-500 block mb-1">Notes / Préférences produits</label>
             <textarea
@@ -690,6 +702,26 @@ export const ClientsView: React.FC = () => {
             {/* TAB CONTENT: INFO */}
                         {activeTab === 'INFO' && (
                           <div className="space-y-4">
+                            <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/60 dark:bg-amber-950/20 p-4">
+                              <div className="min-w-0">
+                                <p className="text-xs font-black text-slate-800 dark:text-slate-100">Tarif client</p>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Détermine le prix appliqué à ses commandes.</p>
+                              </div>
+                              <select
+                                aria-label="Catégorie tarifaire du client"
+                                value={selectedClient.isCP ? 'CP' : 'PUBLIC'}
+                                onChange={(e) => {
+                                  const isCP = e.target.value === 'CP';
+                                  const updated = { ...selectedClient, isCP };
+                                  setSelectedClient(updated);
+                                  void updateCustomer(updated);
+                                }}
+                                className="shrink-0 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-black text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500"
+                              >
+                                <option value="PUBLIC">Public</option>
+                                <option value="CP">Client CP</option>
+                              </select>
+                            </div>
                             <div className="space-y-3 bg-slate-50 dark:bg-[#2a2a2e]/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
                               <div className="flex items-center gap-2 text-xs">
                                 <span className="text-slate-400 font-bold w-20 shrink-0">Téléphone:</span>

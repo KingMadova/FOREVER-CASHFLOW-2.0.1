@@ -38,7 +38,7 @@ interface AuthState {
   login: () => void;
   logout: () => Promise<void>;
   initializeAuth: () => () => void;
-  getCurrentGrade: () => { code: GradeCode; label: string; tauxRemise: number };
+  getCurrentGrade: () => { code: GradeCode; label: string };
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({

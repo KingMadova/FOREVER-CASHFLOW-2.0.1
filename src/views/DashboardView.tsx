@@ -249,8 +249,7 @@ export const DashboardView: React.FC = () => {
           <span className="dashboard-eyebrow">TABLEAU DE BORD</span>
           <h2>Bonjour, {profile.name || 'FBO'}</h2>
           <p>
-            Grade actuel : <strong>{currentGrade.label}</strong> ({Math.round(currentGrade.tauxRemise * 100)} %)
-          </p>
+            Grade actuel : <strong>{currentGrade.label}</strong>          </p>
         </div>
         <div className="dashboard-header-actions">
           <button type="button" className="dashboard-primary-action" onClick={() => navigate('/projection')}>
