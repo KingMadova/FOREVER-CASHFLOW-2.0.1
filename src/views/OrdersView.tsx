@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './OrdersView.css';
 import { printCanvas } from '../lib/printHelper';
 import { isCountedOrder } from '../lib/orderStats';
 import { SortSelect } from '../components/ui/SortSelect';
@@ -10,6 +9,11 @@ import { useProductsStore } from '../store/slices/productsSlice';
 import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
+import { OrdersHeader } from '../components/ui/orders/OrdersHeader';
+import { OrdersControls } from '../components/ui/orders/OrdersControls';
+import { OrdersList } from '../components/ui/orders/OrdersList';
+import { OrdersKanban } from '../components/ui/orders/OrdersKanban';
+import '../components/ui/orders/OrdersStyles.css';
 import { Order, OrderStatut, OrderStatus, Product, GRADES, CustomerStatus, OrderItem, OrderType, OrderCanal, OrderPaiement, OrderGeste, LivraisonMode, CustomerPriceType } from '../types';
 import { getCustomerSalePrice, getPartnerPurchasePrice } from '../lib/pricing';
 import { 
@@ -549,101 +553,43 @@ export const OrdersView: React.FC = () => {
     <div className="orders-view" id="orders_view_container">
       
       {/* 1. Orders workspace header */}
-      <div className="orders-page-header">
-        <div>
-          <h2 className="orders-page-title">Commandes</h2>
-          <p className="orders-page-description">Créez, préparez et suivez chaque commande client jusqu'à sa livraison.</p>
-        </div>
-        <button onClick={() => setIsNewOrderOpen(true)} className="orders-create-button" id="order_add_btn" aria-label="Créer une commande">
-          <Plus className="w-4 h-4" />
-          NOUVELLE COMMANDE
-        </button>
-      </div>
+         <OrdersHeader
+        description="Créez, préparez et suivez chaque commande client jusqu'à sa livraison."
+        count={filteredOrders.length}
+        onCreate={() => setIsNewOrderOpen(true)}
+      />
 
-      {/* 2. Live status filters */}
-      <div className="orders-filter-bar" id="orders_filter_group">
-        {orderStatusOptions.map(option => (
-          <button key={option.value} onClick={() => setStatusFilter(option.value)} className={`orders-filter-button ${statusFilter === option.value ? 'is-active' : ''}`}>
-            {option.label}<span>{orderStatusCount(option.value)}</span>
-          </button>
-        ))}
-      </div>
+      <OrdersControls
+        options={orderStatusOptions}
+        statusFilter={statusFilter}
+        onChange={setStatusFilter}
+        countFor={orderStatusCount}
+        viewMode={ordersViewMode}
+        onViewModeChange={setOrdersViewMode}
+        sortKey={orderSort}
+        onSortChange={setOrderSort}
+        onExportCSV={handleExportOrdersCSV}
+        onPrintRegistry={handlePrintRegistry}
+      />
 
-      {/* View controls and export toolbar */}
-      <div className="orders-toolbar">
-        <div className="orders-view-switch" role="group" aria-label="Mode d'affichage">
-          <button type="button" className={ordersViewMode === 'list' ? 'is-active' : ''} onClick={() => setOrdersViewMode('list')}>Liste</button>
-          <button type="button" className={ordersViewMode === 'kanban' ? 'is-active' : ''} onClick={() => setOrdersViewMode('kanban')}>Kanban</button>
-        </div>
-        <span className="orders-count-label">
-          Registre des Commandes ({filteredOrders.length})
-        </span>
-        <div className="flex flex-wrap items-center gap-2">
-          <SortSelect options={ORDER_SORT_OPTIONS} value={orderSort} onChange={setOrderSort} id="orders_sort_select" />
-          <button
-            onClick={handleExportOrdersCSV}
-            className="orders-utility-button"
-            title="Exporter tout l'historique en CSV (Excel)"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            Exporter Excel
-          </button>
-          <button
-            onClick={handlePrintRegistry}
-            className="orders-utility-button"
-            title="Imprimer le Registre de Ventes PDF"
-          >
-            <Printer className="w-3.5 h-3.5 text-slate-500" />
-            Rapport PDF
-          </button>
-        </div>
-      </div>
-
-      {/* 3. List or status board */}
       {ordersViewMode === 'list' ? (
-        <div className="orders-list" id="orders_mapping_area">
-          {filteredOrders.length === 0 ? (
-            <Card className="orders-empty text-center py-10"><p className="text-sm text-slate-400">Aucune commande dans cette vue.</p></Card>
-          ) : sortedOrders.map(ord => (
-            <Card key={ord.id} className="order-row hoverable flex items-center justify-between gap-3 text-left" onClick={() => { setSelectedOrder(ord); setIsDetailOpen(true); }} id={`order_card_${ord.id}`}>
-              <div className="order-row-main flex-1 min-w-0">
-                <div className="order-row-meta flex items-center gap-2 flex-wrap">
-                  <span className="order-row-date">{ord.status === OrderStatus.VALIDATED ? (ord.validatedAt || ord.date) : ord.date}</span>
-                  <span className={`order-status-chip status-${String(ord.status).toLowerCase()}`}>{orderStatusLabel(ord.status)}</span>
-                  {ord.synced === false && <span className="order-offline-chip">Hors ligne · en attente de sync</span>}
-                </div>
-                <h3 className="order-row-customer">{ord.customerName}</h3>
-                <p className="order-row-summary">{ord.refCommande || ord.id} · {ord.items.length} article(s) · {ord.totalCC.toFixed(3)} CC</p>
-                <div className="order-row-financials"><strong className="order-row-total">{ord.totalRetail.toLocaleString('fr-FR')} FCFA</strong>{isCountedOrder(ord) && <span className="order-margin-chip">+{ord.totalMargin.toLocaleString('fr-FR')} FCFA marge</span>}</div>
-              </div>
-              <div className="order-row-chevron"><ChevronRight className="w-5 h-5" /></div>
-            </Card>
-          ))}
-        </div>
+        <OrdersList
+          orders={sortedOrders}
+          onOpen={(ord) => {
+            setSelectedOrder(ord);
+            setIsDetailOpen(true);
+          }}
+        />
       ) : (
-        <div className="orders-kanban-board" id="orders_kanban_board">
-          {kanbanStatuses.map(status => {
-            const columnOrders = sortedOrders.filter(order => order.status === status);
-            return (
-              <section className="orders-kanban-column" key={status}>
-                <header><strong>{orderStatusLabel(status)}</strong><span>{columnOrders.length}</span></header>
-                <div className="orders-kanban-cards">
-                  {columnOrders.length === 0 ? <p className="orders-kanban-empty">Aucune commande</p> : columnOrders.map(ord => (
-                    <button type="button" key={ord.id} className="orders-kanban-card" onClick={() => { setSelectedOrder(ord); setIsDetailOpen(true); }}>
-                      <span className="orders-kanban-ref">{ord.refCommande || ord.id}</span>
-                      <strong>{ord.customerName}</strong>
-                      <span>{ord.items.length} article(s) · {ord.paiement}</span>
-                      <b>{ord.totalRetail.toLocaleString('fr-FR')} FCFA</b>
-                      <small>{ord.date}</small>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-        </div>
+        <OrdersKanban
+          orders={sortedOrders}
+          statuses={kanbanStatuses}
+          onOpen={(ord) => {
+            setSelectedOrder(ord);
+            setIsDetailOpen(true);
+          }}
+        />
       )}
-
       {/* 4. DRAWER: ADD ORDER BON DE VENTE */}
       <Drawer
         isOpen={isNewOrderOpen}
