@@ -13,14 +13,19 @@ import { useSortPref, sortList, cmpText, CLIENT_SORT_OPTIONS } from '../lib/sort
 import { computePurchaseFollowUp, purchaseAnchorDate } from '../lib/postPurchaseService';
 import { motion } from 'motion/react';
 import { computeConversionStats } from '../lib/conversionService';
-import { 
-  Search, 
-  UserPlus, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  ShoppingBag, 
-  Clipboard, 
+import { ClientsKpiCard } from '../components/ui/clients/ClientsKpiCard';
+import {
+  ClientsFiltersSheet,
+  type ClientView,
+} from '../components/ui/clients/ClientsFiltersSheet';
+import {
+  Search,
+  UserPlus,
+  Phone,
+  Mail,
+  MapPin,
+  ShoppingBag,
+  Clipboard,
   Calendar,
   Layers,
   ChevronRight,
@@ -34,7 +39,9 @@ import {
   Users,
   MapPin as MapPinIcon,
   Award,
-  ThumbsUp
+  ThumbsUp,
+  Bell,
+  Filter,
 } from 'lucide-react';
 
 const cleanPhoneForWhatsApp = (phoneStr: string) => {
@@ -43,7 +50,6 @@ const cleanPhoneForWhatsApp = (phoneStr: string) => {
     cleaned = cleaned.substring(2);
   }
   if (cleaned.length === 9) {
-    // Congo-Brazzaville : préfixes 06 (Airtel) et 05 (MTN)
     if (cleaned.startsWith('06') || cleaned.startsWith('05') || cleaned.startsWith('04')) {
       return '242' + cleaned.substring(1);
     }
@@ -58,21 +64,32 @@ const cleanPhoneForWhatsApp = (phoneStr: string) => {
   return cleaned;
 };
 
+const MONTHS_FR = [
+  'Janvier','Février','Mars','Avril','Mai','Juin',
+  'Juillet','Août','Septembre','Octobre','Novembre','Décembre',
+];
+const MONTHS_OPTIONS = MONTHS_FR.map((label, i) => ({ value: i + 1, label }));
+
 export const ClientsView: React.FC = () => {
   const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomersStore();
   const { products } = useProductsStore();
   const { orders, updateOrder } = useOrdersStore();
-  
-  // States
+
+  // États
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeClientView, setActiveClientView] = useState<'ALL' | 'VIP' | 'NO_ORDER'>('ALL');
+  const [activeClientView, setActiveClientView] = useState<ClientView>('ALL');
   const [clientSort, setClientSort] = useSortPref('fcf-sort-clients', CLIENT_SORT_OPTIONS, 'name_asc');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isFiltersSheetOpen, setIsFiltersSheetOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState<'INFO' | 'ORDERS' | 'HISTORY' | 'NOTES'>('INFO');
+
   useEffect(() => {
-    const openForm = () => { sessionStorage.removeItem('fcf-open-new-client'); setIsAddOpen(true); };
+    const openForm = () => {
+      sessionStorage.removeItem('fcf-open-new-client');
+      setIsAddOpen(true);
+    };
     if (sessionStorage.getItem('fcf-open-new-client') === '1') {
       sessionStorage.removeItem('fcf-open-new-client');
       openForm();
@@ -81,75 +98,78 @@ export const ClientsView: React.FC = () => {
     return () => window.removeEventListener('fcf-open-new-client', openForm);
   }, []);
 
-
-  // Période sélectionnée pour le rapport VIP
-  // Recalculer la date courante dynamiquement pour détecter le changement de mois
+  // Date ref (détecte changement de mois)
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const interval = setInterval(() => {
       const n = new Date();
-      setNow(prev => (n.getMonth() !== prev.getMonth() || n.getFullYear() !== prev.getFullYear()) ? n : prev);
+      setNow(prev =>
+        n.getMonth() !== prev.getMonth() || n.getFullYear() !== prev.getFullYear() ? n : prev,
+      );
     }, 60_000);
     return () => clearInterval(interval);
   }, []);
+
   const navigate = useNavigate();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1); // 1-12
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
 
-  // Input states
-    const [newName, setNewName] = useState('');
-    const [newEmail, setNewEmail] = useState('');
-    const [newPhone, setNewPhone] = useState('');
-    const [newAddress, setNewAddress] = useState('');
-    const [newVille, setNewVille] = useState('');
-    const [newDateNaissance, setNewDateNaissance] = useState('');
-    const [newSourceProspection, setNewSourceProspection] = useState<'META_ADS' | 'RECOMMANDATION' | 'BOUCHE_OREILLE' | 'EVENEMENT' | 'AUTRE'>('AUTRE');
-    const [newIsCP, setNewIsCP] = useState(false);
-    const [newNotes, setNewNotes] = useState('');
-    const [notesSavedFeedback, setNotesSavedFeedback] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // Champs formulaire d'ajout
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newAddress, setNewAddress] = useState('');
+  const [newVille, setNewVille] = useState('');
+  const [newDateNaissance, setNewDateNaissance] = useState('');
+  const [newSourceProspection, setNewSourceProspection] = useState<'META_ADS' | 'RECOMMANDATION' | 'BOUCHE_OREILLE' | 'EVENEMENT' | 'AUTRE'>('AUTRE');
+  const [newIsCP, setNewIsCP] = useState(false);
+  const [newNotes, setNewNotes] = useState('');
+  const [notesSavedFeedback, setNotesSavedFeedback] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Filtering list
+  // Reset centralisé du formulaire de création
+  const resetAddForm = () => {
+    setNewName('');
+    setNewEmail('');
+    setNewPhone('');
+    setNewAddress('');
+    setNewVille('');
+    setNewDateNaissance('');
+    setNewSourceProspection('AUTRE');
+    setNewIsCP(false);
+    setNewNotes('');
+  };
+
+  // Clients (statut CLIENT uniquement)
   const clients = customers.filter(c => c.status === CustomerStatus.CLIENT);
 
   const handleAddSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!newName || !newPhone) return;
+    e.preventDefault();
+    if (!newName || !newPhone) return;
 
-      addCustomer({
-        name: newName,
-        email: newEmail,
-        phone: newPhone,
-        address: newAddress,
-        ville: newVille,
-        dateNaissance: newDateNaissance,
-        sourceProspection: newSourceProspection,
-        isCP: newIsCP,
-        status: CustomerStatus.CLIENT,
-        pipelineStage: 'CLOSED_WON', // Won already as customer
-        lastContactDate: new Date().toISOString().split('T')[0],
-        notes: newNotes
-      });
+    addCustomer({
+      name: newName,
+      email: newEmail,
+      phone: newPhone,
+      address: newAddress,
+      ville: newVille,
+      dateNaissance: newDateNaissance,
+      sourceProspection: newSourceProspection,
+      isCP: newIsCP,
+      status: CustomerStatus.CLIENT,
+      pipelineStage: 'CLOSED_WON',
+      lastContactDate: new Date().toISOString().split('T')[0],
+      notes: newNotes,
+    });
 
-      // Reset Form
-      setNewName('');
-      setNewEmail('');
-      setNewPhone('');
-      setNewAddress('');
-      setNewVille('');
-      setNewDateNaissance('');
-      setNewSourceProspection('AUTRE');
-      setNewIsCP(false);
-      setNewNotes('');
-      setIsAddOpen(false);
-    };
-
-  // Get orders specifically for a specific client
-  const getClientOrders = (clientId: string) => {
-    return orders.filter(o => o.customerId === clientId);
+    resetAddForm();
+    setIsAddOpen(false);
   };
 
-  // #6 Statut VIP : >= 3 achats valides OU >= 100 000 F cumulés
+  const getClientOrders = (clientId: string) =>
+    orders.filter(o => o.customerId === clientId);
+
+  // VIP : top 3 du mois OU >= 3 achats validés OU >= 100 000 F cumulés
   const isVipClient = (clientId: string): boolean => {
     const validated = getClientOrders(clientId).filter(isCountedOrder);
     if (validated.length >= 3) return true;
@@ -157,7 +177,6 @@ export const ClientsView: React.FC = () => {
     return total >= 100000;
   };
 
-  // #4 Produits à recommander après un Clean 9 : Vital5 si pas déjà pris récemment
   const getRecommendedProductIds = (clientId: string): string[] => {
     const validated = getClientOrders(clientId)
       .filter(isCountedOrder)
@@ -179,7 +198,6 @@ export const ClientsView: React.FC = () => {
     return { spent, cc };
   };
 
-  // Commandes validées d un client sur le mois selectionne
   const getClientOrdersForMonth = (clientId: string) => {
     return orders.filter(o => {
       if (!isCountedOrder(o)) return false;
@@ -191,42 +209,57 @@ export const ClientsView: React.FC = () => {
   const getClientMonthStats = (clientId: string) => {
     const monthOrders = getClientOrdersForMonth(clientId);
     const spent = monthOrders.reduce((s, o) => s + o.totalRetail, 0);
-    const cc    = monthOrders.reduce((s, o) => s + o.totalCC, 0);
+    const cc = monthOrders.reduce((s, o) => s + o.totalCC, 0);
     const margin = monthOrders.reduce((s, o) => s + o.totalMargin, 0);
     return { spent, cc, margin, count: monthOrders.length };
   };
 
-  // Classement VIP du mois (clients ayant au moins 1 commande validée)
+  // Classement VIP du mois
   const vipRanking = clients
     .map(c => ({ client: c, ...getClientMonthStats(c.id) }))
     .filter(r => r.count > 0)
     .sort((a, b) => b.spent - a.spent);
 
   const isVip = (clientId: string) =>
-    // Top 3 du mois OU VIP vie entière (#6 : >= 3 achats ou >= 100k F cumulés)
-    (vipRanking.findIndex(r => r.client.id === clientId) < 3 && vipRanking.some(r => r.client.id === clientId)) ||
+    (vipRanking.findIndex(r => r.client.id === clientId) < 3 &&
+      vipRanking.some(r => r.client.id === clientId)) ||
     isVipClient(clientId);
 
-  // ── Tri de la liste clients ──
+  // À relancer : aucun contact depuis > 30 jours
+  const isRelance = (c: Customer): boolean => {
+    if (c.status !== CustomerStatus.CLIENT) return false;
+    const last = c.lastContactDate ? new Date(c.lastContactDate) : null;
+    if (!last || isNaN(last.getTime())) return true;
+    const days = Math.floor((Date.now() - last.getTime()) / 86400000);
+    return days > 30;
+  };
+
   const lastOrderDate = (clientId: string): string =>
     getClientOrders(clientId)
       .filter(isCountedOrder)
-      .reduce((m, o) => { const d = o.validatedAt || o.date; return d > m ? d : m; }, '');
+      .reduce((m, o) => {
+        const d = o.validatedAt || o.date;
+        return d > m ? d : m;
+      }, '');
 
   const filteredClients = clients.filter(cl => {
     const query = searchTerm.trim().toLowerCase();
-    const matchesSearch = !query ||
+    const matchesSearch =
+      !query ||
       cl.name.toLowerCase().includes(query) ||
       cl.phone.includes(query) ||
       (cl.address || '').toLowerCase().includes(query) ||
       (cl.ville || '').toLowerCase().includes(query);
+
     const matchesView =
       activeClientView === 'ALL' ||
       (activeClientView === 'VIP' && isVip(cl.id)) ||
-      (activeClientView === 'NO_ORDER' && !lastOrderDate(cl.id));
+      (activeClientView === 'NO_ORDER' && !lastOrderDate(cl.id)) ||
+      (activeClientView === 'RELANCE' && isRelance(cl));
+
     return matchesSearch && matchesView;
   });
-  // Clients sans commande : toujours en fin de liste
+
   const lastCmp = (dir: 1 | -1) => (a: Customer, b: Customer): number => {
     const da = lastOrderDate(a.id), db = lastOrderDate(b.id);
     if (!da && !db) return cmpText(a.name, b.name);
@@ -234,6 +267,7 @@ export const ClientsView: React.FC = () => {
     if (!db) return -1;
     return dir * da.localeCompare(db) || cmpText(a.name, b.name);
   };
+
   const clientComparators: Record<string, (a: Customer, b: Customer) => number> = {
     name_asc:     (a, b) => cmpText(a.name, b.name),
     name_desc:    (a, b) => cmpText(b.name, a.name),
@@ -244,12 +278,37 @@ export const ClientsView: React.FC = () => {
     created_desc: (a, b) => (b.createdAt || '').localeCompare(a.createdAt || '') || cmpText(a.name, b.name),
     created_asc:  (a, b) => (a.createdAt || '').localeCompare(b.createdAt || '') || cmpText(a.name, b.name),
   };
+
   const sortedClients = sortList(filteredClients, clientSort, clientComparators);
 
-  const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
   const periodLabel = `${MONTHS_FR[selectedMonth - 1]} ${selectedYear}`;
 
-  // Export PDF du rapport VIP via iframe isolée
+  // Années disponibles
+  const years = Array.from(
+    new Set([now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1]),
+  ).sort((a, b) => b - a);
+
+  // KPI computed (affichage pur)
+  const monthStart = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+  const monthEnd = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-31`;
+  const activeClientsCount = clients.length;
+  const vipCount = clients.filter(c => isVip(c.id)).length;
+  const relanceCount = clients.filter(isRelance).length;
+  const noOrderCount = clients.filter(c => !lastOrderDate(c.id)).length;
+  const monthlyRevenue = vipRanking.reduce((s, r) => s + r.spent, 0);
+  const newClientsCount = clients.filter(c => {
+    const created = (c.createdAt || '').slice(0, 10);
+    return created >= monthStart && created <= monthEnd;
+  }).length;
+
+  const viewCounts: Record<ClientView, number> = {
+    ALL: activeClientsCount,
+    VIP: vipCount,
+    RELANCE: relanceCount,
+    NO_ORDER: noOrderCount,
+  };
+
+  // Export PDF VIP (inchangé, extrait dans son handler)
   const handleExportVipPDF = () => {
     const canvas = document.getElementById('clients_vip_printable');
     if (!canvas) return;
@@ -307,7 +366,10 @@ export const ClientsView: React.FC = () => {
     setTimeout(() => {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
-      const cleanup = () => { try { document.body.removeChild(iframe); } catch {} window.removeEventListener('afterprint', cleanup); };
+      const cleanup = () => {
+        try { document.body.removeChild(iframe); } catch {}
+        window.removeEventListener('afterprint', cleanup);
+      };
       window.addEventListener('afterprint', cleanup);
       setTimeout(cleanup, 3000);
     }, 600);
@@ -318,20 +380,16 @@ export const ClientsView: React.FC = () => {
     updateCustomer({
       ...selectedClient,
       notes: newNotes,
-      lastContactDate: new Date().toISOString().split('T')[0]
+      lastContactDate: new Date().toISOString().split('T')[0],
     });
-    // Sync state
     setSelectedClient(prev => prev ? { ...prev, notes: newNotes } : null);
-    
     setNotesSavedFeedback(true);
-    setTimeout(() => {
-      setNotesSavedFeedback(false);
-    }, 4000);
+    setTimeout(() => setNotesSavedFeedback(false), 4000);
   };
 
   return (
     <div className="crm-view clients-view" id="clients_view_container">
-      
+
       {/* 1. Header with Add button */}
       <div className="crm-page-header">
         <div>
@@ -344,14 +402,66 @@ export const ClientsView: React.FC = () => {
         <button
           onClick={() => setIsAddOpen(true)}
           className="py-3 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-2xl active:scale-95 transition-all flex items-center gap-2 shrink-0 h-12"
-          id="client_add_btn" aria-label="Ajouter un client"
+          id="client_add_btn"
+          aria-label="Ajouter un client"
         >
           <UserPlus className="w-4 h-4" />
           AJOUTER UN CLIENT
         </button>
       </div>
 
-      {/* 2. Sélecteur de période + export VIP */}
+      {/* 2. KPI strip — affichage pur, pas de drill-down */}
+      <div className="clients-kpi-grid">
+        <ClientsKpiCard
+          label="Clients actifs"
+          value={String(activeClientsCount)}
+          hint={`${noOrderCount} sans achat`}
+          icon={<Users size={16} />}
+          tone="blue"
+        />
+        <ClientsKpiCard
+          label="Clients VIP"
+          value={String(vipCount)}
+          hint="Top achats du mois ou fidèles"
+          icon={<Star size={16} />}
+          tone="gold"
+        />
+        <ClientsKpiCard
+          label={`CA du mois`}
+          value={`${Math.round(monthlyRevenue).toLocaleString('fr-FR').replace(/\u202f/g, ' ')} F`}
+          hint={periodLabel}
+          icon={<TrendingUp size={16} />}
+          tone="emerald"
+        />
+        <ClientsKpiCard
+          label="À relancer"
+          value={String(relanceCount)}
+          hint="Aucun contact > 30 jours"
+          icon={<Bell size={16} />}
+          tone="rose"
+        />
+      </div>
+
+      {/* 3. Bandeau "clients à relancer" si non vide */}
+      {relanceCount > 0 && activeClientView !== 'RELANCE' && (
+        <div className="clients-relance-banner">
+          <div>
+            <Bell size={16} className="text-amber-600 shrink-0" />
+            <strong>
+              {relanceCount} client{relanceCount > 1 ? 's' : ''} à relancer
+            </strong>
+            <span>· Aucun contact depuis plus de 30 jours</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveClientView('RELANCE')}
+          >
+            Voir la liste
+          </button>
+        </div>
+      )}
+
+      {/* 4. Toolbar : période desktop (masqué mobile) + recherche + filtres compacts */}
       <div className="clients-period-toolbar flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-1.5 bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 flex-1 min-w-0">
           <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -360,8 +470,8 @@ export const ClientsView: React.FC = () => {
             onChange={e => setSelectedMonth(Number(e.target.value))}
             className="text-xs font-bold text-slate-700 dark:text-slate-200 bg-transparent focus:outline-none cursor-pointer"
           >
-            {['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'].map((m, i) => (
-              <option key={i} value={i + 1}>{m}</option>
+            {MONTHS_OPTIONS.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
             ))}
           </select>
           <select
@@ -369,7 +479,7 @@ export const ClientsView: React.FC = () => {
             onChange={e => setSelectedYear(Number(e.target.value))}
             className="text-xs font-bold text-slate-700 dark:text-slate-200 bg-transparent focus:outline-none cursor-pointer ml-1"
           >
-            {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => (
+            {years.map(y => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
@@ -386,28 +496,16 @@ export const ClientsView: React.FC = () => {
         )}
       </div>
 
-      {/* 2b. Résumé VIP du mois (si données) */}
-      {vipRanking.length > 0 && (
-        <div className="clients-vip-summary bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 rounded-2xl p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Star className="w-3.5 h-3.5 text-amber-500" />
-            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">{vipRanking.length} client{vipRanking.length > 1 ? 's' : ''} actif{vipRanking.length > 1 ? 's' : ''} en {periodLabel}</span>
-          </div>
-          <div className="flex gap-3 text-[10px] text-slate-600 dark:text-slate-400 font-medium">
-            <span>CA total : <strong className="text-amber-600 dark:text-amber-400">{vipRanking.reduce((s, r) => s + r.spent, 0).toLocaleString()} F</strong></span>
-            <span>•</span>
-            <span>CC total : <strong className="text-blue-600 dark:text-blue-400">{vipRanking.reduce((s, r) => s + r.cc, 0).toFixed(3)} CC</strong></span>
-          </div>
-        </div>
-      )}
-
-      {/* Vues rapides du portefeuille client */}
+      {/* 4b. Vues rapides desktop (masquées mobile) */}
       <div className="clients-saved-views" role="tablist" aria-label="Vues clients">
-        {([
-          ['ALL', 'Tous', clients.length],
-          ['VIP', 'VIP', clients.filter(client => isVip(client.id)).length],
-          ['NO_ORDER', 'Sans achat', clients.filter(client => !lastOrderDate(client.id)).length],
-        ] as const).map(([view, label, count]) => (
+        {(
+          [
+            ['ALL', 'Tous', activeClientsCount],
+            ['VIP', 'VIP', vipCount],
+            ['RELANCE', 'À relancer', relanceCount],
+            ['NO_ORDER', 'Sans achat', noOrderCount],
+          ] as [ClientView, string, number][]
+        ).map(([view, label, count]) => (
           <button
             key={view}
             type="button"
@@ -421,27 +519,45 @@ export const ClientsView: React.FC = () => {
         ))}
       </div>
 
-      {/* Recherche du portefeuille */}
-      <div className="relative clients-search-wrap">
-        <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
-          <Search className="w-5 h-5" />
-        </span>
-        <input
-          type="text"
-          placeholder="Rechercher par nom, téléphone, adresse..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-11 pr-4 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all h-12"
-          id="client_search_input"
-        />
+      {/* 5. Toolbar compacte : recherche + filtres (mobile-friendly) */}
+      <div className="clients-toolbar-compact">
+        <div className="relative clients-search-wrap">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+            <Search className="w-5 h-5" />
+          </span>
+          <input
+            type="text"
+            placeholder="Rechercher par nom, téléphone, adresse..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-11 pr-4 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all h-12"
+            id="client_search_input"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsFiltersSheetOpen(true)}
+          className="clients-filters-btn"
+          aria-label="Ouvrir les filtres"
+        >
+          <Filter size={14} />
+          <span className="clients-filters-count">{viewCounts[activeClientView]}</span>
+        </button>
       </div>
 
       <div className="clients-list-toolbar flex items-center justify-between gap-2">
-        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{filteredClients.length} client{filteredClients.length > 1 ? 's' : ''}</span>
-        <SortSelect options={CLIENT_SORT_OPTIONS} value={clientSort} onChange={setClientSort} id="clients_sort_select" />
+        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+          {filteredClients.length} client{filteredClients.length > 1 ? 's' : ''}
+        </span>
+        <SortSelect
+          options={CLIENT_SORT_OPTIONS}
+          value={clientSort}
+          onChange={setClientSort}
+          id="clients_sort_select"
+        />
       </div>
 
-      {/* Portefeuille : tableau desktop et cartes mobiles */}
+      {/* 6. Portefeuille : table desktop + cards mobile */}
       <div className="clients-results" id="clients_listing_area">
         {sortedClients.length === 0 ? (
           <Card className="clients-empty-state text-center py-10">
@@ -451,7 +567,14 @@ export const ClientsView: React.FC = () => {
                 : 'Aucun client. Ajoutez votre premier client pour commencer.'}
             </p>
             {(searchTerm || activeClientView !== 'ALL') && (
-              <button type="button" onClick={() => { setSearchTerm(''); setActiveClientView('ALL'); }} className="clients-reset-filter">
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setActiveClientView('ALL');
+                }}
+                className="clients-reset-filter"
+              >
                 Réinitialiser les filtres
               </button>
             )}
@@ -462,8 +585,12 @@ export const ClientsView: React.FC = () => {
               <table className="clients-table">
                 <thead>
                   <tr>
-                    <th>Client</th><th>Ville</th><th>Dernier achat</th><th>Segment</th>
-                    <th className="is-numeric">CA cumulé</th><th className="is-numeric">Volume</th>
+                    <th>Client</th>
+                    <th>Ville</th>
+                    <th>Dernier achat</th>
+                    <th>Segment</th>
+                    <th className="is-numeric">CA cumulé</th>
+                    <th className="is-numeric">Volume</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -471,21 +598,57 @@ export const ClientsView: React.FC = () => {
                     const { spent, cc } = getClientTotalSpendAndCC(c.id);
                     const initials = c.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
                     const lastPurchase = lastOrderDate(c.id);
+                    const relance = isRelance(c);
                     return (
                       <tr key={c.id}>
                         <td>
-                          <button type="button" className="client-open-button" onClick={() => {
-                            setSelectedClient(c); setNewNotes(c.notes || ''); setActiveTab('INFO'); setIsDetailOpen(true);
-                          }} aria-label={'Ouvrir la fiche de ' + c.name}>
+                          <button
+                            type="button"
+                            className="client-open-button"
+                            onClick={() => {
+                              setSelectedClient(c);
+                              setNewNotes(c.notes || '');
+                              setActiveTab('INFO');
+                              setIsDetailOpen(true);
+                            }}
+                            aria-label={'Ouvrir la fiche de ' + c.name}
+                          >
                             <span className="client-table-avatar">{initials || 'CL'}</span>
-                            <span className="client-table-identity"><strong>{c.name}</strong><small>{c.phone}</small></span>
-                            {c.synced === false && <span className="client-offline-dot" title="En attente de synchronisation" />}
+                            <span className="client-table-identity">
+                              <strong>{c.name}</strong>
+                              <small>{c.phone}</small>
+                            </span>
+                            {c.synced === false && (
+                              <span className="client-offline-dot" title="En attente de synchronisation" />
+                            )}
                           </button>
                         </td>
                         <td>{c.ville || '—'}</td>
-                        <td>{lastPurchase ? new Date(lastPurchase).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' }) : 'Aucun achat'}</td>
-                        <td>{isVip(c.id) ? <span className="client-segment client-segment-vip"><Star size={12} /> VIP</span> : <span className="client-segment">Client</span>}</td>
-                        <td className="is-numeric clients-spend">{spent.toLocaleString('fr-FR')} F</td>
+                        <td>
+                          {lastPurchase
+                            ? new Date(lastPurchase).toLocaleDateString('fr-FR', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })
+                            : 'Aucun achat'}
+                        </td>
+                        <td>
+                          {isVip(c.id) ? (
+                            <span className="client-segment client-segment-vip">
+                              <Star size={12} /> VIP
+                            </span>
+                          ) : relance ? (
+                            <span className="client-segment client-segment-vip" style={{ background: 'color-mix(in oklab, var(--fcf-danger) 12%, var(--fcf-surface))', color: 'var(--fcf-danger)', borderColor: 'color-mix(in oklab, var(--fcf-danger) 30%, var(--fcf-border))' }}>
+                              <Bell size={12} /> À relancer
+                            </span>
+                          ) : (
+                            <span className="client-segment">Client</span>
+                          )}
+                        </td>
+                        <td className="is-numeric clients-spend">
+                          {spent.toLocaleString('fr-FR')} F
+                        </td>
                         <td className="is-numeric clients-volume">{cc.toFixed(3)} CC</td>
                       </tr>
                     );
@@ -493,18 +656,37 @@ export const ClientsView: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
             <div className="clients-mobile-list">
               {sortedClients.map(c => {
                 const { spent, cc } = getClientTotalSpendAndCC(c.id);
                 const initials = c.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
                 const lastPurchase = lastOrderDate(c.id);
                 return (
-                  <Card key={c.id} className="client-mobile-row" onClick={() => {
-                    setSelectedClient(c); setNewNotes(c.notes || ''); setActiveTab('INFO'); setIsDetailOpen(true);
-                  }} id={'client_card_' + c.id}>
+                  <Card
+                    key={c.id}
+                    className="client-mobile-row"
+                    onClick={() => {
+                      setSelectedClient(c);
+                      setNewNotes(c.notes || '');
+                      setActiveTab('INFO');
+                      setIsDetailOpen(true);
+                    }}
+                    id={'client_card_' + c.id}
+                  >
                     <span className="client-table-avatar">{initials || 'CL'}</span>
-                    <span className="client-mobile-identity"><strong>{c.name}</strong><small>{lastPurchase ? 'Achat le ' + new Date(lastPurchase).toLocaleDateString('fr-FR') : 'Aucun achat enregistré'}</small></span>
-                    <span className="client-mobile-metrics"><strong>{spent.toLocaleString('fr-FR')} F</strong><small>{cc.toFixed(3)} CC</small></span>
+                    <span className="client-mobile-identity">
+                      <strong>{c.name}</strong>
+                      <small>
+                        {lastPurchase
+                          ? 'Achat le ' + new Date(lastPurchase).toLocaleDateString('fr-FR')
+                          : 'Aucun achat enregistré'}
+                      </small>
+                    </span>
+                    <span className="client-mobile-metrics">
+                      <strong>{spent.toLocaleString('fr-FR')} F</strong>
+                      <small>{cc.toFixed(3)} CC</small>
+                    </span>
                     <ChevronRight size={17} />
                   </Card>
                 );
@@ -514,8 +696,32 @@ export const ClientsView: React.FC = () => {
         )}
       </div>
 
-      {/* 4. DRAWER: ADD CLIENT */}
-      <Drawer isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Nouveau Client Forever">
+      {/* 7. Sheet filtres (mobile) */}
+      <ClientsFiltersSheet
+        isOpen={isFiltersSheetOpen}
+        onClose={() => setIsFiltersSheetOpen(false)}
+        activeView={activeClientView}
+        onChangeView={setActiveClientView}
+        counts={viewCounts}
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
+        onChangeMonth={setSelectedMonth}
+        onChangeYear={setSelectedYear}
+        years={years}
+        months={MONTHS_OPTIONS}
+        onExportVipPDF={handleExportVipPDF}
+        showVipExport={vipRanking.length > 0}
+      />
+
+      {/* 8. DRAWER : Ajouter un client */}
+      <Drawer
+        isOpen={isAddOpen}
+        onClose={() => {
+          setIsAddOpen(false);
+          resetAddForm();
+        }}
+        title="Nouveau Client Forever"
+      >
         <form onSubmit={handleAddSubmit} className="space-y-4">
           <div>
             <label className="text-xs font-bold text-slate-500 block mb-1">Nom du client *</label>
@@ -530,66 +736,70 @@ export const ClientsView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-bold text-slate-500 block mb-1">Téléphone *</label>
-                        <input
-                          type="tel"
-                          required
-                          inputMode="tel"
-                          value={newPhone}
-                          onChange={(e) => setNewPhone(e.target.value)}
-                          placeholder="ex. +242 06 xxx xxxx"
-                          className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-500 block mb-1">E-mail</label>
-                        <input
-                          type="email"
-                          value={newEmail}
-                          onChange={(e) => setNewEmail(e.target.value)}
-                          placeholder="ex. marie@gmail.com"
-                          className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-                        />
-                      </div>
-                    </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 block mb-1">Téléphone *</label>
+              <input
+                type="tel"
+                required
+                inputMode="tel"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                placeholder="ex. +242 06 xxx xxxx"
+                className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 block mb-1">E-mail</label>
+              <input
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="ex. marie@gmail.com"
+                className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
+              />
+            </div>
+          </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-bold text-slate-500 block mb-1">Ville</label>
-                        <input
-                          type="text"
-                          value={newVille}
-                          onChange={(e) => setNewVille(e.target.value)}
-                          placeholder="ex. Brazzaville"
-                          className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-500 block mb-1">Date Naissance</label>
-                        <input
-                          type="date"
-                          value={newDateNaissance}
-                          onChange={(e) => setNewDateNaissance(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-                        />
-                      </div>
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-500 block mb-1">Ville</label>
+              <input
+                type="text"
+                value={newVille}
+                onChange={(e) => setNewVille(e.target.value)}
+                placeholder="ex. Brazzaville"
+                className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 block mb-1">Date Naissance</label>
+              <input
+                type="date"
+                value={newDateNaissance}
+                onChange={(e) => setNewDateNaissance(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
+              />
+            </div>
+          </div>
 
-                    <div>
-                      <label className="text-xs font-bold text-slate-500 block mb-1">Source Prospection</label>
-                      <select
-                        value={newSourceProspection}
-                        onChange={(e) => setNewSourceProspection(e.target.value as 'META_ADS' | 'RECOMMANDATION' | 'BOUCHE_OREILLE' | 'EVENEMENT' | 'AUTRE')}
-                        className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-                      >
-                        <option value="META_ADS">📊 Meta Ads</option>
-                        <option value="RECOMMANDATION">🤝 Recommandation</option>
-                        <option value="BOUCHE_OREILLE">👄 Bouche-à-oreille</option>
-                        <option value="EVENEMENT">🎪 Événement</option>
-                        <option value="AUTRE">➕ Autre</option>
-                      </select>
-                    </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 block mb-1">Source Prospection</label>
+            <select
+              value={newSourceProspection}
+              onChange={(e) =>
+                setNewSourceProspection(
+                  e.target.value as 'META_ADS' | 'RECOMMANDATION' | 'BOUCHE_OREILLE' | 'EVENEMENT' | 'AUTRE',
+                )
+              }
+              className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
+            >
+              <option value="META_ADS">📊 Meta Ads</option>
+              <option value="RECOMMANDATION">🤝 Recommandation</option>
+              <option value="BOUCHE_OREILLE">👄 Bouche-à-oreille</option>
+              <option value="EVENEMENT">🎪 Événement</option>
+              <option value="AUTRE">➕ Autre</option>
+            </select>
+          </div>
 
           <div>
             <label className="text-xs font-bold text-slate-500 block mb-1">Adresse de livraison</label>
@@ -605,10 +815,19 @@ export const ClientsView: React.FC = () => {
           <div className="rounded-2xl border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/60 dark:bg-amber-950/20 p-3.5 space-y-2">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block">Tarif client</label>
             <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={newIsCP} onChange={(e) => setNewIsCP(e.target.checked)} className="h-4 w-4 accent-amber-500" />
-              <span className="text-sm font-bold text-slate-800 dark:text-slate-100">Ce client bénéficie du tarif CP</span>
+              <input
+                type="checkbox"
+                checked={newIsCP}
+                onChange={(e) => setNewIsCP(e.target.checked)}
+                className="h-4 w-4 accent-amber-500"
+              />
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                Ce client bénéficie du tarif CP
+              </span>
             </label>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400">Le tarif CP sera appliqué automatiquement à ses prochaines commandes.</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              Le tarif CP sera appliqué automatiquement à ses prochaines commandes.
+            </p>
           </div>
 
           <div>
@@ -631,7 +850,7 @@ export const ClientsView: React.FC = () => {
         </form>
       </Drawer>
 
-      {/* 5. DRAWER: TABS DETAILS (INFO / ORDERS / NOTES) */}
+      {/* 9. DRAWER : Détail client (4 tabs) */}
       <Drawer
         variant="side"
         isOpen={isDetailOpen && selectedClient !== null}
@@ -643,8 +862,8 @@ export const ClientsView: React.FC = () => {
       >
         {selectedClient && (
           <div className="space-y-6">
-            
-            {/* Quick click-call shortcut */}
+
+            {/* Actions rapides */}
             <div className="flex gap-2">
               <a
                 href={`tel:${selectedClient.phone}`}
@@ -665,7 +884,6 @@ export const ClientsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  // Pont vers OrdersView : client pré-sélectionné + produits recommandés
                   sessionStorage.setItem('fcf-new-order-customer', selectedClient.id);
                   const recos = getRecommendedProductIds(selectedClient.id);
                   if (recos.length > 0) {
@@ -675,158 +893,194 @@ export const ClientsView: React.FC = () => {
                   navigate('/orders');
                 }}
                 className="flex-1 py-3 px-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
-                title={getRecommendedProductIds(selectedClient.id).length > 0 ? 'Avec recommandation pré-chargée' : 'Nouvelle commande pour ce client'}
+                title={
+                  getRecommendedProductIds(selectedClient.id).length > 0
+                    ? 'Avec recommandation pré-chargée'
+                    : 'Nouvelle commande pour ce client'
+                }
               >
                 <ShoppingBag className="w-4 h-4" />
                 Passer commande
               </button>
             </div>
 
-            {/* Tap Navigation Switches inside Drawer */}
-            <div className="flex border-b border-slate-100 dark:border-slate-800 pb-2 gap-4">
-              {(['INFO', 'ORDERS', 'HISTORY', 'NOTES'] as const).map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`text-xs font-bold pb-2 transition-all outline-none ${
-                    activeTab === tab
-                      ? 'text-amber-500 border-b-2 border-amber-500'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  {tab === 'INFO' ? 'Informations' : tab === 'ORDERS' ? 'Commandes' : tab === 'HISTORY' ? 'Historique' : 'Notes & Suivi'}
-                </button>
-              ))}
+            {/* Navigation par tabs (pills scrollables) */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none" role="tablist">
+              {(['INFO', 'ORDERS', 'HISTORY', 'NOTES'] as const).map(tab => {
+                const active = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setActiveTab(tab)}
+                    className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-bold transition-all outline-none cursor-pointer ${
+                      active
+                        ? 'bg-amber-500 text-slate-950 shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {tab === 'INFO'
+                      ? 'Informations'
+                      : tab === 'ORDERS'
+                        ? 'Commandes'
+                        : tab === 'HISTORY'
+                          ? 'Historique'
+                          : 'Notes & Suivi'}
+                  </button>
+                );
+              })}
             </div>
 
             {/* TAB CONTENT: INFO */}
-                        {activeTab === 'INFO' && (
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/60 dark:bg-amber-950/20 p-4">
-                              <div className="min-w-0">
-                                <p className="text-xs font-black text-slate-800 dark:text-slate-100">Tarif client</p>
-                                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Détermine le prix appliqué à ses commandes.</p>
-                              </div>
-                              <select
-                                aria-label="Catégorie tarifaire du client"
-                                value={selectedClient.isCP ? 'CP' : 'PUBLIC'}
-                                onChange={(e) => {
-                                  const isCP = e.target.value === 'CP';
-                                  const updated = { ...selectedClient, isCP };
-                                  setSelectedClient(updated);
-                                  void updateCustomer(updated);
-                                }}
-                                className="shrink-0 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-black text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500"
-                              >
-                                <option value="PUBLIC">Public</option>
-                                <option value="CP">Client CP</option>
-                              </select>
-                            </div>
-                            <div className="space-y-3 bg-slate-50 dark:bg-[#2a2a2e]/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                              <div className="flex items-center gap-2 text-xs">
-                                <span className="text-slate-400 font-bold w-20 shrink-0">Téléphone:</span>
-                                <span className="text-slate-900 dark:text-slate-100 font-bold">{selectedClient.phone}</span>
-                              </div>
-                              {selectedClient.email && (
-                                <div className="flex items-center gap-2 text-xs">
-                                  <span className="text-slate-400 font-bold w-20 shrink-0">E-mail:</span>
-                                  <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedClient.email}</span>
-                                </div>
-                              )}
-                              {selectedClient.ville && (
-                                <div className="flex items-center gap-2 text-xs">
-                                  <span className="text-slate-400 font-bold w-20 shrink-0">
-                                    <MapPinIcon className="w-3.5 h-3.5" /> Ville:
-                                  </span>
-                                  <span className="text-slate-800 dark:text-slate-200 font-semibold truncate">{selectedClient.ville}</span>
-                                </div>
-                              )}
-                              {selectedClient.address && (
-                                <div className="flex items-center gap-2 text-xs">
-                                  <span className="text-slate-400 font-bold w-20 shrink-0">Adresse:</span>
-                                  <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedClient.address}</span>
-                                </div>
-                              )}
-                              {selectedClient.dateNaissance && (
-                                <div className="flex items-center gap-2 text-xs">
-                                  <span className="text-slate-400 font-bold w-20 shrink-0">
-                                    <Cake className="w-3.5 h-3.5" /> Anniv.:
-                                  </span>
-                                  <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedClient.dateNaissance}</span>
-                                </div>
-                              )}
-                              {selectedClient.sourceProspection && (
-                                <div className="flex items-center gap-2 text-xs">
-                                  <span className="text-slate-400 font-bold w-20 shrink-0">
-                                    <Users className="w-3.5 h-3.5" /> Source:
-                                  </span>
-                                  <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedClient.sourceProspection}</span>
-                                </div>
-                              )}
-                              <div className="flex items-center gap-2 text-xs">
-                                <span className="text-slate-400 font-bold w-20 shrink-0">Membre depuis:</span>
-                                <span className="text-slate-600 dark:text-slate-400 font-medium">{selectedClient.createdAt}</span>
-                              </div>
-                            </div>
+            {activeTab === 'INFO' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/60 dark:bg-amber-950/20 p-4">
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-slate-800 dark:text-slate-100">Tarif client</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Détermine le prix appliqué à ses commandes.
+                    </p>
+                  </div>
+                  <select
+                    aria-label="Catégorie tarifaire du client"
+                    value={selectedClient.isCP ? 'CP' : 'PUBLIC'}
+                    onChange={(e) => {
+                      const isCP = e.target.value === 'CP';
+                      const updated = { ...selectedClient, isCP };
+                      setSelectedClient(updated);
+                      void updateCustomer(updated);
+                    }}
+                    className="shrink-0 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-black text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500"
+                  >
+                    <option value="PUBLIC">Public</option>
+                    <option value="CP">Client CP</option>
+                  </select>
+                </div>
 
-                            <div className="p-4 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 rounded-2xl">
-                              <h4 className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Indicateurs de valeur</h4>
-                              <div className="grid grid-cols-2 gap-4 mt-3">
-                                <div>
-                                  <p className="text-[10px] text-slate-400 font-bold uppercase">Volume Total</p>
-                                  <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
-                                    {getClientTotalSpendAndCC(selectedClient.id).cc.toFixed(3)} CC
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-[10px] text-slate-400 font-bold uppercase">Chiffre d'Affaires</p>
-                                  <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
-                                    {getClientTotalSpendAndCC(selectedClient.id).spent.toLocaleString()} F
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-[10px] text-slate-400 font-bold uppercase">PV Total</p>
-                                  <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
-                                    {getClientTotalSpendAndCC(selectedClient.id).cc * 135} PV
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-[10px] text-slate-400 font-bold uppercase">BV Total</p>
-                                  <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
-                                    {getClientTotalSpendAndCC(selectedClient.id).cc.toFixed(3)} BV
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                <div className="space-y-3 bg-slate-50 dark:bg-[#2a2a2e]/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-slate-400 font-bold w-20 shrink-0">Téléphone:</span>
+                    <span className="text-slate-900 dark:text-slate-100 font-bold">{selectedClient.phone}</span>
+                  </div>
+                  {selectedClient.email && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-slate-400 font-bold w-20 shrink-0">E-mail:</span>
+                      <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedClient.email}</span>
+                    </div>
+                  )}
+                  {selectedClient.ville && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-slate-400 font-bold w-20 shrink-0">
+                        <MapPinIcon className="w-3.5 h-3.5" /> Ville:
+                      </span>
+                      <span className="text-slate-800 dark:text-slate-200 font-semibold truncate">
+                        {selectedClient.ville}
+                      </span>
+                    </div>
+                  )}
+                  {selectedClient.address && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-slate-400 font-bold w-20 shrink-0">Adresse:</span>
+                      <span className="text-slate-800 dark:text-slate-200 font-semibold">
+                        {selectedClient.address}
+                      </span>
+                    </div>
+                  )}
+                  {selectedClient.dateNaissance && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-slate-400 font-bold w-20 shrink-0">
+                        <Cake className="w-3.5 h-3.5" /> Anniv.:
+                      </span>
+                      <span className="text-slate-800 dark:text-slate-200 font-semibold">
+                        {selectedClient.dateNaissance}
+                      </span>
+                    </div>
+                  )}
+                  {selectedClient.sourceProspection && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-slate-400 font-bold w-20 shrink-0">
+                        <Users className="w-3.5 h-3.5" /> Source:
+                      </span>
+                      <span className="text-slate-800 dark:text-slate-200 font-semibold">
+                        {selectedClient.sourceProspection}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-slate-400 font-bold w-20 shrink-0">Membre depuis:</span>
+                    <span className="text-slate-600 dark:text-slate-400 font-medium">
+                      {selectedClient.createdAt}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 rounded-2xl">
+                  <h4 className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                    Indicateurs de valeur
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">Volume Total</p>
+                      <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
+                        {getClientTotalSpendAndCC(selectedClient.id).cc.toFixed(3)} CC
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">Chiffre d'Affaires</p>
+                      <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
+                        {getClientTotalSpendAndCC(selectedClient.id).spent.toLocaleString()} F
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">PV Total</p>
+                      <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
+                        {getClientTotalSpendAndCC(selectedClient.id).cc * 135} PV
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">BV Total</p>
+                      <p className="text-lg font-black text-slate-900 dark:text-slate-100 mt-0.5">
+                        {getClientTotalSpendAndCC(selectedClient.id).cc.toFixed(3)} BV
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* TAB CONTENT: ORDERS */}
             {activeTab === 'ORDERS' && (
               <div className="space-y-3">
                 {getClientOrders(selectedClient.id).length === 0 ? (
-                  <p className="text-xs text-slate-400 py-4 text-center">Aucune commande enregistrée pour l'instant.</p>
+                  <p className="text-xs text-slate-400 py-4 text-center">
+                    Aucune commande enregistrée pour l'instant.
+                  </p>
                 ) : (
                   getClientOrders(selectedClient.id).map(o => (
-                    <div 
-                      key={o.id} 
+                    <div
+                      key={o.id}
                       className="border border-slate-100 dark:border-slate-800 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/40 text-left flex items-center justify-between gap-2"
                     >
                       <div>
                         <span className="text-[9px] font-bold text-slate-400">{o.date}</span>
                         <p className="text-xs font-bold text-slate-950 dark:text-slate-100 mt-0.5">
-                          {o.items.length} produit(s) • <span className="text-amber-500">{o.totalRetail.toLocaleString()} F</span>
+                          {o.items.length} produit(s) •{' '}
+                          <span className="text-amber-500">{o.totalRetail.toLocaleString()} F</span>
                         </p>
-                        <p className="text-[10px] font-semibold text-blue-500 mt-0.5">{o.totalCC.toFixed(3)} CC</p>
+                        <p className="text-[10px] font-semibold text-blue-500 mt-0.5">
+                          {o.totalCC.toFixed(3)} CC
+                        </p>
                       </div>
-                      
-                      <span className={`text-[8px] font-black uppercase tracking-wider py-1 px-2 rounded-full ${
-                        o.status === 'VALIDATED' 
-                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400' 
-                          : o.status === 'PENDING' 
-                            ? 'bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400' 
-                            : 'bg-red-50 text-red-600'
-                      }`}>
+                      <span
+                        className={`text-[8px] font-black uppercase tracking-wider py-1 px-2 rounded-full ${
+                          o.status === 'VALIDATED'
+                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400'
+                            : o.status === 'PENDING'
+                              ? 'bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400'
+                              : 'bg-red-50 text-red-600'
+                        }`}
+                      >
                         {o.status === 'VALIDATED' ? 'VALIDÉE' : 'EN ATTENTE'}
                       </span>
                     </div>
@@ -835,8 +1089,8 @@ export const ClientsView: React.FC = () => {
               </div>
             )}
 
-            {/* TAB CONTENT: HISTORY - historique achats + suivi post-achat */}
-            {activeTab === 'HISTORY' && selectedClient && (() => {
+            {/* TAB CONTENT: HISTORY */}
+            {activeTab === 'HISTORY' && (() => {
               const validated = getClientOrders(selectedClient.id)
                 .filter(isCountedOrder)
                 .sort((a, b) => (b.validatedAt || b.date).localeCompare(a.validatedAt || a.date));
@@ -844,7 +1098,6 @@ export const ClientsView: React.FC = () => {
               const totalMargin = validated.reduce((s, o) => s + o.totalMargin, 0);
               return (
                 <div className="space-y-4">
-                  {/* Synthèse vie client */}
                   <div className="grid grid-cols-3 gap-2">
                     <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-3 text-white shadow-sm">
                       <p className="text-[8px] font-black uppercase tracking-wider opacity-80">Achats</p>
@@ -863,17 +1116,18 @@ export const ClientsView: React.FC = () => {
                   {validated.length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-xs text-slate-400">Aucun achat validé pour l'instant.</p>
-                      <p className="text-[10px] text-slate-400/70 mt-1">L'historique et le suivi post-achat s'afficheront après la première vente.</p>
+                      <p className="text-[10px] text-slate-400/70 mt-1">
+                        L'historique et le suivi post-achat s'afficheront après la première vente.
+                      </p>
                     </div>
                   ) : (
-                    /* Timeline verticale : chaque achat avec son suivi J+N */
                     <div className="relative pl-6 space-y-5">
                       <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-amber-400 via-slate-300 to-transparent dark:via-slate-700" />
                       {validated.map(o => {
                         const fu = computePurchaseFollowUp(o, customers);
                         const anchor = purchaseAnchorDate(o);
                         const milestones = [
-                          { key: 'J0', label: 'Achat', dayOffset: 0, done: true },
+                          { key: 'J0', label: 'Achat', dayOffset: 0 },
                           { key: 'J+3', label: 'Démarrage produit', dayOffset: 3 },
                           { key: 'J+7', label: 'Satisfaction', dayOffset: 7 },
                           { key: 'J+10', label: 'Réachat', dayOffset: 10 },
@@ -886,10 +1140,11 @@ export const ClientsView: React.FC = () => {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.3, delay: 0.05 }}
                           >
-                            {/* Point sur la timeline */}
-                            <div className={`absolute -left-6 top-1 w-[19px] h-[19px] rounded-full border-2 border-white dark:border-[#1f1f22] ${
-                              fu.milestone === 'DONE' ? 'bg-slate-300 dark:bg-slate-600' : 'bg-amber-500'
-                            }`} />
+                            <div
+                              className={`absolute -left-6 top-1 w-[19px] h-[19px] rounded-full border-2 border-white dark:border-[#1f1f22] ${
+                                fu.milestone === 'DONE' ? 'bg-slate-300 dark:bg-slate-600' : 'bg-amber-500'
+                              }`}
+                            />
                             <div className="border border-slate-200/60 dark:border-slate-800 rounded-2xl p-3 bg-white dark:bg-[#232326]">
                               <div className="flex items-center justify-between gap-2 flex-wrap">
                                 <span className="text-[10px] font-bold text-slate-500">
@@ -900,10 +1155,12 @@ export const ClientsView: React.FC = () => {
                                 </span>
                               </div>
                               <p className="text-xs font-black text-slate-900 dark:text-slate-100 mt-1">
-                                {o.items.length} produit(s) · <span className="text-amber-600 dark:text-amber-400">{o.totalRetail.toLocaleString()} F</span>
+                                {o.items.length} produit(s) ·{' '}
+                                <span className="text-amber-600 dark:text-amber-400">
+                                  {o.totalRetail.toLocaleString()} F
+                                </span>
                               </p>
 
-                              {/* Jalons de suivi */}
                               <div className="grid grid-cols-4 gap-1.5 mt-2.5">
                                 {milestones.map(m => {
                                   const reached = fu.daysSince >= m.dayOffset;
@@ -926,32 +1183,35 @@ export const ClientsView: React.FC = () => {
                                 })}
                               </div>
 
-                              {/* Conseil du moment */}
                               {fu.urgency !== 'done' && (
                                 <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2 italic leading-snug">
                                   💡 {fu.title} : {fu.message}
                                 </p>
                               )}
 
-                              {/* #1 Notation satisfaction au jalon J+7 */}
                               {fu.daysSince >= 5 && fu.daysSince <= 14 && (
                                 <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">
                                     Satisfaction client {o.satisfactionLevel ? '·' : '(à noter)'}
                                   </p>
                                   <div className="flex items-center gap-1.5">
-                                    {([
-                                      { level: 'LOW', emoji: '😞', label: 'Déçu', on: 'bg-rose-100 text-rose-600 ring-rose-300' },
-                                      { level: 'MID', emoji: '😐', label: 'Moyen', on: 'bg-amber-100 text-amber-600 ring-amber-300' },
-                                      { level: 'HIGH', emoji: '😍', label: 'Ravi', on: 'bg-emerald-100 text-emerald-600 ring-emerald-300' },
-                                    ] as const).map(opt => {
+                                    {(
+                                      [
+                                        { level: 'LOW', emoji: '😞', label: 'Déçu', on: 'bg-rose-100 text-rose-600 ring-rose-300' },
+                                        { level: 'MID', emoji: '😐', label: 'Moyen', on: 'bg-amber-100 text-amber-600 ring-amber-300' },
+                                        { level: 'HIGH', emoji: '😍', label: 'Ravi', on: 'bg-emerald-100 text-emerald-600 ring-emerald-300' },
+                                      ] as const
+                                    ).map(opt => {
                                       const selected = o.satisfactionLevel === opt.level;
                                       return (
                                         <button
                                           key={opt.level}
                                           onClick={async () => {
-                                            // Note 1-5 et niveau LOW/MID/HIGH restent synchronisés
-                                            const levelToStars: Record<string, 1 | 2 | 3 | 4 | 5> = { LOW: 1, MID: 3, HIGH: 5 };
+                                            const levelToStars: Record<string, 1 | 2 | 3 | 4 | 5> = {
+                                              LOW: 1,
+                                              MID: 3,
+                                              HIGH: 5,
+                                            };
                                             await updateOrder({
                                               ...o,
                                               satisfactionLevel: selected ? undefined : opt.level,
@@ -960,7 +1220,9 @@ export const ClientsView: React.FC = () => {
                                             });
                                           }}
                                           className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer active:scale-95 ring-1 ${
-                                            selected ? `${opt.on} font-black` : 'bg-slate-50 dark:bg-slate-800/50 text-slate-400 ring-transparent hover:ring-slate-200'
+                                            selected
+                                              ? `${opt.on} font-black`
+                                              : 'bg-slate-50 dark:bg-slate-800/50 text-slate-400 ring-transparent hover:ring-slate-200'
                                           }`}
                                           title={`Noter : ${opt.label}`}
                                         >
@@ -978,7 +1240,6 @@ export const ClientsView: React.FC = () => {
                     </div>
                   )}
 
-                  {/* #3 Stats réachat & satisfaction (global, calculé sur tous les clients) */}
                   {(() => {
                     const cs = computeConversionStats(orders, customers);
                     if (cs.totalValidated < 2) return null;
@@ -990,28 +1251,47 @@ export const ClientsView: React.FC = () => {
                         <div className="grid grid-cols-2 gap-2.5 text-center">
                           <div className="bg-white/5 rounded-xl py-2.5">
                             <p className="text-lg font-black text-emerald-400">{cs.conversionRate}%</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Taux de réachat</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">
+                              Taux de réachat
+                            </p>
                           </div>
                           <div className="bg-white/5 rounded-xl py-2.5">
                             <p className="text-lg font-black text-amber-400">{cs.clean9ToVital5Rate}%</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Clean 9 → Vital5</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">
+                              Clean 9 → Vital5
+                            </p>
                           </div>
                           <div className="bg-white/5 rounded-xl py-2.5">
                             <p className="text-sm font-black text-white">{cs.repeatCustomers}</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Clients fidèles</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">
+                              Clients fidèles
+                            </p>
                           </div>
                           <div className="bg-white/5 rounded-xl py-2.5">
                             <p className="text-sm font-black text-white">{cs.avgOrdersPerCustomer}</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Achats / client</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">
+                              Achats / client
+                            </p>
                           </div>
                         </div>
-                        {(cs.satisfactionBreakdown.LOW + cs.satisfactionBreakdown.MID + cs.satisfactionBreakdown.HIGH) > 0 && (
+                        {cs.satisfactionBreakdown.LOW +
+                          cs.satisfactionBreakdown.MID +
+                          cs.satisfactionBreakdown.HIGH >
+                          0 && (
                           <div className="mt-3 pt-3 border-t border-white/10">
-                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Satisfactions notées</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                              Satisfactions notées
+                            </p>
                             <div className="flex gap-2">
-                              <span className="text-[10px] font-bold bg-rose-500/15 text-rose-300 px-2 py-1 rounded-lg">😞 {cs.satisfactionBreakdown.LOW}</span>
-                              <span className="text-[10px] font-bold bg-amber-500/15 text-amber-300 px-2 py-1 rounded-lg">😐 {cs.satisfactionBreakdown.MID}</span>
-                              <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-300 px-2 py-1 rounded-lg">😍 {cs.satisfactionBreakdown.HIGH}</span>
+                              <span className="text-[10px] font-bold bg-rose-500/15 text-rose-300 px-2 py-1 rounded-lg">
+                                😞 {cs.satisfactionBreakdown.LOW}
+                              </span>
+                              <span className="text-[10px] font-bold bg-amber-500/15 text-amber-300 px-2 py-1 rounded-lg">
+                                😐 {cs.satisfactionBreakdown.MID}
+                              </span>
+                              <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-300 px-2 py-1 rounded-lg">
+                                😍 {cs.satisfactionBreakdown.HIGH}
+                              </span>
                             </div>
                           </div>
                         )}
@@ -1049,7 +1329,7 @@ export const ClientsView: React.FC = () => {
               </div>
             )}
 
-            {/* Detached delete action */}
+            {/* Suppression */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
               {showDeleteConfirm ? (
                 <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-150">
@@ -1092,36 +1372,44 @@ export const ClientsView: React.FC = () => {
         )}
       </Drawer>
 
-      {/* Canvas imprimable VIP — caché, utilisé uniquement pour l export PDF */}
+      {/* 10. Canvas imprimable VIP (inchangé) */}
       <div id="clients_vip_printable" style={{ display: 'none' }}>
         <div className="header">
           <div>
             <h1>Rapport Clientèle VIP</h1>
-            <p className="subtitle">Période : {periodLabel} · {vipRanking.length} client(s) actif(s)</p>
+            <p className="subtitle">
+              Période : {periodLabel} · {vipRanking.length} client(s) actif(s)
+            </p>
           </div>
           <div className="header-right">
             <div className="badge">Forever CashFlow · Les Conquérants</div>
-            <p className="subtitle" style={{ marginTop: 4 }}>Généré le {new Date().toLocaleDateString('fr-FR')}</p>
+            <p className="subtitle" style={{ marginTop: 4 }}>
+              Généré le {new Date().toLocaleDateString('fr-FR')}
+            </p>
           </div>
         </div>
 
-        {/* Résumé global */}
         <div className="summary-grid">
           <div className="summary-card">
             <div className="summary-label">CA Total période</div>
-            <div className="summary-value gold">{vipRanking.reduce((s, r) => s + r.spent, 0).toLocaleString()} F</div>
+            <div className="summary-value gold">
+              {vipRanking.reduce((s, r) => s + r.spent, 0).toLocaleString()} F
+            </div>
           </div>
           <div className="summary-card">
             <div className="summary-label">Marge Directe</div>
-            <div className="summary-value green">+{vipRanking.reduce((s, r) => s + r.margin, 0).toLocaleString()} F</div>
+            <div className="summary-value green">
+              +{vipRanking.reduce((s, r) => s + r.margin, 0).toLocaleString()} F
+            </div>
           </div>
           <div className="summary-card">
             <div className="summary-label">Volume CC</div>
-            <div className="summary-value">{vipRanking.reduce((s, r) => s + r.cc, 0).toFixed(3)} CC</div>
+            <div className="summary-value">
+              {vipRanking.reduce((s, r) => s + r.cc, 0).toFixed(3)} CC
+            </div>
           </div>
         </div>
 
-        {/* Classement détaillé */}
         {vipRanking.length === 0 ? (
           <div className="no-clients">Aucun client avec commande validée sur cette période.</div>
         ) : (
@@ -1139,25 +1427,35 @@ export const ClientsView: React.FC = () => {
             <tbody>
               {vipRanking.map((r, idx) => (
                 <tr key={r.client.id} className={idx < 3 ? 'vip-row' : ''}>
-                  <td><span className="rank">{idx + 1}{idx < 3 ? ' ⭐' : ''}</span></td>
+                  <td>
+                    <span className="rank">
+                      {idx + 1}
+                      {idx < 3 ? ' ⭐' : ''}
+                    </span>
+                  </td>
                   <td>
                     <div className="client-name">{r.client.name}</div>
                     <div className="client-phone">{r.client.phone}</div>
-                    {/* Détail commandes du mois */}
                     {getClientOrdersForMonth(r.client.id).length > 0 && (
                       <div className="orders-sub">
                         <div className="orders-sub-title">Commandes du mois</div>
                         {getClientOrdersForMonth(r.client.id).map(o => (
                           <div key={o.id} className="order-line">
-                            <span>{o.validatedAt || o.date} · {o.items.map(i => i.productName).join(', ')}</span>
+                            <span>
+                              {o.validatedAt || o.date} · {o.items.map(i => i.productName).join(', ')}
+                            </span>
                             <span className="amount gold">{o.totalRetail.toLocaleString()} F</span>
                           </div>
                         ))}
                       </div>
                     )}
                   </td>
-                  <td style={{ textAlign: 'right' }}><span className="amount gold">{r.spent.toLocaleString()}</span></td>
-                  <td style={{ textAlign: 'right' }}><span className="amount green">+{r.margin.toLocaleString()}</span></td>
+                  <td style={{ textAlign: 'right' }}>
+                    <span className="amount gold">{r.spent.toLocaleString()}</span>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <span className="amount green">+{r.margin.toLocaleString()}</span>
+                  </td>
                   <td style={{ textAlign: 'right' }}>{r.cc.toFixed(3)}</td>
                   <td style={{ textAlign: 'right' }}>{r.count}</td>
                 </tr>
@@ -1166,7 +1464,6 @@ export const ClientsView: React.FC = () => {
           </table>
         )}
 
-        {/* Clients sans commande ce mois */}
         {clients.filter(c => !vipRanking.some(r => r.client.id === c.id)).length > 0 && (
           <>
             <h2 style={{ color: '#94a3b8', marginTop: 24 }}>Clients inactifs ce mois</h2>
@@ -1180,12 +1477,18 @@ export const ClientsView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {sortList(clients.filter(c => !vipRanking.some(r => r.client.id === c.id)), clientSort, clientComparators).map(c => (
+                {sortList(
+                  clients.filter(c => !vipRanking.some(r => r.client.id === c.id)),
+                  clientSort,
+                  clientComparators,
+                ).map(c => (
                   <tr key={c.id}>
                     <td className="client-name">{c.name}</td>
                     <td>{c.phone}</td>
                     <td>{c.address || '—'}</td>
-                    <td style={{ textAlign: 'right' }}>{getClientTotalSpendAndCC(c.id).spent.toLocaleString()} F</td>
+                    <td style={{ textAlign: 'right' }}>
+                      {getClientTotalSpendAndCC(c.id).spent.toLocaleString()} F
+                    </td>
                   </tr>
                 ))}
               </tbody>

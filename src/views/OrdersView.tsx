@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { printCanvas } from '../lib/printHelper';
-import { isCountedOrder } from '../lib/orderStats';
+import { isCountedOrder, orderAccountingDate } from '../lib/orderStats';
 import { SortSelect } from '../components/ui/SortSelect';
 import { useSortPref, sortList, ORDER_SORT_OPTIONS, orderComparators } from '../lib/sortHelper';
 import { useOrdersStore, createOrderFromCart, calculateLivraisonFrais } from '../store/slices/ordersSlice';
@@ -10,22 +10,22 @@ import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
 import { OrdersHeader } from '../components/ui/orders/OrdersHeader';
-import { OrdersControls } from '../components/ui/orders/OrdersControls';
+import { OrdersControls, type OrdersPeriod } from '../components/ui/orders/OrdersControls';
 import { OrdersList } from '../components/ui/orders/OrdersList';
 import { OrdersKanban } from '../components/ui/orders/OrdersKanban';
 import '../components/ui/orders/OrdersStyles.css';
 import { Order, OrderStatut, OrderStatus, Product, GRADES, CustomerStatus, OrderItem, OrderType, OrderCanal, OrderPaiement, OrderGeste, LivraisonMode, CustomerPriceType } from '../types';
 import { getCustomerSalePrice, getPartnerPurchasePrice } from '../lib/pricing';
-import { 
-  ShoppingBag, 
-  Plus, 
-  Trash2, 
+import {
+  ShoppingBag,
+  Plus,
+  Trash2,
   Printer,
   Share2,
-  Info, 
-  UserCheck, 
-  FileText, 
-  Layers, 
+  Info,
+  UserCheck,
+  FileText,
+  Layers,
   CheckCircle,
   Clock,
   XCircle,
@@ -79,6 +79,28 @@ const LIVRAISON_MODE_LABELS: Record<string, string> = {
   RETRAIT_BOUTIQUE: '🏬 Retrait boutique',
 };
 
+const dateKey = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const getOrdersPeriodRange = (period: OrdersPeriod): { startKey: string; endKey: string } | null => {
+  if (period === 'ALL') return null;
+  const now = new Date();
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  switch (period) {
+    case '7': start.setDate(start.getDate() - 6); break;
+    case '30': start.setDate(start.getDate() - 29); break;
+    case 'month': start.setDate(1); break;
+    case '90': start.setDate(start.getDate() - 89); break;
+    case 'year': start.setMonth(0, 1); break;
+  }
+  return { startKey: dateKey(start), endKey: dateKey(end) };
+};
+
+const todayISO = () => new Date().toISOString().split('T')[0];
+
 export const OrdersView: React.FC = () => {
   const { orders, addOrder, updateOrder, deleteOrder } = useOrdersStore();
   const { customers } = useCustomersStore();
@@ -92,19 +114,10 @@ export const OrdersView: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
-  useEffect(() => {
-    const openForm = () => { sessionStorage.removeItem('fcf-open-new-order'); setIsNewOrderOpen(true); };
-    if (sessionStorage.getItem('fcf-open-new-order') === '1') {
-      sessionStorage.removeItem('fcf-open-new-order');
-      openForm();
-    }
-    window.addEventListener('fcf-open-new-order', openForm);
-    return () => window.removeEventListener('fcf-open-new-order', openForm);
-  }, []);
-
 
   // Filter lists
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatut>('ALL');
+  const [periodFilter, setPeriodFilter] = useState<OrdersPeriod>('ALL');
   const [orderSort, setOrderSort] = useSortPref('fcf-sort-orders', ORDER_SORT_OPTIONS, 'date_desc');
   const [ordersViewMode, setOrdersViewMode] = useState<'list' | 'kanban'>('list');
 
@@ -127,7 +140,7 @@ export const OrdersView: React.FC = () => {
   const [orderPaiement, setOrderPaiement] = useState<OrderPaiement>('ESPECES');
   const [orderGeste, setOrderGeste] = useState<OrderGeste>('AUCUN');
   const [livraisonMode, setLivraisonMode] = useState<LivraisonMode>('DOMICILE');
-  const [livraisonDatePrevue, setLivraisonDatePrevue] = useState(new Date().toISOString().split('T')[0]);
+  const [livraisonDatePrevue, setLivraisonDatePrevue] = useState(todayISO());
   const [orderTags, setOrderTags] = useState<string>('');
   const [orderNotes, setOrderNotes] = useState('');
 
@@ -138,18 +151,68 @@ export const OrdersView: React.FC = () => {
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [isProductSuggestionsOpen, setIsProductSuggestionsOpen] = useState(false);
 
-  // Pont depuis la fiche client/prospect : "Passer commande" pré-sélectionne le client,
-  // peut pré-charger des produits (recommandation) et ouvre le modal.
+  // ─── Reset centralisé du formulaire ───────────────────────────
+  const resetForm = () => {
+    setOrderCustomer('');
+    setCustomerSearchQuery('');
+    setIsCustomerSuggestionsOpen(false);
+    setApplyDiscount(false);
+    setDiscountPercent(5);
+    setAmountPaidInput('');
+    setInvoiceItems([]);
+    setOrderFormError(null);
+    setProductSearchError(null);
+    setProductSearchQuery('');
+    setIsProductSuggestionsOpen(false);
+    setIsEditMode(false);
+    setEditingOrderId(null);
+    setOrderType('UNITE');
+    setOrderCanal('WHATSAPP');
+    setOrderPaiement('ESPECES');
+    setOrderGeste('AUCUN');
+    setLivraisonMode('DOMICILE');
+    setLivraisonDatePrevue(todayISO());
+    setOrderTags('');
+    setOrderNotes('');
+  };
+
+  // Écoute de l'événement BottomNav / Dashboard
   useEffect(() => {
-    const presetId = sessionStorage.getItem('fcf-new-order-customer');
-    if (!presetId) return;
-    sessionStorage.removeItem('fcf-new-order-customer');
-    const cust = customers.find(c => c.id === presetId);
-    if (cust) {
-      setOrderCustomer(cust.id);
-      setCustomerSearchQuery(cust.name);
+    const openForm = () => {
+      sessionStorage.removeItem('fcf-open-new-order');
+      resetForm();
+      setIsNewOrderOpen(true);
+    };
+    if (sessionStorage.getItem('fcf-open-new-order') === '1') {
+      sessionStorage.removeItem('fcf-open-new-order');
+      openForm();
     }
-    // Produits recommandés pré-chargés (ex: Vital5 après un Clean 9)
+    window.addEventListener('fcf-open-new-order', openForm);
+    return () => window.removeEventListener('fcf-open-new-order', openForm);
+  }, []);
+
+  // ─── Preset client/produits (lien depuis fiche client) ───────
+  // CORRIGÉ : attend que customers soient chargés, traité une seule fois.
+  const presetProcessed = useRef(false);
+  useEffect(() => {
+    if (presetProcessed.current) return;
+    const presetId = sessionStorage.getItem('fcf-new-order-customer');
+    if (!presetId) { presetProcessed.current = true; return; }
+    // Attendre que les customers soient chargés depuis Firestore
+    if (customers.length === 0) return;
+
+    const cust = customers.find(c => c.id === presetId);
+    if (!cust) {
+      presetProcessed.current = true;
+      sessionStorage.removeItem('fcf-new-order-customer');
+      return;
+    }
+
+    presetProcessed.current = true;
+    sessionStorage.removeItem('fcf-new-order-customer');
+    setOrderCustomer(cust.id);
+    setCustomerSearchQuery(cust.name);
+
     try {
       const presetProductsRaw = sessionStorage.getItem('fcf-new-order-products');
       if (presetProductsRaw) {
@@ -162,10 +225,20 @@ export const OrdersView: React.FC = () => {
         if (preloaded.length > 0) setInvoiceItems(preloaded);
       }
     } catch { /* ignore */ }
-    setIsNewOrderOpen(true);
-  }, []);
 
-  const filteredOrders = orders.filter(o => {
+    setIsNewOrderOpen(true);
+  }, [customers, products]);
+
+  // Filtre période (indépendant du filtre statut) — base commune pour
+  // calculer les compteurs des chips de statut (cohérence visuelle).
+  const ordersInPeriod = orders.filter((o) => {
+    const range = getOrdersPeriodRange(periodFilter);
+    if (!range) return true;
+    const d = orderAccountingDate(o);
+    return d >= range.startKey && d <= range.endKey;
+  });
+
+  const filteredOrders = ordersInPeriod.filter((o) => {
     if (statusFilter === 'ALL') return true;
     return o.status === statusFilter;
   });
@@ -185,9 +258,11 @@ export const OrdersView: React.FC = () => {
     const labels: Record<string, string> = { PENDING: 'En attente', VALIDATED: 'Validée', PAYE: 'Payée', LIVRE: 'Livrée', CANCELLED: 'Annulée', RETOUR: 'Retour', REMPLACEMENT: 'Remplacement' };
     return labels[status] || status;
   };
-  const orderStatusCount = (status: 'ALL' | OrderStatut) => status === 'ALL' ? orders.length : orders.filter(order => order.status === status).length;
+  const orderStatusCount = (status: 'ALL' | OrderStatut) =>
+    status === 'ALL'
+      ? ordersInPeriod.length
+      : ordersInPeriod.filter((order) => order.status === status).length;
   const kanbanStatuses: OrderStatut[] = ['PENDING', 'VALIDATED', 'PAYE', 'LIVRE', 'CANCELLED', 'RETOUR', 'REMPLACEMENT'];
-
 
   // Le grade partenaire et le statut tarifaire du client sont deux données distinctes.
   const currentGrade = GRADES.find(g => g.code === profile.grade) || GRADES[1];
@@ -236,30 +311,10 @@ export const OrdersView: React.FC = () => {
     setInvoiceItems(updated);
   };
 
-  const resetForm = () => {
-        setOrderCustomer('');
-        setCustomerSearchQuery('');
-        setApplyDiscount(false);
-        setDiscountPercent(5);
-        setAmountPaidInput('');
-        setInvoiceItems([]);
-        setOrderFormError(null);
-        setIsEditMode(false);
-        setEditingOrderId(null);
-        setOrderType('UNITE');
-        setOrderCanal('WHATSAPP');
-        setOrderPaiement('ESPECES');
-        setOrderGeste('AUCUN');
-        setLivraisonMode('DOMICILE');
-        setLivraisonDatePrevue(new Date().toISOString().split('T')[0]);
-        setOrderTags('');
-        setOrderNotes('');
-      };
-
-    // Submit Draft
-    const handleCreateOrder = async (e: React.FormEvent) => {
-      e.preventDefault();
-      try {
+  // Submit Draft
+  const handleCreateOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
       if (!orderCustomer) {
         setOrderFormError('Veuillez sélectionner un client.');
         return;
@@ -352,26 +407,27 @@ export const OrdersView: React.FC = () => {
       }
 
       await addOrder(orderData);
-      } catch (err) {
-        console.error('[handleCreateOrder] Echec creation commande:', err);
-        setOrderFormError("Erreur lors de la création de la commande. Vérifie ta connexion puis réessaie.");
-        return;
-      }
+    } catch (err) {
+      console.error('[handleCreateOrder] Echec creation commande:', err);
+      setOrderFormError("Erreur lors de la création de la commande. Vérifie ta connexion puis réessaie.");
+      return;
+    }
 
-      setIsNewOrderOpen(false);
-      resetForm();
-    };
+    setIsNewOrderOpen(false);
+    resetForm();
+  };
 
   const handleUpdateStatus = (ord: Order, nextStatus: OrderStatus) => {
     const updatedOrd = { ...ord, status: nextStatus };
     updateOrder(updatedOrd);
-    
+
     if (selectedOrder && selectedOrder.id === ord.id) {
       setSelectedOrder(updatedOrd);
     }
   };
 
   // Ouvrir le formulaire en mode edition depuis une commande PENDING
+  // CORRIGÉ : restaure TOUS les champs de la commande (type, canal, paiement, geste, livraison, tags, notes)
   const handleEditOrder = (ord: Order) => {
     // Pré-remplir le client
     const cust = customers.find(c => c.id === ord.customerId);
@@ -380,13 +436,13 @@ export const OrdersView: React.FC = () => {
 
     // Pré-remplir les produits (reconstruire depuis les items)
     const prefilledItems = ord.items.map(item => {
-      const prod = products.find(p => p.id === item.productId) || {
+      const prod = products.find(p => p.id === item.productId) || ({
         id: item.productId,
         name: item.productName,
         prixRetail: item.unitPrice,
         unitCC: item.unitCC,
-      } as any;
-      return { product: prod, quantity: item.quantity };
+      } as any);
+      return { product: prod as Product, quantity: item.quantity };
     });
     setInvoiceItems(prefilledItems);
 
@@ -400,6 +456,17 @@ export const OrdersView: React.FC = () => {
       setDiscountPercent(5);
       setAmountPaidInput('');
     }
+
+    // ✅ Restauration des champs Notion/Obsidian perdus auparavant
+    setOrderType((ord.type as OrderType) || 'UNITE');
+    setOrderCanal((ord.canal as OrderCanal) || 'WHATSAPP');
+    setOrderPaiement((ord.paiement as OrderPaiement) || 'ESPECES');
+    setOrderGeste((ord.geste as OrderGeste) || 'AUCUN');
+    setLivraisonMode((ord.livraison?.mode as LivraisonMode) || 'DOMICILE');
+    setLivraisonDatePrevue(ord.livraison?.datePrevue || todayISO());
+    setOrderTags((ord.tags || []).join(', '));
+    setOrderNotes(ord.notes || '');
+    setOrderFormError(null);
 
     // Passer en mode edition
     setIsEditMode(true);
@@ -453,7 +520,7 @@ export const OrdersView: React.FC = () => {
     }
   };
 
-    const handleExportOrdersCSV = () => {
+  const handleExportOrdersCSV = () => {
     // Columns headers - TOUS les champs Notion/Obsidian
     const headers = [
       'ID',
@@ -487,7 +554,7 @@ export const OrdersView: React.FC = () => {
       'Distributeur ID',
       'Notes'
     ];
-    
+
     // Rows
     const rows = sortList(orders, orderSort, orderComparators)
       .map(o => {
@@ -527,17 +594,17 @@ export const OrdersView: React.FC = () => {
           o.notes || ''
         ];
       });
-    
+
     // Build CSV Content
     // Excel-friendly UTF-8 BOM + semicolon-separated values
-    const csvContent = "\uFEFF" + 
+    const csvContent = "\uFEFF" +
       [headers, ...rows]
         .map(row => row.map(val => {
           const str = String(val ?? '').replace(/"/g, '""');
           return '"' + str + '"';
         }).join(';'))
         .join('\n');
-    
+
     // Create download link
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -551,12 +618,11 @@ export const OrdersView: React.FC = () => {
 
   return (
     <div className="orders-view" id="orders_view_container">
-      
-      {/* 1. Orders workspace header */}
-         <OrdersHeader
+
+      <OrdersHeader
         description="Créez, préparez et suivez chaque commande client jusqu'à sa livraison."
         count={filteredOrders.length}
-        onCreate={() => setIsNewOrderOpen(true)}
+        onCreate={() => { resetForm(); setIsNewOrderOpen(true); }}
       />
 
       <OrdersControls
@@ -570,6 +636,8 @@ export const OrdersView: React.FC = () => {
         onSortChange={setOrderSort}
         onExportCSV={handleExportOrdersCSV}
         onPrintRegistry={handlePrintRegistry}
+        period={periodFilter}
+        onPeriodChange={setPeriodFilter}
       />
 
       {ordersViewMode === 'list' ? (
@@ -590,24 +658,18 @@ export const OrdersView: React.FC = () => {
           }}
         />
       )}
+
       {/* 4. DRAWER: ADD ORDER BON DE VENTE */}
       <Drawer
         isOpen={isNewOrderOpen}
         onClose={() => {
           setIsNewOrderOpen(false);
-          setOrderFormError(null);
-          setIsEditMode(false);
-          setEditingOrderId(null);
-          setOrderCustomer('');
-          setCustomerSearchQuery('');
-          setInvoiceItems([]);
-          setApplyDiscount(false);
-          setDiscountPercent(5);
+          resetForm();
         }}
         title={isEditMode ? 'Modifier la Commande' : 'Créer un Bon de Vente FLP'}
       >
         <form onSubmit={handleCreateOrder} className="space-y-4">
-          
+
           {orderFormError && (
             <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 font-bold text-xs p-3.5 rounded-2xl">
               {orderFormError}
@@ -649,14 +711,14 @@ export const OrdersView: React.FC = () => {
             {/* Suggestions list dropdown overlay */}
             {isCustomerSuggestionsOpen && (
               <>
-                <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={() => setIsCustomerSuggestionsOpen(false)} 
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsCustomerSuggestionsOpen(false)}
                 />
                 <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in slide-in-from-top-1 duration-150">
                   {customers
-                    .filter(c => 
-                      c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) || 
+                    .filter(c =>
+                      c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
                       c.phone.includes(customerSearchQuery)
                     )
                     .map(cust => (
@@ -674,8 +736,8 @@ export const OrdersView: React.FC = () => {
                         <span className="text-[10px] text-slate-500 dark:text-slate-400">{cust.phone} • {cust.status}</span>
                       </button>
                     ))}
-                  {customers.filter(c => 
-                      c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) || 
+                  {customers.filter(c =>
+                      c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
                       c.phone.includes(customerSearchQuery)
                     ).length === 0 && (
                       <div className="p-3 text-xs text-slate-400 text-center font-mono">
@@ -714,6 +776,8 @@ export const OrdersView: React.FC = () => {
                   setApplyDiscount(e.target.checked);
                   if (e.target.checked) {
                     setDiscountPercent(5); // Default to minimum 5%
+                  } else {
+                    setAmountPaidInput('');
                   }
                 }}
                 className="w-5 h-5 rounded accent-amber-500 cursor-pointer"
@@ -831,7 +895,7 @@ export const OrdersView: React.FC = () => {
           {/* Unified Product Search Bar with a "+" / "Ajouter" Button next to it */}
           <div className="space-y-2">
             <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider block">Ajouter des Produits</label>
-            
+
             {productSearchError && (
               <div className="text-rose-500 text-[11px] font-bold px-1 py-1 bg-rose-500/10 border border-rose-500/20 rounded-lg animate-in fade-in duration-100">
                 ⚠ {productSearchError}
@@ -872,7 +936,7 @@ export const OrdersView: React.FC = () => {
                 type="button"
                 onClick={() => {
                   const query = productSearchQuery.toLowerCase().trim();
-                  const matched = products.filter(p => 
+                  const matched = products.filter(p =>
                     p.name.toLowerCase().includes(query) ||
                     p.id.includes(query)
                   );
@@ -895,13 +959,13 @@ export const OrdersView: React.FC = () => {
               {/* Autocomplete Suggestions Popover */}
               {isProductSuggestionsOpen && productSearchQuery && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setIsProductSuggestionsOpen(false)} 
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsProductSuggestionsOpen(false)}
                   />
                   <div className="absolute left-0 right-0 top-11 max-h-56 overflow-y-auto bg-white dark:bg-[#202023] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in duration-100">
                     {products
-                       .filter(p => 
+                       .filter(p =>
                          p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
                          p.id.includes(productSearchQuery)
                        )
@@ -919,7 +983,7 @@ export const OrdersView: React.FC = () => {
                            <span className="text-xs font-black text-amber-600 shrink-0">{(getCustomerSalePrice(p, customerPriceType) ?? 0).toLocaleString()} F</span>
                          </button>
                        ))}
-                     {products.filter(p => 
+                     {products.filter(p =>
                        p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
                        p.id.includes(productSearchQuery)
                      ).length === 0 && (
@@ -936,7 +1000,7 @@ export const OrdersView: React.FC = () => {
           {/* Selected Products List */}
           <div className="space-y-2 mt-3">
             <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Produits ajoutés à la facture ({invoiceItems.length})</h4>
-            
+
             {invoiceItems.length === 0 ? (
               <div className="p-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center space-y-2 bg-slate-50/50 dark:bg-slate-900/10">
                 <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800/60 rounded-full flex items-center justify-center mx-auto text-slate-400">
@@ -953,8 +1017,8 @@ export const OrdersView: React.FC = () => {
                   const itemPrice = applyDiscount ? (getCustomerSalePrice(slot.product, customerPriceType) ?? 0) * (1 - discountPercent / 100) : (getCustomerSalePrice(slot.product, customerPriceType) ?? 0);
 
                   return (
-                    <div 
-                      key={index} 
+                    <div
+                      key={index}
                       className="p-3 rounded-2xl border border-slate-105 dark:border-slate-800 bg-white dark:bg-[#1a1a1d] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm hover:shadow-md"
                     >
                       <div className="min-w-0 w-full sm:flex-1">
@@ -996,7 +1060,7 @@ export const OrdersView: React.FC = () => {
                           >
                             -
                           </button>
-                          
+
                           <span className="w-8 text-center text-xs font-black text-amber-900 dark:text-amber-100 font-mono">
                             {slot.quantity}
                           </span>
@@ -1030,172 +1094,172 @@ export const OrdersView: React.FC = () => {
           </div>
 
           {/* Live Preview stats */}
-                    <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 rounded-2xl text-xs space-y-1 font-sans">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400 font-bold">Total Brut Retail:</span>
-                        <span className="text-slate-800 dark:text-slate-200 font-bold">
-                          {invoiceItems.reduce((acc, slot) => acc + ((getCustomerSalePrice(slot.product, customerPriceType) ?? 0) * slot.quantity), 0).toLocaleString()} F
-                        </span>
-                      </div>
-                      {applyDiscount && (
-                        <div className="flex justify-between text-emerald-600 font-bold">
-                          <span>Remise Appliquée ({effectiveDiscount.toFixed(1)}%):</span>
-                          <span>
-                            -{(catalogTotal - effectivePaid).toLocaleString()} F
-                          </span>
-                        </div>
-                      )}
-                      {applyDiscount && (
-                        <div className="flex justify-between">
-                          <span className={`text-[10px] font-black uppercase ${marginLive >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                            Marge nette estimée
-                          </span>
-                          <span className={`font-black ${marginLive >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                            {marginLive.toLocaleString()} F
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between border-t border-amber-200/50 dark:border-amber-800/20 pt-2 mt-1">
-                        <span className="text-slate-400 font-bold">Total CC Accumulé:</span>
-                        <span className="text-blue-500 font-black">
-                          {invoiceItems.reduce((acc, slot) => acc + (slot.product.unitCC * slot.quantity), 0).toFixed(3)} CC
-                        </span>
-                      </div>
-                    </div>
+          <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 rounded-2xl text-xs space-y-1 font-sans">
+            <div className="flex justify-between">
+              <span className="text-slate-400 font-bold">Total Brut Retail:</span>
+              <span className="text-slate-800 dark:text-slate-200 font-bold">
+                {invoiceItems.reduce((acc, slot) => acc + ((getCustomerSalePrice(slot.product, customerPriceType) ?? 0) * slot.quantity), 0).toLocaleString()} F
+              </span>
+            </div>
+            {applyDiscount && (
+              <div className="flex justify-between text-emerald-600 font-bold">
+                <span>Remise Appliquée ({effectiveDiscount.toFixed(1)}%):</span>
+                <span>
+                  -{(catalogTotal - effectivePaid).toLocaleString()} F
+                </span>
+              </div>
+            )}
+            {applyDiscount && (
+              <div className="flex justify-between">
+                <span className={`text-[10px] font-black uppercase ${marginLive >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                  Marge nette estimée
+                </span>
+                <span className={`font-black ${marginLive >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                  {marginLive.toLocaleString()} F
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between border-t border-amber-200/50 dark:border-amber-800/20 pt-2 mt-1">
+              <span className="text-slate-400 font-bold">Total CC Accumulé:</span>
+              <span className="text-blue-500 font-black">
+                {invoiceItems.reduce((acc, slot) => acc + (slot.product.unitCC * slot.quantity), 0).toFixed(3)} CC
+              </span>
+            </div>
+          </div>
 
-                    {/* === NOUVEAUX CHAMPS COMMANDE COMPLÈTE === */}
-                      <div className="space-y-3 bg-slate-50 dark:bg-slate-800/30 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-850">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                          <Tag className="w-3.5 h-3.5 text-amber-500" />
-                          Détails Commande (Notion/Obsidian)
-                        </h4>
-            
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {/* Type de commande */}
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Type</label>
-                            <select
-                              value={orderType}
-                              onChange={(e) => setOrderType(e.target.value as OrderType)}
-                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                            >
-                              <option value="UNITE">📦 Unité(s)</option>
-                              <option value="PACK">🎁 Pack (Clean 9, Vital 5...)</option>
-                              <option value="KIT">🛠 Kit Personnalisé</option>
-                            </select>
-                          </div>
+          {/* === NOUVEAUX CHAMPS COMMANDE COMPLÈTE === */}
+          <div className="space-y-3 bg-slate-50 dark:bg-slate-800/30 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-850">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <Tag className="w-3.5 h-3.5 text-amber-500" />
+              Détails Commande (Notion/Obsidian)
+            </h4>
 
-                          {/* Canal acquisition */}
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Canal</label>
-                            <select
-                              value={orderCanal}
-                              onChange={(e) => setOrderCanal(e.target.value as OrderCanal)}
-                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                            >
-                              <option value="WHATSAPP">💬 WhatsApp</option>
-                              <option value="META_ADS">📊 Meta Ads</option>
-                              <option value="RECOMMANDATION">🤝 Recommandation</option>
-                              <option value="BOUCHE_OREILLE">👄 Bouche-à-oreille</option>
-                              <option value="EVENEMENT">🎪 Événement</option>
-                              <option value="AUTRE">➕ Autre</option>
-                            </select>
-                          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Type de commande */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 block mb-1">Type</label>
+                <select
+                  value={orderType}
+                  onChange={(e) => setOrderType(e.target.value as OrderType)}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  <option value="UNITE">📦 Unité(s)</option>
+                  <option value="PACK">🎁 Pack (Clean 9, Vital 5...)</option>
+                  <option value="KIT">🛠 Kit Personnalisé</option>
+                </select>
+              </div>
 
-                          {/* Mode paiement */}
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Paiement</label>
-                            <select
-                              value={orderPaiement}
-                              onChange={(e) => setOrderPaiement(e.target.value as OrderPaiement)}
-                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                            >
-                              <option value="ESPECES">💵 Espèces</option>
-                              <option value="AIRTEL">📱 Airtel Money</option>
-                              <option value="MTN">📱 MTN Money</option>
-                              <option value="MIXTE">💵+📱 Mixte</option>
-                              <option value="VIREMENT">🏦 Virement</option>
-                              <option value="AUTRE">➕ Autre</option>
-                            </select>
-                          </div>
+              {/* Canal acquisition */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 block mb-1">Canal</label>
+                <select
+                  value={orderCanal}
+                  onChange={(e) => setOrderCanal(e.target.value as OrderCanal)}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  <option value="WHATSAPP">💬 WhatsApp</option>
+                  <option value="META_ADS">📊 Meta Ads</option>
+                  <option value="RECOMMANDATION">🤝 Recommandation</option>
+                  <option value="BOUCHE_OREILLE">👄 Bouche-à-oreille</option>
+                  <option value="EVENEMENT">🎪 Événement</option>
+                  <option value="AUTRE">➕ Autre</option>
+                </select>
+              </div>
 
-                          {/* Geste commercial */}
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Geste</label>
-                            <select
-                              value={orderGeste}
-                              onChange={(e) => setOrderGeste(e.target.value as OrderGeste)}
-                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                            >
-                              <option value="AUCUN">❌ Aucun</option>
-                              <option value="CLEAN9_-7K">🧴 Clean 9 -7 166 FCFA</option>
-                              <option value="LIVRAISON_GRATUITE">🚚 Livraison offerte</option>
-                              <option value="FIELDS_OFFERT">🌿 Fields of Greens offert</option>
-                              <option value="REMISE_5">🏷️ Remise 5% (Client Priv.)</option>
-                              <option value="AUTRE">➕ Autre</option>
-                            </select>
-                          </div>
+              {/* Mode paiement */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 block mb-1">Paiement</label>
+                <select
+                  value={orderPaiement}
+                  onChange={(e) => setOrderPaiement(e.target.value as OrderPaiement)}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  <option value="ESPECES">💵 Espèces</option>
+                  <option value="AIRTEL">📱 Airtel Money</option>
+                  <option value="MTN">📱 MTN Money</option>
+                  <option value="MIXTE">💵+📱 Mixte</option>
+                  <option value="VIREMENT">🏦 Virement</option>
+                  <option value="AUTRE">➕ Autre</option>
+                </select>
+              </div>
 
-                          {/* Livraison mode */}
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Livraison</label>
-                            <select
-                              value={livraisonMode}
-                              onChange={(e) => setLivraisonMode(e.target.value as LivraisonMode)}
-                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                            >
-                              <option value="DOMICILE">🏠 Domicile</option>
-                              <option value="POINT_RELAIS">📍 Point relais</option>
-                              <option value="MAIN_PROPRE">🤝 Main propre</option>
-                              <option value="RETRAIT_BOUTIQUE">🏪 Retrait boutique</option>
-                            </select>
-                          </div>
+              {/* Geste commercial */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 block mb-1">Geste</label>
+                <select
+                  value={orderGeste}
+                  onChange={(e) => setOrderGeste(e.target.value as OrderGeste)}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  <option value="AUCUN">❌ Aucun</option>
+                  <option value="CLEAN9_-7K">🧴 Clean 9 -7 166 FCFA</option>
+                  <option value="LIVRAISON_GRATUITE">🚚 Livraison offerte</option>
+                  <option value="FIELDS_OFFERT">🌿 Fields of Greens offert</option>
+                  <option value="REMISE_5">🏷️ Remise 5% (Client Priv.)</option>
+                  <option value="AUTRE">➕ Autre</option>
+                </select>
+              </div>
 
-                          {/* Date prévue livraison */}
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Date livraison prévue</label>
-                            <input
-                              type="date"
-                              value={livraisonDatePrevue}
-                              onChange={(e) => setLivraisonDatePrevue(e.target.value)}
-                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                            />
-                          </div>
+              {/* Livraison mode */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 block mb-1">Livraison</label>
+                <select
+                  value={livraisonMode}
+                  onChange={(e) => setLivraisonMode(e.target.value as LivraisonMode)}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  <option value="DOMICILE">🏠 Domicile</option>
+                  <option value="POINT_RELAIS">📍 Point relais</option>
+                  <option value="MAIN_PROPRE">🤝 Main propre</option>
+                  <option value="RETRAIT_BOUTIQUE">🏪 Retrait boutique</option>
+                </select>
+              </div>
 
-                          {/* Tags */}
-                          <div className="sm:col-span-2">
-                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Tags (séparés par virgules)</label>
-                            <input
-                              type="text"
-                              value={orderTags}
-                              onChange={(e) => setOrderTags(e.target.value)}
-                              placeholder="ex: clean9, nouveau-client, meta-ads-janvier"
-                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                            />
-                          </div>
+              {/* Date prévue livraison */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 block mb-1">Date livraison prévue</label>
+                <input
+                  type="date"
+                  value={livraisonDatePrevue}
+                  onChange={(e) => setLivraisonDatePrevue(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                />
+              </div>
 
-                          {/* Notes */}
-                          <div className="sm:col-span-2">
-                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Notes</label>
-                            <textarea
-                              value={orderNotes}
-                              onChange={(e) => setOrderNotes(e.target.value)}
-                              placeholder="Notes internes (non visibles client)..."
-                              rows={2}
-                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
-                            />
-                          </div>
-                        </div>
-                      </div>
+              {/* Tags */}
+              <div className="sm:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 block mb-1">Tags (séparés par virgules)</label>
+                <input
+                  type="text"
+                  value={orderTags}
+                  onChange={(e) => setOrderTags(e.target.value)}
+                  placeholder="ex: clean9, nouveau-client, meta-ads-janvier"
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                />
+              </div>
 
-                      <button
-                        type="submit"
-                        className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all text-sm mt-4"
-                      >
-                        {isEditMode ? 'ENREGISTRER LES MODIFICATIONS' : 'CONFIRMER LE BON DE COMMANDE'}
-                      </button>
-                    </form>
-                  </Drawer>
+              {/* Notes */}
+              <div className="sm:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 block mb-1">Notes</label>
+                <textarea
+                  value={orderNotes}
+                  onChange={(e) => setOrderNotes(e.target.value)}
+                  placeholder="Notes internes (non visibles client)..."
+                  rows={2}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all text-sm mt-4"
+          >
+            {isEditMode ? 'ENREGISTRER LES MODIFICATIONS' : 'CONFIRMER LE BON DE COMMANDE'}
+          </button>
+        </form>
+      </Drawer>
 
       {/* 5. DRAWER: DETAILED ORDER BON DE VENTE & PRINTABLE INVOICE SHEET */}
       <Drawer
@@ -1208,7 +1272,7 @@ export const OrdersView: React.FC = () => {
       >
         {selectedOrder && (
           <div className="space-y-6">
-            
+
             {/* 5.1 Status stepper bar */}
             <div className="space-y-2">
               <h4 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-left">
@@ -1281,12 +1345,12 @@ export const OrdersView: React.FC = () => {
             </div>
 
             {/* Printable Frame Area (Professionally Styled for PDF/Print) */}
-            <div 
-              className="border border-slate-200 rounded-lg p-10 bg-white text-slate-900 shadow-sm print:shadow-none print:border-none print:p-0 print:m-0 mx-auto" 
+            <div
+              className="border border-slate-200 rounded-lg p-10 bg-white text-slate-900 shadow-sm print:shadow-none print:border-none print:p-0 print:m-0 mx-auto"
               id="invoice_printable_canvas"
               style={{ width: '100%', maxWidth: '600px' }}
             >
-              
+
               {/* Header: Brand & Title */}
               <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8">
                 <div className="space-y-1">
@@ -1313,7 +1377,7 @@ export const OrdersView: React.FC = () => {
                     {profile.fboId && <p className="font-mono text-[10px] mt-1 text-slate-500">ID FBO: {profile.fboId}</p>}
                   </div>
                 </div>
-                
+
                 <div>
                   <h4 className="font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1 mb-2">Facturé à</h4>
                   <div className="space-y-0.5 text-slate-700">
@@ -1371,7 +1435,7 @@ export const OrdersView: React.FC = () => {
                     <span className="text-slate-400 font-bold uppercase">Total Brut :</span>
                     <span className="text-slate-900 font-bold">{selectedOrder.items.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0).toLocaleString()} F</span>
                   </div>
-                  
+
                   {selectedOrder.discountPercent && (
                     <div className="flex justify-between text-[11px] px-1 text-emerald-600">
                       <span className="font-bold uppercase tracking-tight">Remise Client ({selectedOrder.discountPercent}%) :</span>
@@ -1431,7 +1495,7 @@ export const OrdersView: React.FC = () => {
                 {/* Legal notes */}
                 <div className="text-[9px] text-slate-400 space-y-2 text-right">
                   <p className="leading-relaxed">
-                    Cette facture a été générée par <strong className="text-slate-600">Focus FBO</strong>. 
+                    Cette facture a été générée par <strong className="text-slate-600">Focus FBO</strong>.
                     Les produits vendus sont destinés à une consommation personnelle ou revente autorisée conformément au règlement intérieur de Forever Living Products.
                   </p>
                   <p className="font-bold text-slate-500">Merci de votre confiance !</p>
@@ -1689,3 +1753,5 @@ export const OrdersView: React.FC = () => {
     </div>
   );
 };
+
+export default OrdersView;
