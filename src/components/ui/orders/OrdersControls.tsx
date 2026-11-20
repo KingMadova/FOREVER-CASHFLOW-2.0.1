@@ -6,6 +6,17 @@ import { ORDER_SORT_OPTIONS } from '../../../lib/sortHelper';
 
 type FilterValue = 'ALL' | OrderStatut;
 
+export type OrdersPeriod = 'ALL' | '7' | '30' | 'month' | '90' | 'year';
+
+export const ORDERS_PERIOD_OPTIONS: { value: OrdersPeriod; label: string }[] = [
+  { value: 'ALL', label: 'Toutes les dates' },
+  { value: '7', label: '7 derniers jours' },
+  { value: '30', label: '30 derniers jours' },
+  { value: 'month', label: 'Ce mois' },
+  { value: '90', label: '90 derniers jours' },
+  { value: 'year', label: 'Cette année' },
+];
+
 export interface OrdersControlOption {
   value: FilterValue;
   label: string;
@@ -22,14 +33,14 @@ export interface OrdersControlsProps {
   onSortChange: (key: string) => void;
   onExportCSV: () => void;
   onPrintRegistry: () => void;
+  /** Filtre période optionnel. Omettre pour désactiver (ex. autres vues). */
+  period?: OrdersPeriod;
+  onPeriodChange?: (value: OrdersPeriod) => void;
 }
 
 const SEGMENTED_FIXED: FilterValue[] = ['ALL', 'PENDING', 'VALIDATED'];
 const SEGMENTED_OTHERS: FilterValue[] = ['PAYE', 'LIVRE', 'CANCELLED', 'RETOUR', 'REMPLACEMENT'];
 
-// Labels courts — indispensables sur mobile pour que les 4 colonnes
-// du segmented control restent équilibrées. N'a aucun impact sur la
-// logique métier ni sur le filtrage.
 const SEGMENTED_SHORT_LABELS: Record<FilterValue, string> = {
   ALL: 'Toutes',
   PENDING: 'Attente',
@@ -38,7 +49,7 @@ const SEGMENTED_SHORT_LABELS: Record<FilterValue, string> = {
   LIVRE: 'Livrées',
   CANCELLED: 'Annulées',
   RETOUR: 'Retours',
-  REMPLACEMENT: 'Rempl.',
+  REMPLACEMENT: 'Remplacées',
 };
 
 export const OrdersControls: React.FC<OrdersControlsProps> = ({
@@ -52,18 +63,19 @@ export const OrdersControls: React.FC<OrdersControlsProps> = ({
   onSortChange,
   onExportCSV,
   onPrintRegistry,
+  period,
+  onPeriodChange,
 }) => {
   const [isOthersOpen, setIsOthersOpen] = useState(false);
-
   const labelFor = (value: FilterValue): string =>
     options.find((o) => o.value === value)?.label ?? String(value);
-
   const shortLabelFor = (value: FilterValue): string =>
     SEGMENTED_SHORT_LABELS[value] ?? labelFor(value);
 
   const othersTotal = SEGMENTED_OTHERS.reduce((s, v) => s + countFor(v), 0);
   const currentIsOther = SEGMENTED_OTHERS.includes(statusFilter);
   const othersLabel = currentIsOther ? shortLabelFor(statusFilter) : 'Autres';
+  const showPeriod = period !== undefined && onPeriodChange !== undefined;
 
   return (
     <div className="orders-controls">
@@ -106,6 +118,23 @@ export const OrdersControls: React.FC<OrdersControlsProps> = ({
           <small>{currentIsOther ? countFor(statusFilter) : othersTotal}</small>
         </button>
       </div>
+
+      {/* Période — optionnel, mots complets */}
+      {showPeriod && (
+        <div className="orders-period-row" role="group" aria-label="Filtrer par période">
+          {ORDERS_PERIOD_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onPeriodChange!(opt.value)}
+              className={`orders-period-chip ${period === opt.value ? 'is-active' : ''}`}
+              aria-pressed={period === opt.value}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Toolbar commune */}
       <div className="orders-toolbar">
@@ -154,13 +183,8 @@ export const OrdersControls: React.FC<OrdersControlsProps> = ({
         </button>
       </div>
 
-      {/* Sheet mobile "Autres statuts" — utilise les labels LONGS (assez de place) */}
       {isOthersOpen && (
-        <div
-          className="orders-other-backdrop"
-          onClick={() => setIsOthersOpen(false)}
-          role="presentation"
-        >
+        <div className="orders-other-backdrop" onClick={() => setIsOthersOpen(false)} role="presentation">
           <section
             className="orders-other-sheet"
             role="dialog"
@@ -171,11 +195,7 @@ export const OrdersControls: React.FC<OrdersControlsProps> = ({
             <div className="orders-other-handle" />
             <div className="orders-other-heading">
               <strong>Autres statuts</strong>
-              <button
-                type="button"
-                onClick={() => setIsOthersOpen(false)}
-                aria-label="Fermer"
-              >
+              <button type="button" onClick={() => setIsOthersOpen(false)} aria-label="Fermer">
                 <X size={16} />
               </button>
             </div>

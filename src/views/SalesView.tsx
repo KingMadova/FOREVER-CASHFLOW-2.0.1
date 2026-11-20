@@ -15,12 +15,12 @@ import { useOrdersStore } from '../store/slices/ordersSlice';
 import { isCountedOrder, orderAccountingDate } from '../lib/orderStats';
 import { Order } from '../types';
 import { SalesDetailSheet, type SalesDetailSummary } from '../components/ui/sales/SalesDetailSheet';
+import { formatMoney, formatNumber, formatSignedMoney } from '../lib/format';
 import './SalesView.css';
 
 type Period = '7' | '30' | 'month' | '90' | 'year';
 
-const money = (value: number) =>
-  `${Math.round(value || 0).toLocaleString('fr-FR').replace(/\u202f/g, ' ')} FCFA`;
+const money = (value: number) => formatMoney(value);
 
 const dateLabel = (value: string) => {
   if (!value) return '—';
@@ -121,14 +121,11 @@ const computeDelta = (cur: number, prev: number) => {
   return { diff, pct: (diff / prev) * 100 };
 };
 
-const formatDeltaAmount = (n: number) => {
-  const sign = n > 0 ? '+' : n < 0 ? '−' : '';
-  return `${sign}${Math.abs(Math.round(n)).toLocaleString('fr-FR').replace(/\u202f/g, ' ')} FCFA`;
-};
+const formatDeltaAmount = (n: number) => formatSignedMoney(n);
 
 const formatDeltaCount = (n: number) => {
   const sign = n > 0 ? '+' : n < 0 ? '−' : '';
-  return `${sign}${Math.abs(Math.round(n)).toLocaleString('fr-FR')}`;
+  return `${sign}${formatNumber(Math.abs(n))}`;
 };
 
 type KpiTone = 'gold' | 'emerald' | 'blue' | 'violet';

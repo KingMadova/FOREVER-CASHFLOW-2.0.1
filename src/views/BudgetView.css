@@ -1,16 +1,670 @@
-/* Budget — financial cockpit and movement ledger */
-#budget_view_container{display:flex;flex-direction:column;gap:1rem;min-width:0}
-#budget_view_container>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.15rem 0 .85rem;border-bottom:1px solid var(--fcf-border)}
-#budget_view_container>div:first-child h2{color:var(--fcf-foreground);font-family:var(--font-display);font-size:1.15rem;font-weight:850;letter-spacing:-.04em}
-#budget_view_container>div:first-child p{margin-top:.2rem;color:var(--fcf-muted);font-size:.66rem}
-#budget_add_btn{min-height:2.55rem;height:2.55rem;padding:0 .85rem;border:1px solid var(--fcf-brand-terracotta);border-radius:.65rem;background:var(--fcf-brand-terracotta);color:#fff;font-size:.63rem;font-weight:800;box-shadow:none}
-#budget_cumulative_grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem}
-#budget_cumulative_grid>div{min-width:0;padding:.8rem;border:1px solid var(--fcf-border);border-radius:.75rem;background:var(--fcf-surface);box-shadow:none}
-#budget_cumulative_grid>div:last-child{background:var(--fcf-foreground);border-color:var(--fcf-foreground)}
-#budget_cumulative_grid>div span{font-size:.56rem;letter-spacing:.08em}
-#budget_cumulative_grid>div p{font-size:clamp(.8rem,1.5vw,1.05rem);font-variant-numeric:tabular-nums}
-#budget_view_container #budget_mapping_area{gap:.55rem;padding-top:.15rem}
-#budget_view_container #budget_mapping_area>div:first-child{align-items:center;border-color:var(--fcf-border)}
-#budget_view_container [id^="budget_card_"]{padding:.75rem .85rem;border:1px solid var(--fcf-border);border-radius:.7rem;background:var(--fcf-surface);box-shadow:none}
-#budget_view_container [id^="budget_card_"]:hover{border-color:color-mix(in oklab,var(--fcf-brand-orange) 45%,var(--fcf-border))}
-@media(max-width:640px){#budget_view_container{gap:.8rem}#budget_view_container>div:first-child{align-items:flex-start}#budget_view_container>div:first-child h2{font-size:1rem}#budget_add_btn{width:2.55rem;min-width:2.55rem;padding:0;font-size:0}#budget_cumulative_grid{gap:.4rem}#budget_cumulative_grid>div{padding:.6rem}#budget_cumulative_grid>div p{font-size:.76rem}#budget_view_container #budget_mapping_area>div:first-child{align-items:flex-start}}
+/* ============================================================================
+   BudgetView — refonte Lot 6
+   Style aligné sur la référence : hero card sombre, pills colorées, 2 charts
+   côte à côte, area chart lime, transactions en cards légères.
+   ========================================================================== */
+
+#budget_view_container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  color: var(--fcf-foreground);
+}
+
+/* ─── 1. Header ────────────────────────────────────────────────────── */
+.budget-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .1rem 0 .75rem;
+  border-bottom: 1px solid var(--fcf-border);
+}
+.budget-header-text { min-width: 0; flex: 1; }
+.budget-eyebrow {
+  margin-bottom: .15rem;
+  color: var(--fcf-brand-terracotta);
+  font-size: .55rem;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+.budget-header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -.045em;
+}
+.budget-header p {
+  margin: .2rem 0 0;
+  color: var(--fcf-muted);
+  font-size: .68rem;
+}
+.budget-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  min-height: 2.55rem;
+  height: 2.55rem;
+  padding: 0 .9rem;
+  border: 1px solid var(--fcf-brand-terracotta);
+  border-radius: var(--radius-control);
+  background: var(--fcf-brand-terracotta);
+  color: #fff;
+  font-size: .7rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .15s ease, transform .12s ease;
+  flex-shrink: 0;
+}
+.budget-add-btn:hover { background: #a93b0c; }
+.budget-add-btn:active { transform: scale(.97); }
+.budget-add-btn-label { display: inline; }
+
+/* ─── 2. Hero card (style VISA, toujours sombre) ──────────────────── */
+.budget-hero {
+  position: relative;
+  padding: 1.15rem 1.25rem 1.25rem;
+  border-radius: var(--fcf-radius-xl);
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(212, 245, 66, 0.14) 0%, transparent 55%),
+    linear-gradient(135deg, #232326 0%, #141416 100%);
+  color: #f6f0ea;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+.budget-hero::after {
+  content: "";
+  position: absolute;
+  top: -60%;
+  right: -25%;
+  width: 16rem;
+  height: 16rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212, 245, 66, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.budget-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .5rem;
+  margin-bottom: .5rem;
+}
+.budget-hero-eyebrow {
+  color: rgba(246, 240, 234, 0.65);
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.budget-hero-status {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .2rem .5rem;
+  border-radius: 999px;
+  font-size: .6rem;
+  font-weight: 800;
+}
+.budget-hero-status.is-up {
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+}
+.budget-hero-status.is-down {
+  background: rgba(251, 113, 133, 0.18);
+  color: #fb7185;
+}
+.budget-hero-value {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 7vw, 2.4rem);
+  font-weight: 850;
+  letter-spacing: -.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: .9rem;
+}
+.budget-hero-value small {
+  font-size: .55em;
+  font-weight: 600;
+  opacity: .55;
+  margin-left: .2em;
+}
+.budget-hero-splits {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+  margin-bottom: .85rem;
+}
+.budget-hero-split {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  min-width: 0;
+}
+.budget-hero-split span {
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  opacity: .55;
+}
+.budget-hero-split strong {
+  font-family: var(--font-display);
+  font-size: .95rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.budget-hero-split.is-in strong { color: #d4f542; }
+.budget-hero-split.is-out strong { color: #fb7185; }
+.budget-hero-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding-top: .75rem;
+  border-top: 1px solid rgba(246, 240, 234, 0.08);
+}
+.budget-hero-nav-btn {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(246, 240, 234, 0.06);
+  color: rgba(246, 240, 234, 0.75);
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.budget-hero-nav-btn:hover { background: rgba(246, 240, 234, 0.12); }
+.budget-hero-nav-btn:disabled { opacity: .3; cursor: not-allowed; }
+.budget-hero-nav-label {
+  flex: 1;
+  text-align: center;
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.budget-hero-today {
+  padding: .3rem .6rem;
+  border-radius: 999px;
+  background: rgba(212, 245, 66, 0.15);
+  color: #d4f542;
+  font-size: .6rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 0;
+}
+.budget-hero-today:hover { background: rgba(212, 245, 66, 0.25); }
+
+/* ─── 3. Filtres pills ────────────────────────────────────────────── */
+.budget-filters {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: .15rem;
+}
+.budget-filters::-webkit-scrollbar { display: none; }
+.budget-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .45rem .85rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: 999px;
+  background: var(--fcf-surface);
+  color: var(--fcf-muted);
+  font-size: .72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, color .15s ease;
+  flex-shrink: 0;
+}
+.budget-filter-pill:hover { border-color: var(--fcf-brand-gold); }
+.budget-filter-pill.is-active {
+  border-color: var(--fcf-foreground);
+  background: var(--fcf-foreground);
+  color: var(--fcf-background);
+}
+.budget-filter-pill .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ─── 4. Charts grid ──────────────────────────────────────────────── */
+.budget-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .65rem;
+}
+.budget-chart-card {
+  padding: .9rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: var(--radius-surface);
+  background: var(--fcf-surface);
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  min-width: 0;
+}
+.budget-chart-title {
+  margin: 0;
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--fcf-muted);
+  text-align: center;
+}
+.budget-chart-canvas {
+  position: relative;
+  height: 160px;
+  margin: -.25rem 0;
+}
+.budget-chart-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  gap: .1rem;
+}
+.budget-chart-center strong {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--fcf-foreground);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.budget-chart-center span {
+  font-size: .55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--fcf-muted);
+}
+.budget-chart-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.budget-chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: .68rem;
+}
+.budget-chart-legend .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.budget-chart-legend .label {
+  flex: 1;
+  color: var(--fcf-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.budget-chart-legend .value {
+  color: var(--fcf-foreground);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.budget-chart-empty {
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fcf-muted);
+  font-size: .68rem;
+  font-style: italic;
+  text-align: center;
+  padding: 0 .5rem;
+}
+
+/* ─── 5. Trend card ──────────────────────────────────────────────── */
+.budget-trend-card {
+  padding: .9rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: var(--radius-surface);
+  background: var(--fcf-surface);
+}
+.budget-trend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  margin-bottom: .5rem;
+}
+.budget-trend-title {
+  margin: 0;
+  font-size: .72rem;
+  font-weight: 800;
+  color: var(--fcf-foreground);
+}
+.budget-trend-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .25rem .6rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, #d4f542 18%, var(--fcf-surface));
+  color: #b3c820;
+  font-size: .62rem;
+  font-weight: 800;
+}
+:global(.dark) .budget-trend-pill { color: #d4f542; }
+.budget-trend-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d4f542;
+}
+
+/* ─── 6. Liste transactions ──────────────────────────────────────── */
+.budget-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .25rem 0 .5rem;
+  border-bottom: 1px solid var(--fcf-border);
+  flex-wrap: wrap;
+}
+.budget-list-title {
+  margin: 0;
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--fcf-muted);
+}
+.budget-list-tools {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  flex-wrap: wrap;
+}
+.budget-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  height: 2rem;
+  padding: 0 .6rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: var(--radius-control);
+  background: var(--fcf-surface);
+  color: var(--fcf-muted);
+  font-size: .62rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color .15s ease, color .15s ease;
+}
+.budget-tool-btn:hover {
+  border-color: var(--fcf-brand-gold);
+  color: var(--fcf-foreground);
+}
+@media (max-width: 640px) {
+  .budget-tool-btn span.label { display: none; }
+  .budget-tool-btn { width: 2rem; padding: 0; justify-content: center; }
+}
+
+.budget-tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.budget-tx-empty {
+  padding: 2.5rem 1rem;
+  border: 1px dashed var(--fcf-border);
+  border-radius: var(--radius-surface);
+  background: var(--fcf-surface);
+  text-align: center;
+  color: var(--fcf-muted);
+  font-size: .72rem;
+}
+
+.budget-tx-row {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .65rem .8rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: var(--radius-control);
+  background: var(--fcf-surface);
+  transition: border-color .15s ease, background .15s ease;
+  min-width: 0;
+}
+.budget-tx-row:hover {
+  border-color: color-mix(in oklab, var(--fcf-brand-gold) 40%, var(--fcf-border));
+}
+.budget-tx-icon {
+  display: inline-flex;
+  width: 2.1rem;
+  height: 2.1rem;
+  flex: 0 0 2.1rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: .5rem;
+}
+.budget-tx-icon.is-revenue {
+  background: color-mix(in oklab, #22c55e 15%, var(--fcf-surface));
+  color: #22c55e;
+}
+.budget-tx-icon.is-expense {
+  background: color-mix(in oklab, #fb7185 15%, var(--fcf-surface));
+  color: #fb7185;
+}
+.budget-tx-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+}
+.budget-tx-tags {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  flex-wrap: wrap;
+  font-size: .55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.budget-tx-tags .date { color: var(--fcf-muted); }
+.budget-tx-tags .chip {
+  padding: .1rem .35rem;
+  border-radius: .25rem;
+  background: var(--fcf-surface-muted);
+  color: var(--fcf-muted);
+}
+.budget-tx-tags .chip.is-sale {
+  background: color-mix(in oklab, var(--fcf-info) 15%, var(--fcf-surface));
+  color: var(--fcf-info);
+}
+.budget-tx-tags .chip.is-manual {
+  background: color-mix(in oklab, var(--fcf-brand-gold) 15%, var(--fcf-surface));
+  color: var(--fcf-brand-terracotta);
+}
+.budget-tx-tags .chip.is-offline {
+  background: color-mix(in oklab, var(--fcf-danger) 15%, var(--fcf-surface));
+  color: var(--fcf-danger);
+  animation: budget-pulse 2s ease-in-out infinite;
+}
+@keyframes budget-pulse {
+  50% { opacity: .65; }
+}
+.budget-tx-desc {
+  margin: 0;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--fcf-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.budget-tx-amount {
+  font-family: var(--font-display);
+  font-size: .92rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.budget-tx-amount.is-revenue { color: #22c55e; }
+.budget-tx-amount.is-expense { color: #fb7185; }
+.budget-tx-actions {
+  display: flex;
+  align-items: center;
+  gap: .2rem;
+  flex-shrink: 0;
+}
+.budget-tx-btn {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-control);
+  background: transparent;
+  border: 0;
+  color: var(--fcf-muted);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, transform .1s ease;
+}
+.budget-tx-btn:hover { background: var(--fcf-surface-muted); color: var(--fcf-foreground); }
+.budget-tx-btn:active { transform: scale(.9); }
+.budget-tx-btn.is-danger:hover { color: var(--fcf-danger); }
+.budget-tx-confirm {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+}
+.budget-tx-confirm-yes {
+  padding: .3rem .55rem;
+  border-radius: var(--radius-control);
+  background: var(--fcf-danger);
+  color: #fff;
+  font-size: .6rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 0;
+  white-space: nowrap;
+}
+.budget-tx-confirm-no {
+  padding: .3rem .55rem;
+  border-radius: var(--radius-control);
+  background: var(--fcf-surface-muted);
+  color: var(--fcf-muted);
+  font-size: .6rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 0;
+  white-space: nowrap;
+}
+
+/* ─── 7. Drawer form ─────────────────────────────────────────────── */
+.budget-form-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .25rem;
+  padding: .25rem;
+  border-radius: var(--radius-control);
+  background: var(--fcf-surface-muted);
+}
+.budget-form-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  padding: .65rem .5rem;
+  border: 0;
+  border-radius: calc(var(--radius-control) - 2px);
+  background: transparent;
+  color: var(--fcf-muted);
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.budget-form-toggle-btn.is-expense {
+  background: color-mix(in oklab, #fb7185 18%, var(--fcf-surface));
+  color: #fb7185;
+}
+.budget-form-toggle-btn.is-revenue {
+  background: color-mix(in oklab, #22c55e 18%, var(--fcf-surface));
+  color: #22c55e;
+}
+.budget-form-error {
+  padding: .6rem .8rem;
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--fcf-danger) 10%, var(--fcf-surface));
+  border: 1px solid color-mix(in oklab, var(--fcf-danger) 30%, var(--fcf-border));
+  color: var(--fcf-danger);
+  font-size: .72rem;
+  font-weight: 600;
+}
+
+/* ─── 8. Responsive ──────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .budget-header { align-items: center; }
+  .budget-header h2 { font-size: 1.05rem; }
+  .budget-header p { max-width: 15rem; font-size: .62rem; }
+  .budget-add-btn {
+    width: 2.55rem;
+    min-width: 2.55rem;
+    padding: 0;
+  }
+  .budget-add-btn-label { display: none; }
+  .budget-charts { gap: .5rem; }
+  .budget-chart-card { padding: .7rem; }
+  .budget-chart-canvas { height: 140px; }
+  .budget-chart-title { font-size: .55rem; }
+  .budget-hero { padding: 1rem; }
+  .budget-hero-value { font-size: 1.6rem; margin-bottom: .75rem; }
+  .budget-hero-split strong { font-size: .85rem; }
+  .budget-tx-row { padding: .55rem .65rem; }
+  .budget-tx-icon { width: 1.85rem; height: 1.85rem; flex-basis: 1.85rem; }
+  .budget-tx-desc { font-size: .72rem; }
+  .budget-tx-amount { font-size: .82rem; }
+  .budget-list-header { gap: .35rem; }
+}
+
+@media (max-width: 380px) {
+  .budget-charts { grid-template-columns: 1fr; }
+  .budget-tx-actions { flex-direction: column; gap: .1rem; }
+  .budget-tx-btn { width: 1.7rem; height: 1.7rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #budget_view_container *,
+  #budget_view_container *::before,
+  #budget_view_container *::after {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}
+
+.budget-hero-status.is-neutral {
+  background: rgba(148, 163, 184, 0.18);
+  color: #cbd5e1;
+}

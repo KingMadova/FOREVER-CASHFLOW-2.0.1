@@ -18,6 +18,11 @@ import {
   ClientsFiltersSheet,
   type ClientView,
 } from '../components/ui/clients/ClientsFiltersSheet';
+// ─── Design System Arc ─────────────────────────────────────────
+import { Input } from '../components/arc/input/input';
+import { Select, type SelectOption } from '../components/arc/select/select';
+import { Textarea } from '../components/arc/textarea/textarea';
+import { Button } from '../components/arc/button/button';
 import {
   Search,
   UserPlus,
@@ -70,6 +75,14 @@ const MONTHS_FR = [
 ];
 const MONTHS_OPTIONS = MONTHS_FR.map((label, i) => ({ value: i + 1, label }));
 
+const SOURCE_PROSPECTION_OPTIONS: SelectOption[] = [
+  { value: 'META_ADS', label: '📊 Meta Ads' },
+  { value: 'RECOMMANDATION', label: '🤝 Recommandation' },
+  { value: 'BOUCHE_OREILLE', label: '👄 Bouche-à-oreille' },
+  { value: 'EVENEMENT', label: '🎪 Événement' },
+  { value: 'AUTRE', label: '➕ Autre' },
+];
+
 export const ClientsView: React.FC = () => {
   const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomersStore();
   const { products } = useProductsStore();
@@ -84,6 +97,7 @@ export const ClientsView: React.FC = () => {
   const [isFiltersSheetOpen, setIsFiltersSheetOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState<'INFO' | 'ORDERS' | 'HISTORY' | 'NOTES'>('INFO');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const openForm = () => {
@@ -143,27 +157,32 @@ export const ClientsView: React.FC = () => {
   // Clients (statut CLIENT uniquement)
   const clients = customers.filter(c => c.status === CustomerStatus.CLIENT);
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName || !newPhone) return;
 
-    addCustomer({
-      name: newName,
-      email: newEmail,
-      phone: newPhone,
-      address: newAddress,
-      ville: newVille,
-      dateNaissance: newDateNaissance,
-      sourceProspection: newSourceProspection,
-      isCP: newIsCP,
-      status: CustomerStatus.CLIENT,
-      pipelineStage: 'CLOSED_WON',
-      lastContactDate: new Date().toISOString().split('T')[0],
-      notes: newNotes,
-    });
+    setIsSubmitting(true);
+    try {
+      await addCustomer({
+        name: newName,
+        email: newEmail,
+        phone: newPhone,
+        address: newAddress,
+        ville: newVille,
+        dateNaissance: newDateNaissance,
+        sourceProspection: newSourceProspection,
+        isCP: newIsCP,
+        status: CustomerStatus.CLIENT,
+        pipelineStage: 'CLOSED_WON',
+        lastContactDate: new Date().toISOString().split('T')[0],
+        notes: newNotes,
+      });
 
-    resetAddForm();
-    setIsAddOpen(false);
+      resetAddForm();
+      setIsAddOpen(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getClientOrders = (clientId: string) =>
@@ -527,7 +546,8 @@ export const ClientsView: React.FC = () => {
           </span>
           <input
             type="text"
-            placeholder="Rechercher par nom, téléphone, adresse..."
+            placeholder="Rechercher un client…"
+            aria-label="Rechercher un client par nom, téléphone ou adresse"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-11 pr-4 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all h-12"
@@ -713,7 +733,7 @@ export const ClientsView: React.FC = () => {
         showVipExport={vipRanking.length > 0}
       />
 
-      {/* 8. DRAWER : Ajouter un client */}
+      {/* 8. DRAWER : Ajouter un client — refonte design system */}
       <Drawer
         isOpen={isAddOpen}
         onClose={() => {
@@ -722,135 +742,126 @@ export const ClientsView: React.FC = () => {
         }}
         title="Nouveau Client Forever"
       >
-        <form onSubmit={handleAddSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs font-bold text-slate-500 block mb-1">Nom du client *</label>
-            <input
-              type="text"
+        <form onSubmit={handleAddSubmit} className="space-y-5">
+          <Input
+            label="Nom du client *"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="ex. Marie Koumba"
+            autoComplete="name"
+            required
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Téléphone *"
+              type="tel"
+              inputMode="tel"
+              value={newPhone}
+              onChange={(e) => setNewPhone(e.target.value)}
+              placeholder="ex. +242 06 xxx xxxx"
+              autoComplete="tel"
               required
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="ex. Marie Koumba"
-              className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
+            />
+            <Input
+              label="E-mail"
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="ex. marie@gmail.com"
+              autoComplete="email"
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1">Téléphone *</label>
-              <input
-                type="tel"
-                required
-                inputMode="tel"
-                value={newPhone}
-                onChange={(e) => setNewPhone(e.target.value)}
-                placeholder="ex. +242 06 xxx xxxx"
-                className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1">E-mail</label>
-              <input
-                type="email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="ex. marie@gmail.com"
-                className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1">Ville</label>
-              <input
-                type="text"
-                value={newVille}
-                onChange={(e) => setNewVille(e.target.value)}
-                placeholder="ex. Brazzaville"
-                className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1">Date Naissance</label>
-              <input
-                type="date"
-                value={newDateNaissance}
-                onChange={(e) => setNewDateNaissance(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-500 block mb-1">Source Prospection</label>
-            <select
-              value={newSourceProspection}
-              onChange={(e) =>
-                setNewSourceProspection(
-                  e.target.value as 'META_ADS' | 'RECOMMANDATION' | 'BOUCHE_OREILLE' | 'EVENEMENT' | 'AUTRE',
-                )
-              }
-              className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-            >
-              <option value="META_ADS">📊 Meta Ads</option>
-              <option value="RECOMMANDATION">🤝 Recommandation</option>
-              <option value="BOUCHE_OREILLE">👄 Bouche-à-oreille</option>
-              <option value="EVENEMENT">🎪 Événement</option>
-              <option value="AUTRE">➕ Autre</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-500 block mb-1">Adresse de livraison</label>
-            <input
-              type="text"
-              value={newAddress}
-              onChange={(e) => setNewAddress(e.target.value)}
-              placeholder="ex. Quartier Tié-Tié, Pointe-Noire"
-              className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
+            <Input
+              label="Ville"
+              value={newVille}
+              onChange={(e) => setNewVille(e.target.value)}
+              placeholder="ex. Brazzaville"
+              autoComplete="address-level2"
+            />
+            <Input
+              label="Date de naissance"
+              type="date"
+              value={newDateNaissance}
+              onChange={(e) => setNewDateNaissance(e.target.value)}
             />
           </div>
 
-          <div className="rounded-2xl border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/60 dark:bg-amber-950/20 p-3.5 space-y-2">
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block">Tarif client</label>
-            <label className="flex items-center gap-3 cursor-pointer">
+          <Select
+            label="Source de prospection"
+            value={newSourceProspection}
+            onChange={(e) =>
+              setNewSourceProspection(
+                e.target.value as 'META_ADS' | 'RECOMMANDATION' | 'BOUCHE_OREILLE' | 'EVENEMENT' | 'AUTRE',
+              )
+            }
+            options={SOURCE_PROSPECTION_OPTIONS}
+          />
+
+          <Input
+            label="Adresse de livraison"
+            value={newAddress}
+            onChange={(e) => setNewAddress(e.target.value)}
+            placeholder="ex. Quartier Tié-Tié, Pointe-Noire"
+            autoComplete="street-address"
+          />
+
+          {/* Tarif client — encart sémantique aligné sur les tokens */}
+          <div
+            className="rounded-[var(--radius-card)] border p-4"
+            style={{
+              background: 'color-mix(in oklab, var(--fcf-brand-gold) 8%, var(--fcf-surface))',
+              borderColor: 'color-mix(in oklab, var(--fcf-brand-gold) 35%, var(--fcf-border))',
+            }}
+          >
+            <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={newIsCP}
                 onChange={(e) => setNewIsCP(e.target.checked)}
-                className="h-4 w-4 accent-amber-500"
+                className="h-4 w-4 mt-0.5 accent-[var(--fcf-brand-terracotta)] cursor-pointer"
               />
-              <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                Ce client bénéficie du tarif CP
+              <span>
+                <span className="block text-sm font-semibold text-[var(--fcf-foreground)]">
+                  Client CP Forever
+                </span>
+                <span className="block text-xs text-[var(--fcf-muted)] mt-0.5">
+                  Bénéficie du tarif CP sur toutes ses commandes.
+                </span>
               </span>
             </label>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400">
-              Le tarif CP sera appliqué automatiquement à ses prochaines commandes.
-            </p>
           </div>
 
-          <div>
-            <label className="text-xs font-bold text-slate-500 block mb-1">Notes / Préférences produits</label>
-            <textarea
-              value={newNotes}
-              onChange={(e) => setNewNotes(e.target.value)}
-              placeholder="Achete la Pulpe Stabilisée et le Gelly de soin. Sensible au prix de groupe."
-              rows={3}
-              className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 text-[#101010] dark:text-white"
-            />
-          </div>
+          <Textarea
+            label="Notes / Préférences produits"
+            value={newNotes}
+            onChange={(e) => setNewNotes(e.target.value)}
+            placeholder="Ex : achete la Pulpe Stabilisée et le Gelly de soin. Sensible au prix de groupe."
+            rows={3}
+          />
 
-          <button
-            type="submit"
-            className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all text-sm mt-4"
-          >
-            CRÉER LA FICHE CLIENT
-          </button>
+          <div className="pt-2 flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsAddOpen(false);
+                resetAddForm();
+              }}
+              disabled={isSubmitting}
+            >
+              Annuler
+            </Button>
+            <Button type="submit" variant="primary" loading={isSubmitting} className="flex-1">
+              Créer la fiche client
+            </Button>
+          </div>
         </form>
       </Drawer>
 
-      {/* 9. DRAWER : Détail client (4 tabs) */}
+      {/* 9. DRAWER : Détail client (4 tabs) — inchangé */}
       <Drawer
         variant="side"
         isOpen={isDetailOpen && selectedClient !== null}

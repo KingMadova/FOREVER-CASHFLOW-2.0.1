@@ -686,3 +686,48 @@
     animation-duration: .01ms !important;
   }
 }
+
+/* --- 6. Période (chips compactes, scroll horizontal mobile) --- */
+.orders-period-row {
+  display: flex;
+  gap: .3rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: .15rem;
+}
+.orders-period-row::-webkit-scrollbar { display: none; }
+.orders-period-chip {
+  flex-shrink: 0;
+  min-height: 1.85rem;
+  padding: 0 .6rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .45rem;
+  background: var(--fcf-surface);
+  color: var(--fcf-muted);
+  font-size: .6rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .12s ease, background .12s ease, color .12s ease;
+}
+.orders-period-chip:hover {
+  border-color: var(--fcf-brand-gold);
+  color: var(--fcf-foreground);
+}
+.orders-period-chip.is-active {
+  border-color: var(--fcf-brand-terracotta);
+  background: color-mix(in oklab, var(--fcf-brand-gold) 12%, var(--fcf-surface));
+  color: var(--fcf-brand-terracotta);
+}
+
+@media (max-width: 767px) {
+  .orders-period-chip {
+    min-height: 1.75rem;
+    padding: 0 .5rem;
+    font-size: .58rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orders-period-chip { transition-duration: .01ms; }
+}

@@ -114,7 +114,7 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
 
   if (!isAuthReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#121215]">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--fcf-background)]">
         <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );

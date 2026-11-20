@@ -22,6 +22,7 @@ import {
   alreadyNotifiedToday,
   markNotifiedToday,
 } from '../../lib/nativeNotificationService';
+import { formatMoney } from '../../lib/format';
 import {
   Bell,
   Check,
@@ -780,7 +781,7 @@ export const NotificationCenter: React.FC = () => {
                           <p className="text-[9.5px] font-bold text-slate-600 dark:text-slate-350 mt-1">
                             Valeur :{' '}
                             <span className="text-slate-900 dark:text-slate-100 font-extrabold">
-                              {order.totalRetail.toLocaleString()} F
+                              {formatMoney(order.totalRetail)}
                             </span>{' '}
                             ({order.totalCC.toFixed(3)} CC)
                           </p>
@@ -1074,7 +1075,7 @@ export const NotificationCenter: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 30 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="fixed left-3 right-3 xl:left-auto xl:right-6 xl:w-[380px] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl z-60"
+            className="fixed left-3 right-3 mx-auto max-w-[420px] sm:left-auto sm:right-6 sm:mx-0 sm:w-[380px] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl z-60"
             style={{ bottom: 'calc(72px + env(safe-area-inset-bottom, 8px) + 8px)' }}
             id="notification_slide_toast"
           >

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Order, OrderStatut } from '../../../types';
 import { orderStatusLabel } from '../../../lib/orderStatusMeta';
+import { formatMoney } from '../../../lib/format';
 
 export interface OrdersKanbanProps {
   orders: Order[];
@@ -42,7 +43,7 @@ export const OrdersKanban: React.FC<OrdersKanbanProps> = ({
                     {ord.items.length} article(s) · {ord.paiement}
                   </span>
                   <b className="orders-kanban-amount">
-                    {ord.totalRetail.toLocaleString('fr-FR')} FCFA
+                    {formatMoney(ord.totalRetail)}
                   </b>
                   <small className="orders-kanban-meta">{ord.date}</small>
                 </button>

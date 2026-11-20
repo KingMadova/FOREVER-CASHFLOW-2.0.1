@@ -16,6 +16,11 @@ import { OrdersKanban } from '../components/ui/orders/OrdersKanban';
 import '../components/ui/orders/OrdersStyles.css';
 import { Order, OrderStatut, OrderStatus, Product, GRADES, CustomerStatus, OrderItem, OrderType, OrderCanal, OrderPaiement, OrderGeste, LivraisonMode, CustomerPriceType } from '../types';
 import { getCustomerSalePrice, getPartnerPurchasePrice } from '../lib/pricing';
+// ─── Design System Arc ─────────────────────────────────────────
+import { Input } from '../components/arc/input/input';
+import { Select, type SelectOption } from '../components/arc/select/select';
+import { Textarea } from '../components/arc/textarea/textarea';
+import { Button } from '../components/arc/button/button';
 import {
   ShoppingBag,
   Plus,
@@ -79,6 +84,43 @@ const LIVRAISON_MODE_LABELS: Record<string, string> = {
   RETRAIT_BOUTIQUE: '🏬 Retrait boutique',
 };
 
+// ─── Options pour les composants <Select> Arc ────────────────────
+const TYPE_OPTIONS: SelectOption[] = [
+  { value: 'UNITE', label: '📦 Unité(s)' },
+  { value: 'PACK', label: '🎁 Pack (Clean 9, Vital 5…)' },
+  { value: 'KIT', label: '🛠 Kit personnalisé' },
+];
+const CANAL_OPTIONS: SelectOption[] = [
+  { value: 'WHATSAPP', label: '💬 WhatsApp' },
+  { value: 'META_ADS', label: '📊 Meta Ads' },
+  { value: 'RECOMMANDATION', label: '🤝 Recommandation' },
+  { value: 'BOUCHE_OREILLE', label: '👄 Bouche-à-oreille' },
+  { value: 'EVENEMENT', label: '🎪 Événement' },
+  { value: 'AUTRE', label: '➕ Autre' },
+];
+const PAIEMENT_OPTIONS: SelectOption[] = [
+  { value: 'ESPECES', label: '💵 Espèces' },
+  { value: 'AIRTEL', label: '📱 Airtel Money' },
+  { value: 'MTN', label: '📱 MTN Money' },
+  { value: 'MIXTE', label: '💵 + 📱 Mixte' },
+  { value: 'VIREMENT', label: '🏦 Virement' },
+  { value: 'AUTRE', label: '➕ Autre' },
+];
+const GESTE_OPTIONS: SelectOption[] = [
+  { value: 'AUCUN', label: '❌ Aucun' },
+  { value: 'CLEAN9_-7K', label: '🧴 Clean 9 –7 166 FCFA' },
+  { value: 'LIVRAISON_GRATUITE', label: '🚚 Livraison offerte' },
+  { value: 'FIELDS_OFFERT', label: '🌿 Fields of Greens offert' },
+  { value: 'REMISE_5', label: '🏷️ Remise 5 % (Client Priv.)' },
+  { value: 'AUTRE', label: '➕ Autre' },
+];
+const LIVRAISON_MODE_OPTIONS: SelectOption[] = [
+  { value: 'DOMICILE', label: '🏠 Domicile' },
+  { value: 'POINT_RELAIS', label: '📍 Point relais' },
+  { value: 'MAIN_PROPRE', label: '🤝 Main propre' },
+  { value: 'RETRAIT_BOUTIQUE', label: '🏬 Retrait boutique' },
+];
+
 const dateKey = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -114,6 +156,7 @@ export const OrdersView: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Filter lists
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatut>('ALL');
@@ -128,7 +171,6 @@ export const OrdersView: React.FC = () => {
 
   const [applyDiscount, setApplyDiscount] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(5);
-  // Dual-mode remise : % manuel OU montant perçu (l'un recalcule l'autre)
   const [amountPaidInput, setAmountPaidInput] = useState<string>('');
 
   const [orderFormError, setOrderFormError] = useState<string | null>(null);
@@ -192,13 +234,12 @@ export const OrdersView: React.FC = () => {
   }, []);
 
   // ─── Preset client/produits (lien depuis fiche client) ───────
-  // CORRIGÉ : attend que customers soient chargés, traité une seule fois.
+  // Attend que customers soient chargés, traité une seule fois.
   const presetProcessed = useRef(false);
   useEffect(() => {
     if (presetProcessed.current) return;
     const presetId = sessionStorage.getItem('fcf-new-order-customer');
     if (!presetId) { presetProcessed.current = true; return; }
-    // Attendre que les customers soient chargés depuis Firestore
     if (customers.length === 0) return;
 
     const cust = customers.find(c => c.id === presetId);
@@ -314,6 +355,7 @@ export const OrdersView: React.FC = () => {
   // Submit Draft
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       if (!orderCustomer) {
         setOrderFormError('Veuillez sélectionner un client.');
@@ -343,8 +385,6 @@ export const OrdersView: React.FC = () => {
         return;
       }
 
-      // Build each order line with the official customer sale price and FBO purchase cost.
-      // la négociation est portée par amountPaid (la remise en découle).
       const parsedItems: OrderItem[] = invoiceItems.map(item => ({
         productId: item.product.id,
         productName: item.product.name,
@@ -357,14 +397,12 @@ export const OrdersView: React.FC = () => {
         isDiscounted: applyDiscount
       }));
 
-      // Montant réellement perçu : saisie directe OU dérivé du %
       const paidAmount = applyDiscount
         ? (amountPaidInput !== ''
             ? Math.max(0, parseInt(amountPaidInput) || 0)
             : Math.round(orderCatalogTotal * (1 - discountPercent / 100)))
         : undefined;
 
-      // Use the helper to create complete order with all fields
       const orderData = createOrderFromCart({
         customerId: selectedCust.id,
         customerName: selectedCust.name,
@@ -385,7 +423,6 @@ export const OrdersView: React.FC = () => {
       });
 
       if (isEditMode && editingOrderId) {
-        // Mise à jour de la commande existante
         const existing = orders.find(o => o.id === editingOrderId);
         if (!existing) return;
         updateOrder({
@@ -411,6 +448,8 @@ export const OrdersView: React.FC = () => {
       console.error('[handleCreateOrder] Echec creation commande:', err);
       setOrderFormError("Erreur lors de la création de la commande. Vérifie ta connexion puis réessaie.");
       return;
+    } finally {
+      setIsSubmitting(false);
     }
 
     setIsNewOrderOpen(false);
@@ -427,14 +466,12 @@ export const OrdersView: React.FC = () => {
   };
 
   // Ouvrir le formulaire en mode edition depuis une commande PENDING
-  // CORRIGÉ : restaure TOUS les champs de la commande (type, canal, paiement, geste, livraison, tags, notes)
+  // Restaure TOUS les champs de la commande (type, canal, paiement, geste, livraison, tags, notes)
   const handleEditOrder = (ord: Order) => {
-    // Pré-remplir le client
     const cust = customers.find(c => c.id === ord.customerId);
     setOrderCustomer(ord.customerId);
     setCustomerSearchQuery(cust?.name || ord.customerName);
 
-    // Pré-remplir les produits (reconstruire depuis les items)
     const prefilledItems = ord.items.map(item => {
       const prod = products.find(p => p.id === item.productId) || ({
         id: item.productId,
@@ -446,7 +483,6 @@ export const OrdersView: React.FC = () => {
     });
     setInvoiceItems(prefilledItems);
 
-    // Pré-remplir la remise et le montant perçu
     if (ord.discountPercent) {
       setApplyDiscount(true);
       setDiscountPercent(ord.discountPercent);
@@ -457,7 +493,7 @@ export const OrdersView: React.FC = () => {
       setAmountPaidInput('');
     }
 
-    // ✅ Restauration des champs Notion/Obsidian perdus auparavant
+    // Restauration des champs Notion/Obsidian perdus auparavant
     setOrderType((ord.type as OrderType) || 'UNITE');
     setOrderCanal((ord.canal as OrderCanal) || 'WHATSAPP');
     setOrderPaiement((ord.paiement as OrderPaiement) || 'ESPECES');
@@ -468,7 +504,6 @@ export const OrdersView: React.FC = () => {
     setOrderNotes(ord.notes || '');
     setOrderFormError(null);
 
-    // Passer en mode edition
     setIsEditMode(true);
     setEditingOrderId(ord.id);
     setIsDetailOpen(false);
@@ -484,7 +519,7 @@ export const OrdersView: React.FC = () => {
     await printCanvas('invoice_printable_canvas');
   };
 
-  // #5 Partager la facture au client (Web Share, fallback WhatsApp)
+  // Partager la facture au client (Web Share, fallback WhatsApp)
   const handleShareInvoice = async () => {
     if (!selectedOrder) return;
     const cust = customers.find(c => c.id === selectedOrder.customerId);
@@ -510,7 +545,6 @@ export const OrdersView: React.FC = () => {
         await navigator.share({ title: `Facture ${ref}`, text });
         return;
       }
-      // Fallback : ouvrir WhatsApp avec le texte prérempli
       let phone = (cust?.phone || '').replace(/[^0-9]/g, '');
       if (phone.startsWith('00')) phone = phone.substring(2);
       if (phone.length === 8 || (phone.length === 9 && /^[456]/.test(phone))) phone = '242' + phone.replace(/^[456]/, '');
@@ -521,7 +555,6 @@ export const OrdersView: React.FC = () => {
   };
 
   const handleExportOrdersCSV = () => {
-    // Columns headers - TOUS les champs Notion/Obsidian
     const headers = [
       'ID',
       'Ref Commande',
@@ -555,7 +588,6 @@ export const OrdersView: React.FC = () => {
       'Notes'
     ];
 
-    // Rows
     const rows = sortList(orders, orderSort, orderComparators)
       .map(o => {
         const itemsStr = o.items.map(it => `${it.quantity}x ${it.productName}`).join(' | ');
@@ -595,8 +627,6 @@ export const OrdersView: React.FC = () => {
         ];
       });
 
-    // Build CSV Content
-    // Excel-friendly UTF-8 BOM + semicolon-separated values
     const csvContent = "\uFEFF" +
       [headers, ...rows]
         .map(row => row.map(val => {
@@ -605,7 +635,6 @@ export const OrdersView: React.FC = () => {
         }).join(';'))
         .join('\n');
 
-    // Create download link
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -659,7 +688,7 @@ export const OrdersView: React.FC = () => {
         />
       )}
 
-      {/* 4. DRAWER: ADD ORDER BON DE VENTE */}
+      {/* ═══ 4. DRAWER: ADD / EDIT ORDER — refonte design system ═══ */}
       <Drawer
         isOpen={isNewOrderOpen}
         onClose={() => {
@@ -668,60 +697,67 @@ export const OrdersView: React.FC = () => {
         }}
         title={isEditMode ? 'Modifier la Commande' : 'Créer un Bon de Vente FLP'}
       >
-        <form onSubmit={handleCreateOrder} className="space-y-4">
+        <form onSubmit={handleCreateOrder} className="space-y-5">
 
           {orderFormError && (
-            <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 font-bold text-xs p-3.5 rounded-2xl">
+            <div
+              className="rounded-[var(--radius-control)] border p-3 text-xs font-semibold"
+              style={{
+                background: 'color-mix(in oklab, var(--fcf-danger) 10%, var(--fcf-surface))',
+                borderColor: 'color-mix(in oklab, var(--fcf-danger) 30%, var(--fcf-border))',
+                color: 'var(--fcf-danger)',
+              }}
+              role="alert"
+            >
               {orderFormError}
             </div>
           )}
 
-          {/* Client Selection with Auto-Suggestion Search Bar */}
+          {/* ─── Client (autocomplete) ───────────────────────── */}
           <div className="relative">
-            <label className="text-xs font-bold text-slate-500 block mb-1">Destinataire (Client) *</label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Tapez le nom ou le téléphone du client..."
-                value={customerSearchQuery}
-                onFocus={() => setIsCustomerSuggestionsOpen(true)}
-                onChange={(e) => {
-                  setCustomerSearchQuery(e.target.value);
-                  setIsCustomerSuggestionsOpen(true);
-                  const match = customers.find(c => c.name.toLowerCase() === e.target.value.toLowerCase());
-                  if (match) {
-                    setOrderCustomer(match.id);
-                  } else {
-                    setOrderCustomer('');
-                  }
-                }}
-                className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl pl-10 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 h-12 text-[#101010] dark:text-white"
-                required
-              />
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-4" />
-              {orderCustomer ? (
-                <CheckCircle className="w-4 h-4 text-emerald-500 absolute right-3.5 top-4" />
-              ) : (
-                customerSearchQuery && (
-                  <span className="text-[9px] text-rose-500 font-bold absolute right-3.5 top-4.5 bg-rose-50 dark:bg-rose-950 px-1 rounded">Non lié</span>
-                )
-              )}
-            </div>
+            <Input
+              label="Destinataire (Client) *"
+              value={customerSearchQuery}
+              onChange={(e) => {
+                setCustomerSearchQuery(e.target.value);
+                setIsCustomerSuggestionsOpen(true);
+                const match = customers.find(
+                  (c) => c.name.toLowerCase() === e.target.value.toLowerCase(),
+                );
+                if (match) setOrderCustomer(match.id);
+                else setOrderCustomer('');
+              }}
+              onFocus={() => setIsCustomerSuggestionsOpen(true)}
+              placeholder="Tapez le nom ou le téléphone du client…"
+              autoComplete="off"
+              required
+              description={
+                selectedCustomer
+                  ? `Client lié · tarif ${customerPriceType === 'CP' ? 'CP Forever' : 'Public'}`
+                  : undefined
+              }
+            />
 
-            {/* Suggestions list dropdown overlay */}
             {isCustomerSuggestionsOpen && (
               <>
                 <div
                   className="fixed inset-0 z-40"
                   onClick={() => setIsCustomerSuggestionsOpen(false)}
                 />
-                <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div
+                  className="absolute left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto rounded-[var(--radius-control)] border shadow-xl z-50 divide-y"
+                  style={{
+                    background: 'var(--surface)',
+                    borderColor: 'var(--border-strong)',
+                  }}
+                >
                   {customers
-                    .filter(c =>
-                      c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
-                      c.phone.includes(customerSearchQuery)
+                    .filter(
+                      (c) =>
+                        c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+                        c.phone.includes(customerSearchQuery),
                     )
-                    .map(cust => (
+                    .map((cust) => (
                       <button
                         key={cust.id}
                         type="button"
@@ -730,538 +766,535 @@ export const OrdersView: React.FC = () => {
                           setCustomerSearchQuery(cust.name);
                           setIsCustomerSuggestionsOpen(false);
                         }}
-                        className="w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors flex flex-col cursor-pointer"
+                        className="w-full text-left p-3 transition-colors cursor-pointer hover:bg-[var(--surface-muted)] flex flex-col"
                       >
-                        <span className="font-bold text-xs text-slate-900 dark:text-slate-100">{cust.name}</span>
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400">{cust.phone} • {cust.status}</span>
+                        <span className="text-sm font-semibold text-[var(--foreground)]">
+                          {cust.name}
+                        </span>
+                        <span className="text-xs text-[var(--muted)]">
+                          {cust.phone} · {cust.status}
+                        </span>
                       </button>
                     ))}
-                  {customers.filter(c =>
+                  {customers.filter(
+                    (c) =>
                       c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
-                      c.phone.includes(customerSearchQuery)
-                    ).length === 0 && (
-                      <div className="p-3 text-xs text-slate-400 text-center font-mono">
-                        Aucun client trouvé
-                      </div>
-                    )}
+                      c.phone.includes(customerSearchQuery),
+                  ).length === 0 && (
+                    <div className="p-3 text-xs text-center text-[var(--muted)] italic">
+                      Aucun client trouvé
+                    </div>
+                  )}
                 </div>
               </>
             )}
           </div>
 
-          {selectedCustomer && (
-            <div className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 ${selectedCustomer.isCP ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800' : 'border-slate-200 bg-slate-50 dark:bg-slate-800/30 dark:border-slate-700'}`}>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tarif de vente appliqué</p>
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{selectedCustomer.isCP ? 'Client privilégié (CP)' : 'Prix public'}</p>
-              </div>
-              <span className="text-[10px] font-black px-2 py-1 rounded-lg bg-white/80 dark:bg-slate-900/70 text-amber-700 dark:text-amber-400">{customerPriceType}</span>
-            </div>
-          )}
-
-          {/* Custom Discount Selection (bounded strictly to 5% - 15%) */}
-          <div className="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-850 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Percent className="w-4 h-4 text-amber-500" />
-                <div>
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-100">Appliquer une remise client</p>
-                  <p className="text-[10px] text-slate-400">Autorisé : de 5% à 15% seulement</p>
-                </div>
-              </div>
+          {/* ─── Remise client ───────────────────────────────── */}
+          <section
+            className="rounded-[var(--radius-card)] border p-4 space-y-3"
+            style={{
+              background: 'var(--fcf-surface-muted)',
+              borderColor: 'var(--fcf-border)',
+            }}
+          >
+            <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={applyDiscount}
                 onChange={(e) => {
                   setApplyDiscount(e.target.checked);
-                  if (e.target.checked) {
-                    setDiscountPercent(5); // Default to minimum 5%
-                  } else {
-                    setAmountPaidInput('');
-                  }
+                  if (e.target.checked) setDiscountPercent(5);
+                  else setAmountPaidInput('');
                 }}
-                className="w-5 h-5 rounded accent-amber-500 cursor-pointer"
+                className="h-4 w-4 mt-0.5 accent-[var(--fcf-brand-terracotta)] cursor-pointer"
               />
-            </div>
+              <span>
+                <span className="block text-sm font-semibold text-[var(--foreground)]">
+                  Appliquer une remise client
+                </span>
+                <span className="block text-xs text-[var(--muted)] mt-0.5">
+                  Autorisé : 5 % à 15 % recommandé
+                </span>
+              </span>
+            </label>
 
             {applyDiscount && (
-              <div className="space-y-3 pt-2 border-t border-slate-200/40 dark:border-slate-800/60 animate-in fade-in duration-200">
-                {/* Mode % : slider + saisie manuelle */}
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-slate-500 font-medium">Remise en pourcentage</span>
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={discountPercent}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value) || 0;
-                        const clamped = Math.min(90, Math.max(0, val));
-                        setDiscountPercent(clamped);
-                        // Le % pilote le montant perçu
-                        setAmountPaidInput(String(Math.round(catalogTotal * (1 - clamped / 100))));
-                      }}
-                      className="w-14 bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-lg py-1 px-1.5 text-xs font-bold text-center text-amber-600 dark:text-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                    />
-                    <span className="text-xs font-bold text-slate-500">%</span>
-                  </div>
+              <div
+                className="space-y-3 pt-3 border-t"
+                style={{ borderColor: 'var(--fcf-border)' }}
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Remise (%)"
+                    type="number"
+                    min={0}
+                    max={90}
+                    value={discountPercent}
+                    onChange={(e) => {
+                      const val = Math.min(90, Math.max(0, parseInt(e.target.value) || 0));
+                      setDiscountPercent(val);
+                      setAmountPaidInput(String(Math.round(catalogTotal * (1 - val / 100))));
+                    }}
+                  />
+                  <Input
+                    label="Montant perçu (F)"
+                    type="number"
+                    min={0}
+                    placeholder={catalogTotal.toLocaleString()}
+                    value={amountPaidInput}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setAmountPaidInput(raw);
+                      const val = parseInt(raw) || 0;
+                      if (catalogTotal > 0) {
+                        const pct = Math.max(0, Math.min(100, ((catalogTotal - val) / catalogTotal) * 100));
+                        setDiscountPercent(Math.round(pct));
+                      }
+                    }}
+                  />
                 </div>
 
-                <input
-                  type="range"
-                  min="0"
-                  max="50"
-                  value={Math.min(50, discountPercent)}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    setDiscountPercent(val);
-                    setAmountPaidInput(String(Math.round(catalogTotal * (1 - val / 100))));
+                <div
+                  className="rounded-[var(--radius-control)] border p-3 text-xs space-y-1.5"
+                  style={{
+                    background: 'var(--surface)',
+                    borderColor: 'var(--fcf-border)',
                   }}
-                  className="w-full accent-amber-500 h-1.5 bg-slate-200 dark:bg-slate-750 rounded-lg appearance-none cursor-pointer"
-                />
-
-                {/* Mode montant perçu : la remise % se recalcule */}
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-slate-500 font-medium">Montant perçu du client</span>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder={catalogTotal.toLocaleString()}
-                      value={amountPaidInput}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        setAmountPaidInput(raw);
-                        const val = parseInt(raw) || 0;
-                        if (catalogTotal > 0) {
-                          const pct = Math.max(0, Math.min(100, ((catalogTotal - val) / catalogTotal) * 100));
-                          setDiscountPercent(Math.round(pct));
-                        }
+                >
+                  <div className="flex justify-between">
+                    <span className="text-[var(--muted)]">Valeur catalogue</span>
+                    <span className="font-semibold text-[var(--foreground)]">
+                      {catalogTotal.toLocaleString()} F
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--muted)]">Remise effective</span>
+                    <span
+                      className="font-semibold"
+                      style={{
+                        color:
+                          effectiveDiscount > 15
+                            ? 'var(--fcf-danger)'
+                            : 'var(--fcf-brand-terracotta)',
                       }}
-                      className="w-24 bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-lg py-1 px-2 text-xs font-bold text-right text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                    />
-                    <span className="text-xs font-bold text-slate-500">F</span>
-                  </div>
-                </div>
-
-                {/* Récap live : marge recalculée automatiquement */}
-                <div className="bg-slate-50 dark:bg-[#1a1a1d] rounded-xl p-2.5 space-y-1 text-[10px] font-medium">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Valeur catalogue</span>
-                    <span className="font-bold text-slate-600 dark:text-slate-300">{catalogTotal.toLocaleString()} F</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Remise effective</span>
-                    <span className={`font-bold ${effectiveDiscount > 15 ? 'text-red-500' : 'text-amber-600 dark:text-amber-400'}`}>
+                    >
                       {effectiveDiscount.toFixed(1)} %
-                      {effectiveDiscount > 15 && ' ⚠ au-delà des 15% conseillés'}
+                      {effectiveDiscount > 15 && ' ⚠ > 15 %'}
                     </span>
                   </div>
                   {livraisonFraisLive > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Livraison</span>
-                      <span className="text-slate-500">-{livraisonFraisLive.toLocaleString()} F</span>
+                      <span className="text-[var(--muted)]">Livraison</span>
+                      <span className="text-[var(--muted)]">
+                        −{livraisonFraisLive.toLocaleString()} F
+                      </span>
                     </div>
                   )}
                   {gesteLive > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Geste commercial</span>
-                      <span className="text-slate-500">-{gesteLive.toLocaleString()} F</span>
+                      <span className="text-[var(--muted)]">Geste commercial</span>
+                      <span className="text-[var(--muted)]">
+                        −{gesteLive.toLocaleString()} F
+                      </span>
                     </div>
                   )}
                   {hasUnavailablePrice ? (
-                    <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 pt-2">
-                      Marge indisponible : un tarif officiel manque pour au moins un produit de ce panier.
+                    <p className="pt-2 text-xs font-semibold" style={{ color: 'var(--fcf-danger)' }}>
+                      Marge indisponible : un tarif officiel manque pour un produit du panier.
                     </p>
                   ) : (
-                    <>
-                      <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-700">
-                        <span className="text-slate-500 font-black uppercase tracking-wider">Marge nette estimée</span>
-                        <span className={`font-black ${marginLive >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                          {marginLive.toLocaleString()} F ({marginPct.toFixed(0)}%)
-                        </span>
-                      </div>
-                      <p className="text-[8px] text-slate-400 italic">
-                        Coût d'achat officiel du grade {currentGrade.code === 'M' ? 'MGR' : currentGrade.code} déduit, livraison et geste inclus.
-                      </p>
-                    </>
+                    <div
+                      className="flex justify-between pt-1.5 border-t"
+                      style={{ borderColor: 'var(--fcf-border)' }}
+                    >
+                      <span className="font-semibold text-[var(--foreground)]">
+                        Marge nette estimée
+                      </span>
+                      <span
+                        className="font-bold"
+                        style={{
+                          color: marginLive >= 0 ? 'var(--fcf-success)' : 'var(--fcf-danger)',
+                        }}
+                      >
+                        {marginLive.toLocaleString()} F ({marginPct.toFixed(0)} %)
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
             )}
-          </div>
+          </section>
 
-          {/* Unified Product Search Bar with a "+" / "Ajouter" Button next to it */}
-          <div className="space-y-2">
-            <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider block">Ajouter des Produits</label>
-
-            {productSearchError && (
-              <div className="text-rose-500 text-[11px] font-bold px-1 py-1 bg-rose-500/10 border border-rose-500/20 rounded-lg animate-in fade-in duration-100">
-                ⚠ {productSearchError}
-              </div>
-            )}
-
-            <div className="flex gap-2 items-center relative">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Rechercher par nom ou code de produit..."
+          {/* ─── Ajout produits ─────────────────────────────── */}
+          <section className="space-y-3">
+            <div className="flex items-end gap-2">
+              <div className="flex-1 relative">
+                <Input
+                  label="Ajouter un produit"
                   value={productSearchQuery}
-                  onFocus={() => setIsProductSuggestionsOpen(true)}
                   onChange={(e) => {
                     setProductSearchQuery(e.target.value);
                     setIsProductSuggestionsOpen(true);
                     setProductSearchError(null);
                   }}
-                  className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-800 dark:text-white h-10 font-sans"
+                  onFocus={() => setIsProductSuggestionsOpen(true)}
+                  placeholder="Nom ou code produit…"
+                  autoComplete="off"
+                  error={productSearchError || undefined}
                 />
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
-                {productSearchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProductSearchQuery('');
-                      setProductSearchError(null);
-                    }}
-                    className="absolute right-3 top-3 text-[10px] text-slate-400 font-bold hover:text-slate-600 cursor-pointer"
-                  >
-                    ✕
-                  </button>
+                {isProductSuggestionsOpen && productSearchQuery && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setIsProductSuggestionsOpen(false)}
+                    />
+                    <div
+                      className="absolute left-0 right-0 top-full mt-1 max-h-64 overflow-y-auto rounded-[var(--radius-control)] border shadow-xl z-50 divide-y"
+                      style={{
+                        background: 'var(--surface)',
+                        borderColor: 'var(--border-strong)',
+                      }}
+                    >
+                      {products
+                        .filter(
+                          (p) =>
+                            p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+                            p.id.includes(productSearchQuery),
+                        )
+                        .map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => handleAddProductToOrder(p)}
+                            className="w-full text-left p-3 transition-colors cursor-pointer hover:bg-[var(--surface-muted)] flex items-center justify-between gap-2"
+                          >
+                            <span className="flex flex-col min-w-0">
+                              <span className="text-sm font-semibold text-[var(--foreground)] truncate">
+                                {p.name}
+                              </span>
+                              <span className="text-xs text-[var(--muted)]">
+                                Code {p.id} · {p.unitCC.toFixed(3)} CC
+                              </span>
+                            </span>
+                            <span className="text-sm font-bold text-[var(--fcf-brand-terracotta)] shrink-0">
+                              {(getCustomerSalePrice(p, customerPriceType) ?? 0).toLocaleString()} F
+                            </span>
+                          </button>
+                        ))}
+                      {products.filter(
+                        (p) =>
+                          p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+                          p.id.includes(productSearchQuery),
+                      ).length === 0 && (
+                        <div className="p-3 text-xs text-center text-[var(--muted)] italic">
+                          Aucun produit correspondant
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
-
-              {/* Add button (+) right next to the search bar */}
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={() => {
                   const query = productSearchQuery.toLowerCase().trim();
-                  const matched = products.filter(p =>
-                    p.name.toLowerCase().includes(query) ||
-                    p.id.includes(query)
+                  const matched = products.filter(
+                    (p) => p.name.toLowerCase().includes(query) || p.id.includes(query),
                   );
                   if (matched.length > 0) {
                     handleAddProductToOrder(matched[0]);
                     setProductSearchError(null);
                   } else if (products.length > 0 && !query) {
-                    setProductSearchError("Veuillez d'abord taper le nom ou le code du produit à chercher.");
+                    setProductSearchError("Tapez d'abord un nom ou un code produit.");
                   } else {
-                    setProductSearchError("Aucun produit ne correspond à cette recherche.");
+                    setProductSearchError('Aucun produit correspondant.');
                   }
                 }}
-                className="h-10 px-4 bg-amber-500 hover:bg-amber-600 transition-colors text-white font-black text-xs rounded-xl flex items-center justify-center gap-1.5 shrink-0 active:scale-95 cursor-pointer shadow-md shadow-amber-500/10"
-                title="Ajouter le produit correspondant"
               >
-                <Plus className="w-4 h-4 text-white" />
-                <span>Ajouter</span>
-              </button>
-
-              {/* Autocomplete Suggestions Popover */}
-              {isProductSuggestionsOpen && productSearchQuery && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setIsProductSuggestionsOpen(false)}
-                  />
-                  <div className="absolute left-0 right-0 top-11 max-h-56 overflow-y-auto bg-white dark:bg-[#202023] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in duration-100">
-                    {products
-                       .filter(p =>
-                         p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
-                         p.id.includes(productSearchQuery)
-                       )
-                       .map(p => (
-                         <button
-                           key={p.id}
-                           type="button"
-                           onClick={() => handleAddProductToOrder(p)}
-                           className="w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex items-center justify-between gap-2 cursor-pointer"
-                         >
-                           <div className="flex flex-col min-w-0">
-                             <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">{p.name}</span>
-                             <span className="text-[10px] text-slate-500 font-medium">Code: {p.id} • {p.unitCC.toFixed(3)} CC</span>
-                           </div>
-                           <span className="text-xs font-black text-amber-600 shrink-0">{(getCustomerSalePrice(p, customerPriceType) ?? 0).toLocaleString()} F</span>
-                         </button>
-                       ))}
-                     {products.filter(p =>
-                       p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
-                       p.id.includes(productSearchQuery)
-                     ).length === 0 && (
-                       <div className="p-3 text-xs text-slate-400 text-center font-mono">
-                         Aucun produit correspondant
-                       </div>
-                     )}
-                  </div>
-                </>
-              )}
+                <Plus className="w-4 h-4" />
+                Ajouter
+              </Button>
             </div>
-          </div>
+          </section>
 
-          {/* Selected Products List */}
-          <div className="space-y-2 mt-3">
-            <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Produits ajoutés à la facture ({invoiceItems.length})</h4>
+          {/* ─── Panier ─────────────────────────────────────── */}
+          <section className="space-y-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+              Panier ({invoiceItems.length})
+            </h3>
 
             {invoiceItems.length === 0 ? (
-              <div className="p-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center space-y-2 bg-slate-50/50 dark:bg-slate-900/10">
-                <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800/60 rounded-full flex items-center justify-center mx-auto text-slate-400">
-                  <ShoppingCart className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-extrabold text-slate-500">Panier vide</p>
-                  <p className="text-[10px] text-slate-400">Utilisez la barre ci-dessus pour chercher et ajouter des produits.</p>
-                </div>
+              <div
+                className="rounded-[var(--radius-card)] border border-dashed p-6 text-center"
+                style={{
+                  background: 'var(--fcf-surface-muted)',
+                  borderColor: 'var(--fcf-border)',
+                }}
+              >
+                <ShoppingCart className="w-5 h-5 mx-auto text-[var(--muted)]" />
+                <p className="mt-2 text-sm font-semibold text-[var(--foreground)]">Panier vide</p>
+                <p className="mt-0.5 text-xs text-[var(--muted)]">
+                  Utilisez la barre ci-dessus pour ajouter des produits.
+                </p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+              <ul className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                 {invoiceItems.map((slot, index) => {
-                  const itemPrice = applyDiscount ? (getCustomerSalePrice(slot.product, customerPriceType) ?? 0) * (1 - discountPercent / 100) : (getCustomerSalePrice(slot.product, customerPriceType) ?? 0);
-
+                  const itemPrice = applyDiscount
+                    ? (getCustomerSalePrice(slot.product, customerPriceType) ?? 0) *
+                      (1 - discountPercent / 100)
+                    : getCustomerSalePrice(slot.product, customerPriceType) ?? 0;
                   return (
-                    <div
+                    <li
                       key={index}
-                      className="p-3 rounded-2xl border border-slate-105 dark:border-slate-800 bg-white dark:bg-[#1a1a1d] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm hover:shadow-md"
+                      className="rounded-[var(--radius-card)] border p-3 flex flex-col sm:flex-row sm:items-center gap-3"
+                      style={{
+                        background: 'var(--surface)',
+                        borderColor: 'var(--fcf-border)',
+                      }}
                     >
-                      <div className="min-w-0 w-full sm:flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[9px] font-bold text-amber-500 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded font-mono">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold">
+                          <span
+                            className="px-1.5 py-0.5 rounded"
+                            style={{
+                              background:
+                                'color-mix(in oklab, var(--fcf-brand-gold) 14%, var(--fcf-surface))',
+                              color: 'var(--fcf-brand-terracotta)',
+                            }}
+                          >
                             Code {slot.product.id}
                           </span>
-                          <span className="text-[9px] font-bold text-blue-500 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.2 rounded font-mono">
+                          <span
+                            className="px-1.5 py-0.5 rounded"
+                            style={{
+                              background:
+                                'color-mix(in oklab, var(--fcf-info) 12%, var(--fcf-surface))',
+                              color: 'var(--fcf-info)',
+                            }}
+                          >
                             {(slot.product.unitCC * slot.quantity).toFixed(3)} CC
                           </span>
                         </div>
-                        <h4 className="font-extrabold text-[12px] text-slate-800 dark:text-slate-100 leading-tight mt-1 truncate" title={slot.product.name}>
+                        <p className="mt-1 text-sm font-semibold text-[var(--foreground)] truncate">
                           {slot.product.name}
-                        </h4>
-                        <div className="text-[10px] text-slate-400 mt-0.5 font-sans">
-                          <span>{Math.round(itemPrice).toLocaleString()} F Unit.</span>
+                        </p>
+                        <p className="text-xs text-[var(--muted)] mt-0.5">
+                          {Math.round(itemPrice).toLocaleString()} F / unité
                           {applyDiscount && (
-                            <span className="text-emerald-500 font-bold ml-1">
-                              (-{discountPercent}%) <span className="line-through text-slate-300 dark:text-slate-600 font-normal">{(getCustomerSalePrice(slot.product, customerPriceType) ?? 0).toLocaleString()} F</span>
+                            <span className="ml-2 line-through opacity-60">
+                              {(getCustomerSalePrice(slot.product, customerPriceType) ?? 0).toLocaleString()} F
                             </span>
                           )}
-                        </div>
+                        </p>
                       </div>
 
-                      {/* Quantity editors & Delete Button on same flex row */}
-                      <div className="flex items-center justify-end gap-2 shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
-                        {/* Minus/Plus Counters */}
-                        <div className="flex items-center bg-amber-100 dark:bg-amber-900/40 p-1 rounded-xl">
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <div
+                          className="flex items-center gap-1 p-1 rounded-[var(--radius-control)]"
+                          style={{ background: 'var(--fcf-surface-muted)' }}
+                        >
                           <button
                             type="button"
                             onClick={() => {
-                              if (slot.quantity > 1) {
-                                handleItemQtyChange(index, slot.quantity - 1);
-                              } else {
-                                handleRemoveItemSlot(index);
-                              }
+                              if (slot.quantity > 1) handleItemQtyChange(index, slot.quantity - 1);
+                              else handleRemoveItemSlot(index);
                             }}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-amber-950 text-amber-600 dark:text-amber-400 font-extrabold hover:bg-amber-50 dark:hover:bg-amber-900 transition-colors text-lg cursor-pointer shadow-sm active:scale-90"
+                            className="w-8 h-8 rounded flex items-center justify-center font-bold text-lg cursor-pointer active:scale-90 transition-transform"
+                            style={{
+                              background: 'var(--surface)',
+                              color: 'var(--fcf-brand-terracotta)',
+                            }}
+                            aria-label="Diminuer la quantité"
                           >
-                            -
+                            −
                           </button>
-
-                          <span className="w-8 text-center text-xs font-black text-amber-900 dark:text-amber-100 font-mono">
+                          <span className="w-7 text-center text-sm font-bold text-[var(--foreground)] tabular-nums">
                             {slot.quantity}
                           </span>
-
                           <button
                             type="button"
-                            onClick={() => {
-                              handleItemQtyChange(index, slot.quantity + 1);
+                            onClick={() => handleItemQtyChange(index, slot.quantity + 1)}
+                            className="w-8 h-8 rounded flex items-center justify-center font-bold text-lg cursor-pointer active:scale-90 transition-transform"
+                            style={{
+                              background: 'var(--surface)',
+                              color: 'var(--fcf-brand-terracotta)',
                             }}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-amber-950 text-amber-600 dark:text-amber-400 font-extrabold hover:bg-amber-50 dark:hover:bg-amber-900 transition-colors text-lg cursor-pointer shadow-sm active:scale-90"
+                            aria-label="Augmenter la quantité"
                           >
                             +
                           </button>
                         </div>
-
-                        {/* Trash Button */}
                         <button
                           type="button"
                           onClick={() => handleRemoveItemSlot(index)}
-                          className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-500 hover:text-rose-600 transition-colors cursor-pointer shrink-0 border border-transparent hover:border-rose-200 dark:hover:border-rose-900/40"
-                          title="Supprimer ce produit"
+                          className="w-10 h-10 rounded-[var(--radius-control)] flex items-center justify-center cursor-pointer active:scale-90 transition-transform"
+                          style={{
+                            background:
+                              'color-mix(in oklab, var(--fcf-danger) 10%, var(--fcf-surface))',
+                            color: 'var(--fcf-danger)',
+                          }}
+                          aria-label="Retirer du panier"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             )}
-          </div>
+          </section>
 
-          {/* Live Preview stats */}
-          <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 rounded-2xl text-xs space-y-1 font-sans">
+          {/* ─── Aperçu total ───────────────────────────────── */}
+          <div
+            className="rounded-[var(--radius-card)] border p-4 space-y-1.5 text-xs"
+            style={{
+              background: 'color-mix(in oklab, var(--fcf-brand-gold) 7%, var(--fcf-surface))',
+              borderColor:
+                'color-mix(in oklab, var(--fcf-brand-gold) 35%, var(--fcf-border))',
+            }}
+          >
             <div className="flex justify-between">
-              <span className="text-slate-400 font-bold">Total Brut Retail:</span>
-              <span className="text-slate-800 dark:text-slate-200 font-bold">
-                {invoiceItems.reduce((acc, slot) => acc + ((getCustomerSalePrice(slot.product, customerPriceType) ?? 0) * slot.quantity), 0).toLocaleString()} F
+              <span className="text-[var(--muted)]">Total catalogue</span>
+              <span className="font-semibold text-[var(--foreground)]">
+                {invoiceItems
+                  .reduce(
+                    (acc, slot) =>
+                      acc + (getCustomerSalePrice(slot.product, customerPriceType) ?? 0) * slot.quantity,
+                    0,
+                  )
+                  .toLocaleString()}{' '}
+                F
               </span>
             </div>
             {applyDiscount && (
-              <div className="flex justify-between text-emerald-600 font-bold">
-                <span>Remise Appliquée ({effectiveDiscount.toFixed(1)}%):</span>
-                <span>
-                  -{(catalogTotal - effectivePaid).toLocaleString()} F
-                </span>
+              <div className="flex justify-between" style={{ color: 'var(--fcf-success)' }}>
+                <span className="font-semibold">Remise ({effectiveDiscount.toFixed(1)} %)</span>
+                <span className="font-bold">−{(catalogTotal - effectivePaid).toLocaleString()} F</span>
               </div>
             )}
             {applyDiscount && (
               <div className="flex justify-between">
-                <span className={`text-[10px] font-black uppercase ${marginLive >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                  Marge nette estimée
-                </span>
-                <span className={`font-black ${marginLive >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                <span className="font-semibold text-[var(--foreground)]">Marge nette</span>
+                <span
+                  className="font-bold"
+                  style={{
+                    color: marginLive >= 0 ? 'var(--fcf-success)' : 'var(--fcf-danger)',
+                  }}
+                >
                   {marginLive.toLocaleString()} F
                 </span>
               </div>
             )}
-            <div className="flex justify-between border-t border-amber-200/50 dark:border-amber-800/20 pt-2 mt-1">
-              <span className="text-slate-400 font-bold">Total CC Accumulé:</span>
-              <span className="text-blue-500 font-black">
-                {invoiceItems.reduce((acc, slot) => acc + (slot.product.unitCC * slot.quantity), 0).toFixed(3)} CC
+            <div
+              className="flex justify-between pt-1.5 border-t"
+              style={{ borderColor: 'var(--fcf-border)' }}
+            >
+              <span className="text-[var(--muted)]">Total CC</span>
+              <span className="font-bold" style={{ color: 'var(--fcf-info)' }}>
+                {invoiceItems
+                  .reduce((acc, slot) => acc + slot.product.unitCC * slot.quantity, 0)
+                  .toFixed(3)}{' '}
+                CC
               </span>
             </div>
           </div>
 
-          {/* === NOUVEAUX CHAMPS COMMANDE COMPLÈTE === */}
-          <div className="space-y-3 bg-slate-50 dark:bg-slate-800/30 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-850">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Tag className="w-3.5 h-3.5 text-amber-500" />
-              Détails Commande (Notion/Obsidian)
-            </h4>
+          {/* ─── Détails opérationnels ──────────────────────── */}
+          <section
+            className="rounded-[var(--radius-card)] border p-4 space-y-3"
+            style={{
+              background: 'var(--fcf-surface-muted)',
+              borderColor: 'var(--fcf-border)',
+            }}
+          >
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] flex items-center gap-2">
+              <Tag className="w-3.5 h-3.5" />
+              Détails commande
+            </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Type de commande */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Type</label>
-                <select
-                  value={orderType}
-                  onChange={(e) => setOrderType(e.target.value as OrderType)}
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                >
-                  <option value="UNITE">📦 Unité(s)</option>
-                  <option value="PACK">🎁 Pack (Clean 9, Vital 5...)</option>
-                  <option value="KIT">🛠 Kit Personnalisé</option>
-                </select>
-              </div>
-
-              {/* Canal acquisition */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Canal</label>
-                <select
-                  value={orderCanal}
-                  onChange={(e) => setOrderCanal(e.target.value as OrderCanal)}
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                >
-                  <option value="WHATSAPP">💬 WhatsApp</option>
-                  <option value="META_ADS">📊 Meta Ads</option>
-                  <option value="RECOMMANDATION">🤝 Recommandation</option>
-                  <option value="BOUCHE_OREILLE">👄 Bouche-à-oreille</option>
-                  <option value="EVENEMENT">🎪 Événement</option>
-                  <option value="AUTRE">➕ Autre</option>
-                </select>
-              </div>
-
-              {/* Mode paiement */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Paiement</label>
-                <select
-                  value={orderPaiement}
-                  onChange={(e) => setOrderPaiement(e.target.value as OrderPaiement)}
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                >
-                  <option value="ESPECES">💵 Espèces</option>
-                  <option value="AIRTEL">📱 Airtel Money</option>
-                  <option value="MTN">📱 MTN Money</option>
-                  <option value="MIXTE">💵+📱 Mixte</option>
-                  <option value="VIREMENT">🏦 Virement</option>
-                  <option value="AUTRE">➕ Autre</option>
-                </select>
-              </div>
-
-              {/* Geste commercial */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Geste</label>
-                <select
-                  value={orderGeste}
-                  onChange={(e) => setOrderGeste(e.target.value as OrderGeste)}
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                >
-                  <option value="AUCUN">❌ Aucun</option>
-                  <option value="CLEAN9_-7K">🧴 Clean 9 -7 166 FCFA</option>
-                  <option value="LIVRAISON_GRATUITE">🚚 Livraison offerte</option>
-                  <option value="FIELDS_OFFERT">🌿 Fields of Greens offert</option>
-                  <option value="REMISE_5">🏷️ Remise 5% (Client Priv.)</option>
-                  <option value="AUTRE">➕ Autre</option>
-                </select>
-              </div>
-
-              {/* Livraison mode */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Livraison</label>
-                <select
-                  value={livraisonMode}
-                  onChange={(e) => setLivraisonMode(e.target.value as LivraisonMode)}
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                >
-                  <option value="DOMICILE">🏠 Domicile</option>
-                  <option value="POINT_RELAIS">📍 Point relais</option>
-                  <option value="MAIN_PROPRE">🤝 Main propre</option>
-                  <option value="RETRAIT_BOUTIQUE">🏪 Retrait boutique</option>
-                </select>
-              </div>
-
-              {/* Date prévue livraison */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Date livraison prévue</label>
-                <input
-                  type="date"
-                  value={livraisonDatePrevue}
-                  onChange={(e) => setLivraisonDatePrevue(e.target.value)}
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                />
-              </div>
-
-              {/* Tags */}
+              <Select
+                label="Type"
+                value={orderType}
+                onChange={(e) => setOrderType(e.target.value as OrderType)}
+                options={TYPE_OPTIONS}
+              />
+              <Select
+                label="Canal"
+                value={orderCanal}
+                onChange={(e) => setOrderCanal(e.target.value as OrderCanal)}
+                options={CANAL_OPTIONS}
+              />
+              <Select
+                label="Paiement"
+                value={orderPaiement}
+                onChange={(e) => setOrderPaiement(e.target.value as OrderPaiement)}
+                options={PAIEMENT_OPTIONS}
+              />
+              <Select
+                label="Geste commercial"
+                value={orderGeste}
+                onChange={(e) => setOrderGeste(e.target.value as OrderGeste)}
+                options={GESTE_OPTIONS}
+              />
+              <Select
+                label="Livraison"
+                value={livraisonMode}
+                onChange={(e) => setLivraisonMode(e.target.value as LivraisonMode)}
+                options={LIVRAISON_MODE_OPTIONS}
+              />
+              <Input
+                label="Date de livraison prévue"
+                type="date"
+                value={livraisonDatePrevue}
+                onChange={(e) => setLivraisonDatePrevue(e.target.value)}
+              />
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Tags (séparés par virgules)</label>
-                <input
-                  type="text"
+                <Input
+                  label="Tags"
                   value={orderTags}
                   onChange={(e) => setOrderTags(e.target.value)}
-                  placeholder="ex: clean9, nouveau-client, meta-ads-janvier"
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  placeholder="ex : clean9, nouveau-client, meta-ads-janvier"
+                  description="Séparez par des virgules."
                 />
               </div>
-
-              {/* Notes */}
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Notes</label>
-                <textarea
+                <Textarea
+                  label="Notes internes"
                   value={orderNotes}
                   onChange={(e) => setOrderNotes(e.target.value)}
-                  placeholder="Notes internes (non visibles client)..."
+                  placeholder="Notes non visibles par le client…"
                   rows={2}
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
                 />
               </div>
             </div>
-          </div>
+          </section>
 
-          <button
-            type="submit"
-            className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all text-sm mt-4"
-          >
-            {isEditMode ? 'ENREGISTRER LES MODIFICATIONS' : 'CONFIRMER LE BON DE COMMANDE'}
-          </button>
+          {/* ─── CTA ────────────────────────────────────────── */}
+          <div className="pt-2 flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsNewOrderOpen(false);
+                resetForm();
+              }}
+              disabled={isSubmitting}
+            >
+              Annuler
+            </Button>
+            <Button type="submit" variant="primary" loading={isSubmitting} className="flex-1">
+              {isEditMode ? 'Enregistrer les modifications' : 'Confirmer le bon de commande'}
+            </Button>
+          </div>
         </form>
       </Drawer>
 
-      {/* 5. DRAWER: DETAILED ORDER BON DE VENTE & PRINTABLE INVOICE SHEET */}
+      {/* ═══ 5. DRAWER: DETAILED ORDER — inchangé ═══ */}
       <Drawer
         isOpen={isDetailOpen && selectedOrder !== null}
         onClose={() => {
@@ -1279,7 +1312,6 @@ export const OrdersView: React.FC = () => {
                 Statut de Livraison
               </h4>
               <div className="flex items-center gap-2">
-                {/* 1. Draft */}
                 <div className="flex-1 text-center">
                   <div className={`p-1.5 rounded-xl mx-auto flex items-center justify-center font-bold text-xs ${
                     selectedOrder.status === 'PENDING' || selectedOrder.status === 'VALIDATED'
@@ -1290,11 +1322,7 @@ export const OrdersView: React.FC = () => {
                   </div>
                   <span className="text-[9px] font-bold text-slate-400 block mt-1">En attente</span>
                 </div>
-
-                {/* Arrow */}
                 <div className="w-4 h-0.5 bg-slate-200 dark:bg-slate-800" />
-
-                {/* 2. Validated / Billed */}
                 <div className="flex-1 text-center">
                   <div className={`p-1.5 rounded-xl mx-auto flex items-center justify-center font-bold text-xs ${
                     selectedOrder.status === 'VALIDATED'
@@ -1338,7 +1366,6 @@ export const OrdersView: React.FC = () => {
               )}
             </div>
 
-            {/* #9 Bandeau aperçu : rappelle que la facture s'imprime en blanc */}
             <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/60 rounded-2xl px-3 py-2 text-[10px] text-slate-500 dark:text-slate-400 print:hidden">
               <Info className="w-3.5 h-3.5 shrink-0" />
               Aperçu de la facture — elle sera imprimée / partagée sur fond blanc, avec les coordonnées et dates officielles.
@@ -1464,7 +1491,6 @@ export const OrdersView: React.FC = () => {
 
               {/* Lower Section: Payment & Legal */}
               <div className="grid grid-cols-2 gap-8 pt-8 border-t border-slate-200">
-                {/* Bank / Mobile Payment */}
                 <div className="space-y-3">
                   <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Modalités de Règlement</h5>
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-[10px] space-y-2">
@@ -1492,7 +1518,6 @@ export const OrdersView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Legal notes */}
                 <div className="text-[9px] text-slate-400 space-y-2 text-right">
                   <p className="leading-relaxed">
                     Cette facture a été générée par <strong className="text-slate-600">Focus FBO</strong>.
@@ -1506,9 +1531,7 @@ export const OrdersView: React.FC = () => {
               </div>
             </div>
 
-            {/* FBO Internal Data - la marge est affichée sous les détails opérationnels */}
-
-            {/* Operational Details - champs saisis à la création, désormais visibles */}
+            {/* Operational Details */}
             <details className="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-3xl px-4 py-3 mb-2" open>
               <summary className="text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer select-none flex items-center gap-1">
                 Détails opérationnels
@@ -1637,7 +1660,7 @@ export const OrdersView: React.FC = () => {
         )}
       </Drawer>
 
-      {/* 5. Hidden during normal browser session, displays purely when user executes standard PDF printable action on orders list */}
+      {/* 6. Hidden registry for print/PDF */}
       {!isDetailOpen && (
         <div id="orders_registry_printable_canvas" className="hidden print:block p-8 bg-white text-slate-900 space-y-6 font-sans">
           <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-6">
@@ -1651,7 +1674,6 @@ export const OrdersView: React.FC = () => {
             </div>
           </div>
 
-          {/* FBO Details */}
           <div className="text-xs text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-100 flex justify-between gap-4">
             <div>
               <p className="font-extrabold text-slate-900 uppercase tracking-widest text-[9px] mb-1">Coordonnées du FBO</p>
@@ -1667,7 +1689,6 @@ export const OrdersView: React.FC = () => {
             )}
           </div>
 
-          {/* Totals Summary - uniquement les commandes VALIDEES (livrees et confirmees) */}
           <div className="grid grid-cols-3 gap-4 text-center">
             <div className="p-3 border border-slate-200 rounded-xl">
               <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Total de Ventes Brut</span>
@@ -1689,7 +1710,6 @@ export const OrdersView: React.FC = () => {
             </div>
           </div>
 
-          {/* Table */}
           <div>
             <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider mb-2">
               Registre chronologique des transactions de vente

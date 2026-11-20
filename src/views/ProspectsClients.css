@@ -100,3 +100,413 @@
   #clients_view_container .client-mobile-metrics small{color:var(--fcf-muted);font-size:.6rem}
   #clients_view_container .client-mobile-row>svg:last-child{color:var(--fcf-muted);flex:0 0 auto}
 }
+
+/* ============================================================================
+   Clients — KPI strip, bandeau relance, filtres compactes (M4)
+   Scope strict : #clients_view_container
+   ========================================================================== */
+
+/* --- 11. KPI strip (affichage pur) --- */
+#clients_view_container .clients-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .5rem;
+}
+@media (min-width: 1024px) {
+  #clients_view_container .clients-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .6rem;
+  }
+}
+#clients_view_container .clients-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  min-width: 0;
+  padding: .7rem .8rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .7rem;
+  background: var(--fcf-surface);
+}
+#clients_view_container .clients-kpi-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .35rem;
+  margin-bottom: .1rem;
+}
+#clients_view_container .clients-kpi-label {
+  color: var(--fcf-muted);
+  font-size: .6rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+#clients_view_container .clients-kpi-icon {
+  display: inline-flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 1.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: .5rem;
+}
+#clients_view_container .clients-kpi-icon.is-gold {
+  background: color-mix(in oklab, var(--fcf-brand-gold) 16%, var(--fcf-surface));
+  color: var(--fcf-brand-terracotta);
+}
+#clients_view_container .clients-kpi-icon.is-emerald {
+  background: color-mix(in oklab, var(--fcf-success) 13%, var(--fcf-surface));
+  color: var(--fcf-success);
+}
+#clients_view_container .clients-kpi-icon.is-blue {
+  background: color-mix(in oklab, var(--fcf-info) 13%, var(--fcf-surface));
+  color: var(--fcf-info);
+}
+#clients_view_container .clients-kpi-icon.is-violet {
+  background: color-mix(in oklab, #7C3AED 13%, var(--fcf-surface));
+  color: #7C3AED;
+}
+#clients_view_container .clients-kpi-icon.is-rose {
+  background: color-mix(in oklab, var(--fcf-danger) 12%, var(--fcf-surface));
+  color: var(--fcf-danger);
+}
+#clients_view_container .clients-kpi-value {
+  margin: 0;
+  color: var(--fcf-foreground);
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 3.1vw, 1.2rem);
+  font-weight: 800;
+  letter-spacing: -.04em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#clients_view_container .clients-kpi-hint {
+  margin: .1rem 0 0;
+  color: var(--fcf-muted);
+  font-size: .55rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- 12. Bandeau relance --- */
+#clients_view_container .clients-relance-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem .75rem;
+  padding: .55rem .75rem;
+  border: 1px solid color-mix(in oklab, var(--fcf-brand-gold) 42%, var(--fcf-border));
+  border-left: 3px solid var(--fcf-brand-gold);
+  border-radius: .55rem;
+  background: color-mix(in oklab, var(--fcf-brand-gold) 8%, var(--fcf-surface));
+}
+#clients_view_container .clients-relance-banner > div {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  min-width: 0;
+}
+#clients_view_container .clients-relance-banner strong {
+  color: var(--fcf-foreground);
+  font-size: .72rem;
+  font-weight: 800;
+}
+#clients_view_container .clients-relance-banner span {
+  color: var(--fcf-muted);
+  font-size: .58rem;
+}
+#clients_view_container .clients-relance-banner button {
+  flex-shrink: 0;
+  padding: .35rem .7rem;
+  border: 1px solid color-mix(in oklab, var(--fcf-brand-gold) 60%, var(--fcf-border));
+  border-radius: .45rem;
+  background: var(--fcf-surface);
+  color: var(--fcf-brand-terracotta);
+  font-size: .6rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease;
+}
+#clients_view_container .clients-relance-banner button:hover {
+  background: color-mix(in oklab, var(--fcf-brand-gold) 15%, var(--fcf-surface));
+}
+
+/* --- 13. Toolbar compacte (mobile) --- */
+#clients_view_container .clients-toolbar-compact {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  min-width: 0;
+}
+#clients_view_container .clients-toolbar-compact .clients-search-wrap {
+  flex: 1;
+  min-width: 0;
+}
+#clients_view_container .clients-filters-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  height: 2.7rem;
+  padding: 0 .75rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .6rem;
+  background: var(--fcf-surface);
+  color: var(--fcf-muted);
+  font-size: .64rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .12s ease, color .12s ease, background .12s ease;
+}
+#clients_view_container .clients-filters-btn:hover {
+  border-color: var(--fcf-brand-gold);
+  color: var(--fcf-foreground);
+}
+#clients_view_container .clients-filters-btn .clients-filters-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 .3rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--fcf-brand-gold) 22%, var(--fcf-surface));
+  color: var(--fcf-brand-terracotta);
+  font-size: .55rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Desktop : filtres visibles, bouton masqué */
+@media (min-width: 768px) {
+  #clients_view_container .clients-filters-btn { display: none; }
+}
+@media (max-width: 767px) {
+  /* Les chips + période desktop sont masquées sur mobile, remplacées par la sheet */
+  #clients_view_container .clients-saved-views,
+  #clients_view_container .clients-period-toolbar {
+    display: none;
+  }
+}
+
+/* --- 14. Filtres sheet (mobile) --- */
+.clients-filters-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: flex;
+  align-items: flex-end;
+  background: rgb(25 18 13 / .45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.clients-filters-sheet {
+  width: 100%;
+  max-height: 80dvh;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  padding: .55rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  border: 1px solid var(--fcf-border);
+  border-bottom: 0;
+  border-radius: 1rem 1rem 0 0;
+  background: var(--fcf-surface);
+  box-shadow: 0 -12px 38px rgb(41 35 31 / .18);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.clients-filters-handle {
+  width: 2.3rem;
+  height: 4px;
+  margin: .1rem auto .3rem;
+  border-radius: 999px;
+  background: var(--fcf-border);
+}
+.clients-filters-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .1rem 0 .55rem;
+  border-bottom: 1px solid var(--fcf-border);
+}
+.clients-filters-header strong {
+  color: var(--fcf-foreground);
+  font-size: .85rem;
+  font-weight: 800;
+}
+.clients-filters-header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .45rem;
+  background: var(--fcf-background);
+  color: var(--fcf-muted);
+  cursor: pointer;
+}
+.clients-filters-section {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.clients-filters-section-label {
+  margin: 0;
+  color: var(--fcf-muted);
+  font-size: .55rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.clients-filters-views {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.clients-filters-view {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .6rem .7rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .55rem;
+  background: var(--fcf-background);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+.clients-filters-view:hover {
+  border-color: var(--fcf-brand-gold);
+}
+.clients-filters-view.is-active {
+  border-color: var(--fcf-brand-terracotta);
+  background: color-mix(in oklab, var(--fcf-brand-gold) 12%, var(--fcf-surface));
+}
+.clients-filters-view-icon {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: .5rem;
+  background: var(--fcf-surface-muted);
+  color: var(--fcf-brand-terracotta);
+}
+.clients-filters-view.is-active .clients-filters-view-icon {
+  background: color-mix(in oklab, var(--fcf-brand-gold) 22%, var(--fcf-surface));
+}
+.clients-filters-view-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: .08rem;
+}
+.clients-filters-view-body strong {
+  color: var(--fcf-foreground);
+  font-size: .74rem;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.clients-filters-view-body small {
+  color: var(--fcf-muted);
+  font-size: .58rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.clients-filters-view-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 .4rem;
+  border-radius: .45rem;
+  background: var(--fcf-surface);
+  color: var(--fcf-muted);
+  font-size: .62rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.clients-filters-view.is-active .clients-filters-view-count {
+  background: var(--fcf-surface);
+  color: var(--fcf-brand-terracotta);
+}
+.clients-filters-period {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .4rem;
+}
+.clients-filters-period label {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  font-size: .55rem;
+  font-weight: 700;
+  color: var(--fcf-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.clients-filters-period select {
+  height: 2.25rem;
+  padding: 0 .55rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .45rem;
+  background: var(--fcf-background);
+  color: var(--fcf-foreground);
+  font-size: .72rem;
+  font-weight: 700;
+  outline: none;
+}
+.clients-filters-export {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  height: 2.4rem;
+  padding: 0 .85rem;
+  border: 1px solid color-mix(in oklab, var(--fcf-brand-gold) 60%, var(--fcf-border));
+  border-radius: .5rem;
+  background: color-mix(in oklab, var(--fcf-brand-gold) 14%, var(--fcf-surface));
+  color: var(--fcf-brand-terracotta);
+  font-size: .68rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.clients-filters-export:hover {
+  background: color-mix(in oklab, var(--fcf-brand-gold) 22%, var(--fcf-surface));
+}
+.clients-filters-done {
+  margin-top: .25rem;
+  height: 2.75rem;
+  border: 1px solid var(--fcf-brand-terracotta);
+  border-radius: .55rem;
+  background: var(--fcf-brand-terracotta);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.clients-filters-done:hover {
+  background: #a93b0c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clients-filters-backdrop,
+  .clients-filters-sheet,
+  .clients-filters-view,
+  .clients-filters-done {
+    transition: none;
+  }
+}

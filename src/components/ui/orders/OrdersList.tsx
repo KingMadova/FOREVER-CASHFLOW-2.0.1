@@ -3,6 +3,7 @@ import { ChevronRight, Layers } from 'lucide-react';
 import { Order, OrderStatut } from '../../../types';
 import { isCountedOrder } from '../../../lib/orderStats';
 import { orderStatusLabel } from '../../../lib/orderStatusMeta';
+import { formatCC, formatMoney, formatSignedMoney } from '../../../lib/format';
 
 export interface OrdersListProps {
   orders: Order[];
@@ -53,6 +54,7 @@ export const OrdersList: React.FC<OrdersListProps> = ({ orders, onOpen }) => {
             <div className="order-row-body">
               <div className="order-row-top">
                 <span className="order-row-date">{displayDate}</span>
+                <span className={`order-row-status ${tone}`}>{orderStatusLabel(ord.status)}</span>
                 {ord.synced === false && (
                   <span className="order-row-offline">Hors ligne</span>
                 )}
@@ -62,16 +64,16 @@ export const OrdersList: React.FC<OrdersListProps> = ({ orders, onOpen }) => {
 
               <p className="order-row-summary">
                 {ord.refCommande || ord.id} · {ord.items.length} article(s) ·{' '}
-                {ord.totalCC.toFixed(3)} CC
+                {formatCC(ord.totalCC)}
               </p>
 
               <div className="order-row-financials">
                 <strong className="order-row-total">
-                  {ord.totalRetail.toLocaleString('fr-FR')} FCFA
+                  {formatMoney(ord.totalRetail)}
                 </strong>
                 {isCountedOrder(ord) && (
                   <span className="order-row-margin">
-                    +{ord.totalMargin.toLocaleString('fr-FR')} F marge
+                    {formatSignedMoney(ord.totalMargin)} marge
                   </span>
                 )}
               </div>

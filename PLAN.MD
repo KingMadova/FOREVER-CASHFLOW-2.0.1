@@ -897,3 +897,46 @@ Un incident Windows a toutefois été signalé pendant le pull : Git n'a pas ré
 - [x] Suppression du monogramme SVG « FC » créé pendant la refonte ; le wordmark « Forever CashFlow » reste conservé.
 - [x] Aucun fichier d'icône PWA, manifeste, favicon ou comportement métier n'a été modifié.
 - [ ] Vérifier le rendu visuel sur le poste local après synchronisation.
+
+
+### Revue visuelle navigateur et correctifs rapides — 2026-11-20
+
+**Contexte :** première revue visuelle réellement exécutée dans Chrome (pilotage navigateur sur le poste du propriétaire), serveur `npm run dev` sur `http://localhost:3000`, session Firebase du propriétaire déjà authentifiée.
+
+**Périmètre inspecté :** Dashboard, Clients, Commandes, Ventes, Budget, Prospects — en 1440 px, 820 px (rail tablette) et 390 px, thèmes sombre et clair.
+
+**Constats retenus (aucun n'implique la logique métier) :**
+- Flash blanc au démarrage en thème sombre : la classe `.dark` n'était posée qu'au montage de `Layout`, donc après l'écran de chargement de `StoreProvider`.
+- `SORTIES −0 F` dans Budget (zéro négatif).
+- Wordmark de la sidebar chevauché par le bouton de repli à 232 px.
+- Toast « Priorité du jour » quasi pleine largeur sur tablette.
+- Placeholder de recherche tronqué sur mobile (Clients et Prospects).
+- Format monétaire non unifié (`F` / `FCFA`, séparateurs de milliers, décimales).
+- Titres redondants et libellés divergents entre topbar, H1 et sidebar.
+- Statut absent des cartes/lignes de commande (couleur d'icône uniquement).
+- Chips de période tronquées sur mobile dans Commandes.
+- Graphiques : absence d'axe Y sur « Évolution · 7 derniers mois » ; barres vides dans « Activité récente » (Ventes).
+- Carte « Journal G4 » sombre en thème clair.
+- Aucun skeleton pendant le chargement Firestore.
+- Deux sources de vérité du thème (`authSlice.themeMode`, `themeSlice`, `useTheme`).
+
+**Correctifs appliqués (lot « correctifs rapides ») :**
+- [x] `index.html` : script inline appliquant `.dark` avant le premier rendu (aligné sur `useTheme`), `lang="fr"`, `theme-color` clair/sombre alignés sur la charte.
+- [x] `StoreProvider` : écran de chargement sur `var(--fcf-background)` au lieu de `bg-slate-50`.
+- [x] `BudgetView` : le signe `−` des sorties n'est affiché que si le montant est supérieur à zéro.
+- [x] `AppShell.css` : bloc marque resserré (mark 2rem, gap réduit, wordmark 0.85rem avec troncature propre) — plus de chevauchement.
+- [x] `NotificationCenter` : toast plafonné à 420 px et ancré à droite dès `sm`.
+- [x] `ClientsView` / `ProspectsView` : placeholders courts et libellés accessibles complets.
+- [x] `main.tsx` : un refus `permission-denied` sur le document de test est traité comme « cloud joignable » (plus d'erreur console trompeuse au démarrage).
+- [x] `npm run lint` (`tsc --noEmit`) exécuté après modifications : aucune erreur.
+- [x] Rendu revérifié dans Chrome après HMR : splash sombre, wordmark complet, toast contraint, placeholder lisible, `Sorties 0 F`.
+
+**Non traité dans ce lot (à planifier) :**
+- [ ] Unifier le format monétaire via un formateur partagé.
+- [ ] Harmoniser titres topbar / H1 / sidebar et supprimer les doublons.
+- [ ] Afficher le statut des commandes en texte ; resserrer la liste ; corriger les chips de période mobiles.
+- [ ] Axe Y du graphe Budget et lisibilité du graphe « Activité récente ».
+- [ ] Carte Journal G4 en thème clair.
+- [ ] Skeletons de chargement.
+- [ ] Unifier la source de vérité du thème.
+- [ ] Avertissement Recharts « width(-1) height(-1) » observé au montage des graphiques.

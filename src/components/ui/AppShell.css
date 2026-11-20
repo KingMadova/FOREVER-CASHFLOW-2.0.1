@@ -746,14 +746,14 @@
 .fcf-brand {
   display: flex;
   align-items: center;
-  gap: .65rem;
+  gap: .55rem;
   min-width: 0;
 }
 .fcf-brand-mark {
   display: inline-flex;
-  width: 2.25rem;
-  height: 2.25rem;
-  flex: 0 0 2.25rem;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
 }
 .fcf-brand-mark img {
   display: block;
@@ -761,12 +761,15 @@
   height: 100%;
 }
 .fcf-brand-wordmark {
+  min-width: 0;
+  overflow: hidden;
   color: var(--fcf-foreground);
   font-family: var(--font-display);
-  font-size: 1rem;
+  font-size: .85rem;
   font-weight: 750;
   letter-spacing: -.055em;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .fcf-brand-wordmark strong {
   color: var(--fcf-brand-terracotta);

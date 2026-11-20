@@ -1,13 +1,30 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Forever CashFlow</title>
     <meta name="description" content="CRM mobile-first pour distributeurs FLP" />
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#FFF9F3" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#11100F" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/png" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script>
+      // Applique le thème avant le premier rendu pour éviter le flash blanc.
+      // Doit rester aligné avec src/hooks/useTheme.ts.
+      (function () {
+        try {
+          var mode = localStorage.getItem('fcf-theme') || 'system';
+          var isDark =
+            mode === 'dark' ||
+            (mode === 'system' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) document.documentElement.classList.add('dark');
+        } catch (e) {
+          /* localStorage indisponible : on garde le thème clair */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

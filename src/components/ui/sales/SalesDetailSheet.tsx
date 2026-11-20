@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { X, Receipt } from 'lucide-react';
 import { Order } from '../../../types';
 import { orderAccountingDate } from '../../../lib/orderStats';
+import { formatMoney } from '../../../lib/format';
+
 import './SalesDetailSheet.css';
 
 export interface SalesDetailSummary {
@@ -20,8 +22,8 @@ export interface SalesDetailSheetProps {
   emptyMessage?: string;
 }
 
-const money = (n: number) =>
-  `${Math.round(n || 0).toLocaleString('fr-FR').replace(/\u202f/g, ' ')} FCFA`;
+
+const money = (n: number) => formatMoney(n);
 
 const dateLabel = (value: string) => {
   if (!value) return '—';

@@ -164,7 +164,8 @@ export const ProspectsView: React.FC = () => {
           </span>
           <input
             type="text"
-            placeholder="Rechercher par nom, téléphone, notes..."
+            placeholder="Rechercher un prospect…"
+            aria-label="Rechercher un prospect par nom, téléphone ou notes"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-11 pr-4 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all h-12"

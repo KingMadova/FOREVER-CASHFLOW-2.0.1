@@ -36,10 +36,8 @@ import { StatRow } from '../components/ui/dashboard/StatRow';
 import { ProgressRow } from '../components/ui/dashboard/ProgressRow';
 import { DonutChart, DonutLegend, type DonutSegment } from '../components/ui/dashboard/DonutChart';
 import { ActivityList, type ActivityItem } from '../components/ui/dashboard/ActivityList';
+import { formatCC, formatMoney } from '../lib/format';
 import './DashboardView.css';
-
-const formatFCFA = (n: number) => `${Math.round(n || 0).toLocaleString('fr-FR')} F`;
-const formatCC = (n: number) => `${n.toFixed(3)} CC`;
 
 const STATUS_SHORT: Record<OrderStatut, string> = {
   PENDING: 'En attente',
@@ -229,7 +227,7 @@ export const DashboardView: React.FC = () => {
     subtitle: `${o.refCommande || o.id} · ${o.items.length} article(s)`,
     trailing: (
       <div className="activity-trailing-inner">
-        <span className="activity-amount">{formatFCFA(o.totalRetail)}</span>
+        <span className="activity-amount">{formatMoney(o.totalRetail)}</span>
         <span className={`activity-status is-${STATUS_TONE[o.status]}`}>{STATUS_SHORT[o.status]}</span>
       </div>
     ),
@@ -270,7 +268,7 @@ export const DashboardView: React.FC = () => {
       {/* 2. Hero marge */}
       <HeroCard
         label="Marge ce mois"
-        value={formatFCFA(totalMarginThisMonth)}
+        value={formatMoney(totalMarginThisMonth)}
         change={marginChangeLabel}
         positive={marginChange >= 0}
         icon={<Wallet size={20} />}
@@ -332,7 +330,7 @@ export const DashboardView: React.FC = () => {
               label="Chiffre d'affaires"
               current={totalAmountThisMonth}
               target={profile.monthlyGoalAmount || 0}
-              format={(n) => formatFCFA(n)}
+              format={(n) => formatMoney(n)}
               tone="emerald"
             />
             <StatRow
@@ -361,9 +359,9 @@ export const DashboardView: React.FC = () => {
             <DonutChart
               segments={donutSegments}
               centerLabel="Dépenses"
-              centerValue={formatFCFA(thisMonthExpenses)}
+              centerValue={formatMoney(thisMonthExpenses)}
             />
-            <DonutLegend segments={donutSegments} formatValue={(n) => formatFCFA(n)} />
+            <DonutLegend segments={donutSegments} formatValue={(n) => formatMoney(n)} />
           </div>
         ) : (
           <p className="dashboard-empty">Aucune dépense enregistrée ce mois.</p>
