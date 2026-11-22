@@ -527,3 +527,217 @@
   outline: 2px solid var(--fcf-focus);
   outline-offset: 2px;
 }
+
+/* --- 11. Performance des produits --- */
+.sales-products-panel {
+  min-width: 0;
+  border: 1px solid var(--fcf-border);
+  border-radius: .7rem;
+  background: var(--fcf-surface);
+  overflow: hidden;
+}
+
+.sales-products-heading {
+  flex-wrap: wrap;
+}
+
+.sales-product-sort {
+  display: inline-flex;
+  align-items: center;
+  padding: .16rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .45rem;
+  background: var(--fcf-background);
+  gap: .15rem;
+}
+
+.sales-product-sort button {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  height: 1.75rem;
+  padding: 0 .55rem;
+  border: 0;
+  border-radius: .32rem;
+  background: transparent;
+  color: var(--fcf-muted);
+  font-size: .58rem;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+
+.sales-product-sort button.is-active {
+  background: var(--fcf-surface-muted);
+  color: var(--fcf-brand-terracotta);
+}
+
+.sales-products-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  padding: 1.65rem 1rem;
+  color: var(--fcf-muted);
+  font-size: .68rem;
+}
+
+.sales-product-row.is-clickable {
+  cursor: pointer;
+}
+
+.sales-product-row.is-clickable:focus-visible {
+  outline: 2px solid var(--fcf-focus);
+  outline-offset: -2px;
+}
+
+.sales-product-rank {
+  font-weight: 800;
+  color: var(--fcf-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-product-name-cell {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  min-width: 0;
+}
+
+.sales-product-name-cell strong {
+  color: var(--fcf-foreground);
+  font-size: .66rem;
+  font-weight: 750;
+}
+
+.sales-bestseller-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: .22rem;
+  padding: .14rem .4rem;
+  border: 1px solid color-mix(in oklab, var(--fcf-brand-gold) 45%, var(--fcf-border));
+  border-radius: .3rem;
+  background: color-mix(in oklab, var(--fcf-brand-gold) 15%, var(--fcf-surface));
+  color: var(--fcf-brand-terracotta);
+  font-size: .52rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sales-product-qty {
+  color: var(--fcf-foreground) !important;
+  font-weight: 750;
+}
+
+.sales-share-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .22rem;
+  min-width: 4.5rem;
+}
+
+.sales-share-cell span {
+  font-size: .62rem;
+  font-weight: 750;
+  color: var(--fcf-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-share-track {
+  width: 4.5rem;
+  height: .24rem;
+  border-radius: .2rem;
+  background: var(--fcf-background);
+  overflow: hidden;
+}
+
+.sales-share-track span {
+  display: block;
+  height: 100%;
+  background: var(--fcf-brand-terracotta);
+}
+
+.sales-insufficient {
+  color: var(--fcf-muted);
+  font-size: .58rem;
+  font-style: italic;
+}
+
+.sales-products-footnote {
+  margin: 0;
+  padding: .5rem .85rem;
+  border-top: 1px solid var(--fcf-border);
+  background: var(--fcf-background);
+  color: var(--fcf-muted);
+  font-size: .56rem;
+  line-height: 1.4;
+}
+
+.sales-product-cards {
+  display: none;
+  flex-direction: column;
+  gap: .4rem;
+  padding: .55rem;
+}
+
+.sales-product-card {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  width: 100%;
+  padding: .65rem .7rem;
+  border: 1px solid var(--fcf-border);
+  border-radius: .55rem;
+  background: var(--fcf-surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sales-product-card:hover {
+  border-color: var(--fcf-brand-gold);
+}
+
+.sales-product-card-top {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  min-width: 0;
+}
+
+.sales-product-card-top strong {
+  flex: 1;
+  min-width: 0;
+  color: var(--fcf-foreground);
+  font-size: .74rem;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sales-product-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .25rem .6rem;
+  font-size: .6rem;
+  color: var(--fcf-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-product-card-metrics strong {
+  color: var(--fcf-foreground);
+  font-weight: 750;
+}
+
+@media (max-width: 767px) {
+  .sales-product-cards {
+    display: flex;
+  }
+  .sales-products-footnote {
+    padding: .5rem .7rem;
+  }
+}

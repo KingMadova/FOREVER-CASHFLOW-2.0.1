@@ -9,9 +9,9 @@ import { useSyncStore } from './syncSlice';
 interface BudgetState {
   budget: BudgetEntry[];
   // Actions
-  addBudgetEntry: (entry: Omit<BudgetEntry, 'id'>) => Promise<void>;
-  updateBudgetEntry: (entry: BudgetEntry) => Promise<void>;
-  deleteBudgetEntry: (id: string) => Promise<void>;
+  addBudgetEntry: (entry: Omit<BudgetEntry, 'id'>) => Promise<'saved' | 'queued'>;
+  updateBudgetEntry: (entry: BudgetEntry) => Promise<'saved' | 'queued'>;
+  deleteBudgetEntry: (id: string) => Promise<'saved' | 'queued'>;
   setBudget: (budget: BudgetEntry[]) => void;
   initializeListener: () => () => void;
 }
@@ -21,81 +21,132 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
 
   addBudgetEntry: async (entry) => {
     const { user } = useAuthStore.getState();
-    if (!user) return;
+    if (!user) {
+      throw new Error('Utilisateur non authentifié. Veuillez vous reconnecter.');
+    }
 
+    const { isOfflineMode, upsertSyncTask } = useSyncStore.getState();
     const path = getPaths(user.uid).budget;
     const id = 'bud_' + Math.random().toString(36).substr(2, 9);
+    const createdAt = entry.createdAt || new Date().toISOString();
     const full: BudgetEntry = {
       ...entry,
       id,
       userId: user.uid,
-      createdAt: entry.createdAt || new Date().toISOString(),
-      synced: true,
+      createdAt,
+      synced: !isOfflineMode,
     };
 
-    // Mise à jour optimiste : visible immédiatement dans l'UI
-    set((state) => ({ budget: [full, ...state.budget] }));
+    const prevBudget = get().budget;
 
-    try {
-      await setDoc(doc(db, path, id), {
-        ...entry,
-        userId: user.uid,
-        createdAt: full.createdAt,
-      });
-    } catch (err) {
-      console.error('[addBudgetEntry] Ecriture Firestore impossible, mise en file de sync:', err);
-      useSyncStore.getState().addToSyncQueue({
+    if (isOfflineMode) {
+      set({ budget: [full, ...prevBudget] });
+      upsertSyncTask({
         id: 'sync_' + Math.random().toString(36).substr(2, 9),
         type: 'BUDGET',
         entityId: id,
         name: `${entry.type === 'REVENUE' ? '+' : '-'}${entry.amount} F ${entry.category}`,
         actionType: 'ADD',
-        payload: { ...entry, userId: user.uid, createdAt: full.createdAt },
+        payload: { ...entry, userId: user.uid, createdAt },
         createdAt: new Date().toISOString(),
       });
-      // Marquer localement comme non synchronisé
-      set((state) => ({
-        budget: state.budget.map((b) => (b.id === id ? { ...b, synced: false } : b)),
-      }));
+      return 'queued';
+    }
+
+    set({ budget: [full, ...prevBudget] });
+
+    try {
+      await setDoc(doc(db, path, id), {
+        ...entry,
+        userId: user.uid,
+        createdAt,
+      });
+      return 'saved';
+    } catch (err) {
+      set({ budget: prevBudget });
+      handleFirestoreError(err, OperationType.CREATE, `${path}/${id}`);
+      throw err;
     }
   },
 
   updateBudgetEntry: async (updated) => {
     const { user } = useAuthStore.getState();
-    if (!user) return;
+    if (!user) {
+      throw new Error('Utilisateur non authentifié. Veuillez vous reconnecter.');
+    }
 
+    const { isOfflineMode, upsertSyncTask } = useSyncStore.getState();
     const path = getPaths(user.uid).budget;
-
-    // Optimiste
     const prev = get().budget;
-    set((state) => ({
-      budget: state.budget.map((b) => (b.id === updated.id ? updated : b)),
-    }));
+    const { synced: _synced, ...withoutSynced } = updated;
+    const toSave = {
+      ...withoutSynced,
+      userId: withoutSynced.userId || user.uid,
+    };
+
+    if (isOfflineMode) {
+      set({
+        budget: prev.map((b) => (b.id === updated.id ? { ...toSave, synced: false } : b)),
+      });
+      upsertSyncTask({
+        id: 'sync_' + Math.random().toString(36).substr(2, 9),
+        type: 'BUDGET',
+        entityId: updated.id,
+        name: `${updated.type === 'REVENUE' ? '+' : '-'}${updated.amount} F ${updated.category}`,
+        actionType: 'UPDATE',
+        payload: toSave,
+        createdAt: new Date().toISOString(),
+      });
+      return 'queued';
+    }
+
+    set({
+      budget: prev.map((b) => (b.id === updated.id ? { ...toSave, synced: true } : b)),
+    });
 
     try {
-      const { synced, ...toSave } = updated;
       await updateDoc(doc(db, path, updated.id), toSave);
+      return 'saved';
     } catch (err) {
+      set({ budget: prev });
       handleFirestoreError(err, OperationType.UPDATE, `${path}/${updated.id}`);
-      set({ budget: prev }); // rollback si échec
+      throw err;
     }
   },
 
   deleteBudgetEntry: async (id) => {
     const { user } = useAuthStore.getState();
-    if (!user) return;
+    if (!user) {
+      throw new Error('Utilisateur non authentifié. Veuillez vous reconnecter.');
+    }
 
+    const { isOfflineMode, upsertSyncTask } = useSyncStore.getState();
     const path = getPaths(user.uid).budget;
-
-    // Optimiste
     const prev = get().budget;
-    set((state) => ({ budget: state.budget.filter((b) => b.id !== id) }));
+    const target = prev.find((b) => b.id === id);
+
+    set({ budget: prev.filter((b) => b.id !== id) });
+
+    if (isOfflineMode) {
+      upsertSyncTask({
+        id: 'sync_' + Math.random().toString(36).substr(2, 9),
+        type: 'BUDGET',
+        entityId: id,
+        name: target ? `${target.category} (${target.amount} F)` : 'Mouvement budget',
+        actionType: 'DELETE',
+        payload: {},
+        createdAt: new Date().toISOString(),
+      });
+      return 'queued';
+    }
 
     try {
       await deleteDoc(doc(db, path, id));
+      return 'saved';
     } catch (err) {
+      set({ budget: prev });
       handleFirestoreError(err, OperationType.DELETE, `${path}/${id}`);
-      set({ budget: prev }); // rollback si échec
+      throw err;
     }
   },
 
@@ -110,8 +161,6 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
 
     const paths = getPaths(user.uid);
     const unsub = onSnapshot(
-      // Pas de orderBy serveur : Firestore exclut silencieusement les documents
-      // sans le champ trié. La vue trie déjà côté client par date décroissante.
       collection(db, paths.budget),
       (snap) => {
         const data = snap.docs.map((d) => ({ ...d.data(), id: d.id } as BudgetEntry));

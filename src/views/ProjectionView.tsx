@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useProductsStore } from '../store/slices/productsSlice';
 import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
 import './ProjectionView.css';
-import { Product, GRADES } from '../types';
+import { Product, getGradeByCode } from '../types';
 import { getCustomerSalePrice, getPartnerPurchasePrice } from '../lib/pricing';
+import { useActionFeedback } from '../hooks/useActionFeedback';
 import { 
   Plus,
   Minus,
@@ -36,6 +37,7 @@ interface CustomPack {
 export const ProjectionView: React.FC = () => {
   const { products } = useProductsStore();
   const { profile } = useAuthStore();
+  const { notifySuccess, notifyError } = useActionFeedback();
 
   // 1. Projection calculator state
   const [targetMargin, setTargetMargin] = useState<number>(500000); // en FCFA
@@ -46,7 +48,7 @@ export const ProjectionView: React.FC = () => {
   const [projProductSearch, setProjProductSearch] = useState('');
 
   // Grille tarifaire officielle du grade partenaire.
-  const currentGrade = GRADES.find(g => g.code === profile.grade) || GRADES[1];
+  const currentGrade = getGradeByCode(profile.grade);
 
   // Build standard Pack designs
   const PREMADE_PACKS: CustomPack[] = [
@@ -146,9 +148,11 @@ _Calculé instantanément sur Forever CashFlow CRM_ 🔥`;
     if (activeTab === 'custom' && customSlots.length === 0) return;
     navigator.clipboard.writeText(shareString).then(() => {
       setCopied(true);
+      notifySuccess("Plan d'action copié dans le presse-papiers !");
       setTimeout(() => setCopied(false), 2000);
     }).catch(err => {
       console.error('Erreur lors de la copie', err);
+      notifyError("Impossible de copier le plan d'action.");
     });
   };
 

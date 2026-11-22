@@ -57,7 +57,12 @@
         "pipelineStage": { "type": "string" },
         "lastContactDate": { "type": "string" },
         "createdAt": { "type": "string" },
-        "notes": { "type": "string" }
+        "notes": { "type": "string" },
+        "recordOrigin": { "type": "string" },
+        "convertedFromProspect": { "type": "boolean" },
+        "convertedAt": { "type": "string" },
+        "conversionChannel": { "type": "string" },
+        "interactions": { "type": "array" }
       },
       "required": ["userId", "name", "phone", "status", "pipelineStage", "createdAt"]
     },

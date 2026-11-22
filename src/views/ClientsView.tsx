@@ -6,7 +6,8 @@ import { useProductsStore } from '../store/slices/productsSlice';
 import { useOrdersStore } from '../store/slices/ordersSlice';
 import { Card } from '../components/ui/Card';
 import { Drawer } from '../components/ui/Drawer';
-import { Customer, CustomerStatus, Order } from '../types';
+import { Customer, CustomerStatus } from '../types';
+import { useActionFeedback } from '../hooks/useActionFeedback';
 import { SortSelect } from '../components/ui/SortSelect';
 import { isCountedOrder, orderAccountingDate, isInMonth } from '../lib/orderStats';
 import { useSortPref, sortList, cmpText, CLIENT_SORT_OPTIONS } from '../lib/sortHelper';
@@ -88,6 +89,9 @@ export const ClientsView: React.FC = () => {
   const { products } = useProductsStore();
   const { orders, updateOrder } = useOrdersStore();
 
+  const { executeAction, confirmAction, isActionPending, notifyError } = useActionFeedback();
+  const isSubmitting = isActionPending('client-add');
+
   // États
   const [searchTerm, setSearchTerm] = useState('');
   const [activeClientView, setActiveClientView] = useState<ClientView>('ALL');
@@ -97,7 +101,6 @@ export const ClientsView: React.FC = () => {
   const [isFiltersSheetOpen, setIsFiltersSheetOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState<'INFO' | 'ORDERS' | 'HISTORY' | 'NOTES'>('INFO');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const openForm = () => {
@@ -138,8 +141,6 @@ export const ClientsView: React.FC = () => {
   const [newSourceProspection, setNewSourceProspection] = useState<'META_ADS' | 'RECOMMANDATION' | 'BOUCHE_OREILLE' | 'EVENEMENT' | 'AUTRE'>('AUTRE');
   const [newIsCP, setNewIsCP] = useState(false);
   const [newNotes, setNewNotes] = useState('');
-  const [notesSavedFeedback, setNotesSavedFeedback] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Reset centralisé du formulaire de création
   const resetAddForm = () => {
@@ -159,30 +160,38 @@ export const ClientsView: React.FC = () => {
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName || !newPhone) return;
-
-    setIsSubmitting(true);
-    try {
-      await addCustomer({
-        name: newName,
-        email: newEmail,
-        phone: newPhone,
-        address: newAddress,
-        ville: newVille,
-        dateNaissance: newDateNaissance,
-        sourceProspection: newSourceProspection,
-        isCP: newIsCP,
-        status: CustomerStatus.CLIENT,
-        pipelineStage: 'CLOSED_WON',
-        lastContactDate: new Date().toISOString().split('T')[0],
-        notes: newNotes,
-      });
-
-      resetAddForm();
-      setIsAddOpen(false);
-    } finally {
-      setIsSubmitting(false);
+    if (!newName.trim() || !newPhone.trim()) {
+      notifyError('Veuillez renseigner le nom et le numéro de téléphone du client.');
+      return;
     }
+
+    await executeAction({
+      actionKey: 'client-add',
+      operation: () =>
+        addCustomer({
+          name: newName,
+          email: newEmail,
+          phone: newPhone,
+          address: newAddress,
+          ville: newVille,
+          dateNaissance: newDateNaissance,
+          sourceProspection: newSourceProspection,
+          isCP: newIsCP,
+          recordOrigin: 'DIRECT_CLIENT',
+          status: CustomerStatus.CLIENT,
+          pipelineStage: 'CLOSED_WON',
+          lastContactDate: new Date().toISOString().split('T')[0],
+          notes: newNotes,
+        }),
+      successMessage: 'Client enregistré avec succès !',
+      queuedMessage: 'Client enregistré hors-ligne (en attente de synchronisation).',
+      errorContext: "Échec de l'enregistrement du client",
+      redirectToDashboard: true,
+      onSuccess: () => {
+        resetAddForm();
+        setIsAddOpen(false);
+      },
+    });
   };
 
   const getClientOrders = (clientId: string) =>
@@ -394,16 +403,46 @@ export const ClientsView: React.FC = () => {
     }, 600);
   };
 
-  const handleSaveNotes = () => {
+  const handleSaveNotes = async () => {
     if (!selectedClient) return;
-    updateCustomer({
-      ...selectedClient,
-      notes: newNotes,
-      lastContactDate: new Date().toISOString().split('T')[0],
+    await executeAction({
+      actionKey: `client-notes-${selectedClient.id}`,
+      operation: () =>
+        updateCustomer({
+          ...selectedClient,
+          notes: newNotes,
+          lastContactDate: new Date().toISOString().split('T')[0],
+        }),
+      successMessage: 'Notes client enregistrées avec succès !',
+      errorContext: "Échec de l'enregistrement des notes client",
+      redirectToDashboard: true,
+      onSuccess: () => {
+        setSelectedClient(prev => prev ? { ...prev, notes: newNotes } : null);
+      },
     });
-    setSelectedClient(prev => prev ? { ...prev, notes: newNotes } : null);
-    setNotesSavedFeedback(true);
-    setTimeout(() => setNotesSavedFeedback(false), 4000);
+  };
+
+  const handleDeleteClient = async (client: Customer) => {
+    const confirmed = await confirmAction({
+      title: 'Supprimer le client',
+      message: `Voulez-vous vraiment supprimer définitivement ${client.name} de votre base ? Cette action est irréversible.`,
+      confirmLabel: 'Oui, supprimer',
+      cancelLabel: 'Annuler',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    await executeAction({
+      actionKey: `client-delete-${client.id}`,
+      operation: () => deleteCustomer(client.id),
+      successMessage: 'Client supprimé avec succès !',
+      errorContext: 'Échec de la suppression du client',
+      redirectToDashboard: true,
+      onSuccess: () => {
+        setIsDetailOpen(false);
+        setSelectedClient(null);
+      },
+    });
   };
 
   return (
@@ -867,7 +906,6 @@ export const ClientsView: React.FC = () => {
         isOpen={isDetailOpen && selectedClient !== null}
         onClose={() => {
           setIsDetailOpen(false);
-          setShowDeleteConfirm(false);
         }}
         title={(isVipClient(selectedClient?.id || '') ? '🏆 ' : '') + (selectedClient?.name || 'Fiche Client')}
       >
@@ -956,13 +994,24 @@ export const ClientsView: React.FC = () => {
                   <select
                     aria-label="Catégorie tarifaire du client"
                     value={selectedClient.isCP ? 'CP' : 'PUBLIC'}
-                    onChange={(e) => {
+                    disabled={isActionPending(`client-tarif-${selectedClient.id}`)}
+                    onChange={async (e) => {
                       const isCP = e.target.value === 'CP';
+                      const prevClient = selectedClient;
                       const updated = { ...selectedClient, isCP };
                       setSelectedClient(updated);
-                      void updateCustomer(updated);
+                      const outcome = await executeAction({
+                        actionKey: `client-tarif-${selectedClient.id}`,
+                        operation: () => updateCustomer(updated),
+                        successMessage: `Tarif ${isCP ? 'Client CP' : 'Public'} appliqué à ${selectedClient.name} !`,
+                        errorContext: 'Échec de la mise à jour du tarif client',
+                        redirectToDashboard: false,
+                      });
+                      if (!outcome.ok) {
+                        setSelectedClient(prevClient);
+                      }
                     }}
-                    className="shrink-0 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-black text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500"
+                    className="shrink-0 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-black text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
                   >
                     <option value="PUBLIC">Public</option>
                     <option value="CP">Client CP</option>
@@ -1217,20 +1266,28 @@ export const ClientsView: React.FC = () => {
                                       return (
                                         <button
                                           key={opt.level}
+                                          disabled={isActionPending(`client-satisfaction-${o.id}`)}
                                           onClick={async () => {
                                             const levelToStars: Record<string, 1 | 2 | 3 | 4 | 5> = {
                                               LOW: 1,
                                               MID: 3,
                                               HIGH: 5,
                                             };
-                                            await updateOrder({
-                                              ...o,
-                                              satisfactionLevel: selected ? undefined : opt.level,
-                                              satisfaction: selected ? undefined : levelToStars[opt.level],
-                                              satisfactionDate: new Date().toISOString(),
+                                            await executeAction({
+                                              actionKey: `client-satisfaction-${o.id}`,
+                                              operation: () =>
+                                                updateOrder({
+                                                  ...o,
+                                                  satisfactionLevel: selected ? undefined : opt.level,
+                                                  satisfaction: selected ? undefined : levelToStars[opt.level],
+                                                  satisfactionDate: new Date().toISOString(),
+                                                }),
+                                              successMessage: 'Satisfaction client enregistrée avec succès !',
+                                              errorContext: "Échec de l'enregistrement de la satisfaction",
+                                              redirectToDashboard: true,
                                             });
                                           }}
-                                          className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer active:scale-95 ring-1 ${
+                                          className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer active:scale-95 disabled:opacity-50 ring-1 ${
                                             selected
                                               ? `${opt.on} font-black`
                                               : 'bg-slate-50 dark:bg-slate-800/50 text-slate-400 ring-transparent hover:ring-slate-200'
@@ -1324,59 +1381,27 @@ export const ClientsView: React.FC = () => {
                   className="w-full bg-slate-50 dark:bg-[#2a2a2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white"
                 />
 
-                {notesSavedFeedback && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 font-extrabold text-[11px] p-3 rounded-xl text-center">
-                    ✓ Notes sauvegardées avec succès !
-                  </div>
-                )}
-
                 <button
                   type="button"
                   onClick={handleSaveNotes}
-                  className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow-md active:scale-95 transition-all cursor-pointer"
+                  disabled={isActionPending(`client-notes-${selectedClient.id}`)}
+                  className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-slate-950 text-xs font-black rounded-xl shadow-md active:scale-95 transition-all cursor-pointer"
                 >
-                  METTRE À JOUR NOTES CLIENT
+                  {isActionPending(`client-notes-${selectedClient.id}`) ? 'ENREGISTREMENT...' : 'METTRE À JOUR NOTES CLIENT'}
                 </button>
               </div>
             )}
 
             {/* Suppression */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-              {showDeleteConfirm ? (
-                <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-150">
-                  <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400 text-left leading-relaxed">
-                    Voulez-vous vraiment supprimer définitivement ce client de votre base ? Cette action est définitive.
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        deleteCustomer(selectedClient.id);
-                        setIsDetailOpen(false);
-                        setShowDeleteConfirm(false);
-                      }}
-                      className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl active:scale-95 transition-all text-center cursor-pointer shadow-sm"
-                    >
-                      Oui, Supprimer
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="py-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl active:scale-95 transition-all text-center cursor-pointer"
-                    >
-                      Annuler
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full py-3 bg-red-50 dark:bg-red-950/20 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-950/40 text-xs font-bold rounded-xl active:scale-95 transition-all text-center border border-red-200/50 dark:border-red-900/30 cursor-pointer"
-                >
-                  Supprimer de la Base Client FLP
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => handleDeleteClient(selectedClient)}
+                disabled={isActionPending(`client-delete-${selectedClient.id}`)}
+                className="w-full py-3 bg-red-50 dark:bg-red-950/20 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-950/40 disabled:opacity-50 text-xs font-bold rounded-xl active:scale-95 transition-all text-center border border-red-200/50 dark:border-red-900/30 cursor-pointer"
+              >
+                {isActionPending(`client-delete-${selectedClient.id}`) ? 'Suppression...' : 'Supprimer de la Base Client FLP'}
+              </button>
             </div>
 
           </div>

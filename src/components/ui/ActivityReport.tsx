@@ -6,6 +6,8 @@ import { useSortPref, sortList, ORDER_SORT_OPTIONS, orderComparators } from '../
 import { useOrdersStore } from '../../store/slices/ordersSlice';
 import { useBudgetStore } from '../../store/slices/budgetSlice';
 import { useAuthStore } from '../../store/slices/authSlice';
+import { getGradeByCode } from '../../types';
+import { useActionFeedback } from '../../hooks/useActionFeedback';
 import { Card } from './Card';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -35,6 +37,8 @@ export const ActivityReport: React.FC = () => {
   const { orders } = useOrdersStore();
   const { budget } = useBudgetStore();
   const { profile } = useAuthStore();
+  const { notifySuccess, notifyError } = useActionFeedback();
+  const gradeLabel = getGradeByCode(profile.grade).label;
   const [activeTab, setActiveTab] = useState<'monthly' | 'yearly'>('monthly');
 
   // Year & Month Selection
@@ -198,11 +202,11 @@ export const ActivityReport: React.FC = () => {
   });
 
   // Export report structure as plain text
-  const handleCopyReport = () => {
+  const handleCopyReport = async () => {
     let reportText = '';
     if (activeTab === 'monthly') {
       reportText = `📊 RAPPORT MENSUEL FBO - ${months.find(m => m.value === selectedMonth)?.label.toUpperCase()} ${selectedYear}
-FBO: ${profile.name} (${profile.title})
+FBO: ${profile.name} (${gradeLabel})
 --------------------------------------------------
 📈 CHIFRE D'AFFAIRES BRUT : ${monthlyRetailSales.toLocaleString()} F
 🛡️ MARGE DIRECTE GÉNÉRÉE : ${monthlyDirectMargin.toLocaleString()} F
@@ -215,7 +219,7 @@ Statut Activité 4CC : ${monthlyCC >= 4 ? 'ACTIF FBO (Félicitations !) 🌟' : 
 Date de génération : ${new Date().toLocaleString()}`;
     } else {
       reportText = `📊 RAPPORT ANNUEL D'ACTIVITÉ FBO - EXERCICE ${selectedYear}
-FBO: ${profile.name} (${profile.title})
+FBO: ${profile.name} (${gradeLabel})
 --------------------------------------------------
 📈 VOLUME DE VENTE ANNUEL : ${yearlyRetailSales.toLocaleString()} F
 🛡️ MARGE DE VENTE CUMULÉE : ${yearlyDirectMargin.toLocaleString()} F
@@ -228,9 +232,14 @@ Moyenne mensuelle du volume : ${(yearlyCC / 12).toFixed(3)} CC / mois
 Date de génération : ${new Date().toLocaleString()}`;
     }
 
-    navigator.clipboard.writeText(reportText);
-    setCopySuccess(true);
-    setTimeout(() => setCopySuccess(false), 2000);
+    try {
+      await navigator.clipboard.writeText(reportText);
+      setCopySuccess(true);
+      notifySuccess('Rapport copié dans le presse-papiers !');
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch {
+      notifyError('Impossible de copier le rapport dans le presse-papiers.');
+    }
   };
 
   // Unified function to execute export based on modal configurations (Year, Month, Format)
@@ -312,7 +321,7 @@ Date de génération : ${new Date().toLocaleString()}`;
     if (format === 'txt') {
       let reportText = `==================================================
 RAPPORT D'ACTIVITE FBO - ${isYearly ? `EXERCICE ${year}` : `${monthLabel.toUpperCase()} ${year}`}
-FBO: ${profile.name} (${profile.title})
+FBO: ${profile.name} (${gradeLabel})
 Date d'exportation : ${new Date().toLocaleString()}
 ==================================================
 
@@ -361,6 +370,7 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
       link.click();
       document.body.removeChild(link);
       setIsExportDialogOpen(false);
+      notifySuccess(`Rapport texte (${fileName}) exporté avec succès !`);
 
     } else if (format === 'csv') {
       let csvContent = '\uFEFF'; // Excel UTF-8 BOM
@@ -369,7 +379,7 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
       if (!isYearly) {
         csvContent += `Rapport Mensuel FBO;${monthLabel} ${year}\n`;
         csvContent += `Conseiller FBO;${profile.name}\n`;
-        csvContent += `Grade FLP;${profile.title}\n`;
+        csvContent += `Grade FLP;${gradeLabel}\n`;
         csvContent += `Date d'exportation;${new Date().toLocaleDateString()}\n\n`;
 
         csvContent += `INDICATEURS CLÉS;VALEUR\n`;
@@ -405,7 +415,7 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
       } else {
         csvContent += `Rapport Annuel FBO;Exercice ${year}\n`;
         csvContent += `Conseiller FBO;${profile.name}\n`;
-        csvContent += `Grade FLP;${profile.title}\n`;
+        csvContent += `Grade FLP;${gradeLabel}\n`;
         csvContent += `Date d'exportation;${new Date().toLocaleDateString()}\n\n`;
 
         csvContent += `SYNTHÈSE FINANCIÈRE ANNUELLE\n`;
@@ -434,6 +444,7 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
       link.click();
       document.body.removeChild(link);
       setIsExportDialogOpen(false);
+      notifySuccess(`Rapport CSV (${fileName}) exporté avec succès !`);
 
     } else if (format === 'pdf') {
       // Setup the hidden print canvas states
@@ -456,8 +467,13 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
 
       // Impression via printCanvas helper
       setTimeout(async () => {
-        await printCanvas('report_printable_canvas');
-        setIsExportDialogOpen(false);
+        try {
+          await printCanvas('report_printable_canvas');
+          setIsExportDialogOpen(false);
+          notifySuccess('Export PDF généré avec succès !');
+        } catch {
+          notifyError('Échec lors de la préparation de l’export PDF.');
+        }
       }, 350);
     }
   };
@@ -580,7 +596,7 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
               </div>
               <div className="min-w-0">
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Chiffre d'Affaires</span>
-                <p className="text-sm font-black text-slate-900 dark:text-slate-500 text-slate-100 mt-1">{monthlyRetailSales.toLocaleString()} F</p>
+                <p className="text-sm font-black text-slate-900 dark:text-slate-100 mt-1">{monthlyRetailSales.toLocaleString()} F</p>
                 <span className="text-[9px] text-slate-400 font-medium block mt-1">{activeOrdersThisMonth.length} commande(s) conclue(s)</span>
               </div>
             </div>
@@ -1019,7 +1035,7 @@ ${targetMonthlySummaryList.map(m => ` - ${m.monthName.padEnd(10)} | CA: ${m.sale
           <div>
             <span className="text-slate-400 uppercase font-bold text-[9px] block">Conseiller FBO Certifié :</span>
             <p className="font-extrabold text-sm text-slate-900 mt-1">{profile.name}</p>
-            <p className="text-slate-500 mt-0.5">{profile.title}</p>
+            <p className="text-slate-500 mt-0.5">{gradeLabel}</p>
           </div>
           <div className="text-right">
             <span className="text-slate-400 uppercase font-bold text-[9px] block">Période du Rapport :</span>

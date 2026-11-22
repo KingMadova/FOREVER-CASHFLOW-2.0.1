@@ -80,6 +80,12 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
         unsubscribeOther();
       }
       unsubscribeOther = initOtherStores();
+      if (uid) {
+        const syncState = useSyncStore.getState();
+        if (!syncState.isOfflineMode && syncState.syncQueue.length > 0) {
+          void syncState.triggerSync();
+        }
+      }
     };
 
     // Initial check

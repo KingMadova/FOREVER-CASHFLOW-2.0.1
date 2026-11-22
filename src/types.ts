@@ -10,6 +10,39 @@ export type PipelineStage =
   | 'CLOSED_WON' // Vente conclue
   | 'CLOSED_LOST'; // Perdu
 
+export type InteractionChannel =
+  | 'WHATSAPP'
+  | 'SMS'
+  | 'APPEL'
+  | 'PRESENTATION'
+  | 'AUTRE';
+
+export type ConversionChannel = InteractionChannel | 'INCONNU';
+
+export type InteractionActionType =
+  | 'PREMIER_CONTACT'
+  | 'RELANCE'
+  | 'PRESENTATION'
+  | 'AUTRE';
+
+export type InteractionOutcome =
+  | 'SANS_REPONSE'
+  | 'INTERESSE'
+  | 'REFUS'
+  | 'PRESENTATION_PROGRAMMEE'
+  | 'CONVERTI';
+
+export interface ProspectInteraction {
+  id: string;
+  date: string; // YYYY-MM-DD
+  channel: InteractionChannel;
+  actionType: InteractionActionType;
+  outcome: InteractionOutcome;
+  notes?: string;
+  nextFollowUpDate?: string; // YYYY-MM-DD
+  createdAt: string; // ISO timestamp immuable
+}
+
 export interface Customer {
   id: string;
   name: string;
@@ -26,6 +59,16 @@ export interface Customer {
   notes?: string;
   /** Client bénéficiant du tarif CP Forever. */
   isCP?: boolean;
+  /** Origine explicite à la création (distingue client direct vs prospect). */
+  recordOrigin?: 'PROSPECTION' | 'DIRECT_CLIENT';
+  /** Marqueur posé uniquement lors d'une conversion réelle depuis ProspectsView. */
+  convertedFromProspect?: boolean;
+  /** Date réelle de conversion (YYYY-MM-DD), renseignée uniquement lors d'une conversion depuis ProspectsView. */
+  convertedAt?: string;
+  /** Canal d'attribution explicite choisi lors de la conversion (jamais auto-déduit). */
+  conversionChannel?: ConversionChannel;
+  /** Journal structuré des interactions prospect (Étape 2). */
+  interactions?: ProspectInteraction[];
   synced?: boolean;
 }
 
@@ -151,6 +194,12 @@ export const GRADES: Grade[] = [
   { code: 'M',  label: 'Manager' },
 ];
 
+export const DEFAULT_GRADE_CODE: GradeCode = 'A';
+
+export function getGradeByCode(code?: string | null): Grade {
+  return GRADES.find((g) => g.code === code) || GRADES[1];
+}
+
 export interface PackSlot {
   produit: Product;
   ratio: number;
@@ -203,11 +252,13 @@ export interface AgendaItem {
   date: string;
   time: string;
   type: 'FOLLOW_UP' | 'DELIVERY' | 'PRESENTATION' | 'OTHER';
+  customerId?: string;
   contactName?: string;
   contactPhone?: string;
   location?: string;
   notes?: string;
   completed: boolean;
+  synced?: boolean;
 }
 
 // Journal quotidien G4 - Tracker d'activité Excellente Vie
@@ -238,6 +289,7 @@ export interface DailyLog {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  synced?: boolean;
 }
 
 export interface AppStoreState {

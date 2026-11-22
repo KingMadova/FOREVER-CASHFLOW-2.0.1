@@ -4,12 +4,13 @@ import { useAuthStore } from './authSlice';
 import { db } from '../../lib/firebase';
 import { collection, doc, setDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { getPaths, handleFirestoreError, OperationType } from '../../lib/firestoreService';
+import { useSyncStore } from './syncSlice';
 
 interface DailyLogsState {
   dailyLogs: DailyLog[];
   // Actions
   getDailyLog: (date: string) => DailyLog | undefined;
-  saveDailyLog: (log: Partial<DailyLog> & { date: string }) => Promise<void>;
+  saveDailyLog: (log: Partial<DailyLog> & { date: string }) => Promise<'saved' | 'queued'>;
   setDailyLogs: (logs: DailyLog[]) => void;
   initializeListener: () => () => void;
 }
@@ -23,14 +24,18 @@ export const useDailyLogsStore = create<DailyLogsState>((set, get) => ({
 
   saveDailyLog: async (partial) => {
     const { user } = useAuthStore.getState();
-    if (!user) return;
+    if (!user) {
+      throw new Error('Utilisateur non authentifié. Veuillez vous reconnecter.');
+    }
 
+    const { isOfflineMode, upsertSyncTask } = useSyncStore.getState();
     const path = getPaths(user.uid).dailyLogs;
     const id = partial.date; // ID = date YYYY-MM-DD, 1 doc par jour
+    const prevLogs = get().dailyLogs;
     const existing = get().getDailyLog(partial.date);
     const now = new Date().toISOString();
 
-    const log: DailyLog = {
+    const baseLog: DailyLog = {
       // Valeurs par défaut si nouveau log
       consumedProduct: false,
       trained: false,
@@ -53,21 +58,40 @@ export const useDailyLogsStore = create<DailyLogsState>((set, get) => ({
       updatedAt: now,
     };
 
+    const { synced: _synced, ...firestoreLog } = baseLog;
+    const localLog: DailyLog = { ...firestoreLog, synced: !isOfflineMode };
+
     // Mise à jour optimiste locale immédiate
     set((state) => {
       const idx = state.dailyLogs.findIndex((l) => l.date === partial.date);
       if (idx >= 0) {
         const updated = [...state.dailyLogs];
-        updated[idx] = log;
+        updated[idx] = localLog;
         return { dailyLogs: updated };
       }
-      return { dailyLogs: [log, ...state.dailyLogs] };
+      return { dailyLogs: [localLog, ...state.dailyLogs] };
     });
 
+    if (isOfflineMode) {
+      upsertSyncTask({
+        id: 'sync_' + Math.random().toString(36).substr(2, 9),
+        type: 'DAILY_LOG',
+        entityId: id,
+        name: `Journal G4 du ${partial.date}`,
+        actionType: existing ? 'UPDATE' : 'ADD',
+        payload: firestoreLog,
+        createdAt: now,
+      });
+      return 'queued';
+    }
+
     try {
-      await setDoc(doc(db, path, id), log);
+      await setDoc(doc(db, path, id), firestoreLog);
+      return 'saved';
     } catch (err) {
-      console.error('saveDailyLog error:', err);
+      set({ dailyLogs: prevLogs });
+      handleFirestoreError(err, OperationType.WRITE, `${path}/${id}`);
+      throw err;
     }
   },
 
@@ -87,7 +111,7 @@ export const useDailyLogsStore = create<DailyLogsState>((set, get) => ({
         const data = snap.docs.map((d) => ({ ...d.data(), id: d.id } as DailyLog));
         set({ dailyLogs: data });
       },
-      () => {} // Silent error for daily logs
+      (err) => console.error('[dailyLogsSlice] onSnapshot error:', err)
     );
 
     return () => unsub();

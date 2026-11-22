@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../store/slices/authSlice';
-import { UserProfile, GRADES, GradeCode } from '../../types';
+import { DEFAULT_GRADE_CODE, GRADES, GradeCode, getGradeByCode } from '../../types';
+import { useActionFeedback } from '../../hooks/useActionFeedback';
 import { 
   Sparkles, 
   User, 
@@ -27,14 +28,16 @@ interface OnboardingWizardProps {
 
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onClose, isManualTrigger = false }) => {
   const { profile, updateProfile } = useAuthStore();
+  const { executeAction, isActionPending } = useActionFeedback();
+  const isSaving = isActionPending('onboarding-complete');
   const [step, setStep] = useState(1);
+  const hasEditedRef = useRef(false);
 
   // Profile temporary form state
   const [fboName, setFboName] = useState(profile.name || '');
-  const [fboTitle, setFboTitle] = useState(profile.title || '');
   const [companyName, setCompanyName] = useState(profile.companyName || '');
   const [fboId, setFboId] = useState(profile.fboId || '');
-  const [fboGrade, setFboGrade] = useState<GradeCode>(profile.grade || 'AA');
+  const [fboGrade, setFboGrade] = useState<GradeCode>(profile.grade || DEFAULT_GRADE_CODE);
   const [companyPhone, setCompanyPhone] = useState(profile.companyPhone || '');
   const [companyEmail, setCompanyEmail] = useState(profile.companyEmail || '');
 
@@ -46,31 +49,37 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
   // Local validation error message
   const [validationError, setValidationError] = useState('');
 
-  // Pre-populate fields on load
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) {
+      hasEditedRef.current = false;
+      return;
+    }
+    setValidationError('');
+    if (!isManualTrigger) {
+      setStep(1);
+    }
+  }, [isOpen, isManualTrigger]);
+
+  // Synchronise avec le profil Firestore tant que l'utilisateur n'a pas encore saisi/modifié un champ
+  useEffect(() => {
+    if (isOpen && !hasEditedRef.current) {
       setFboName(profile.name || '');
-      setFboTitle(profile.title || '');
       setCompanyName(profile.companyName || '');
       setFboId(profile.fboId || '');
-      setFboGrade(profile.grade || 'AA');
+      setFboGrade(getGradeByCode(profile.grade).code);
       setCompanyPhone(profile.companyPhone || '');
       setCompanyEmail(profile.companyEmail || '');
       setAirtelMoney(profile.airtelMoney || '');
       setMtnMoney(profile.mtnMoney || '');
       setBankRIB(profile.bankRIB || '');
-      setValidationError('');
-      if (!isManualTrigger) {
-        setStep(1); // Default to start
-      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]); // init à l'ouverture uniquement (sinon les snapshots Firestore effacent la saisie)
+  }, [isOpen, profile]);
 
   if (!isOpen) return null;
 
   // Mask & clean FBO ID (Must contain digits only and be up to 12 chars)
   const handleFboIdChange = (val: string) => {
+    hasEditedRef.current = true;
     const cleaned = val.replace(/[^0-9]/g, '').slice(0, 12);
     setFboId(cleaned);
   };
@@ -91,9 +100,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
     }
 
     if (step === 2) {
-      // Airtel / MTN validation (at least warning if both empty)
+      // Airtel / MTN validation
       if (!airtelMoney && !mtnMoney) {
-        // We let them pass, but warn them
+        // Optional
       }
     }
 
@@ -115,36 +124,50 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
     return nameStr.substring(0, 2).toUpperCase();
   };
 
-  // Finish onboarding and save to Global App Store
-  const handleCompleteOnboarding = () => {
-    // 1. Generate updated user profile
-    const updatedProfile: UserProfile = {
-      ...profile,
-      name: fboName,
-      initials: computeInitials(fboName),
-      title: fboTitle ? fboTitle : (GRADES.find(g => g.code === fboGrade)?.label || 'Distributeur Forever'),
-      grade: fboGrade,
-      companyName: companyName ? companyName : `${fboName} Solutions`,
-      fboId: fboId ? fboId : 'Non défini',
-      companyPhone: companyPhone || profile.companyPhone,
-      companyEmail: companyEmail || profile.companyEmail,
-      airtelMoney: airtelMoney || undefined,
-      mtnMoney: mtnMoney || undefined,
-      bankRIB: bankRIB || undefined,
-    };
-
-    // Save profile to auth store state
-    updateProfile(updatedProfile);
-
-    // 2. Save completed flag
-    try {
-      localStorage.setItem('fcf-onboarding-completed', 'true');
-    } catch (e) {
-      console.error(e);
+  // Finish onboarding and await Firestore confirmation before closing or marking complete
+  const handleCompleteOnboarding = async () => {
+    if (!fboName.trim()) {
+      setValidationError('Veuillez renseigner votre nom complet.');
+      setStep(1);
+      return;
     }
+    setValidationError('');
 
-    // Call final callback to close
-    onClose();
+    const selectedGradeInfo = getGradeByCode(fboGrade);
+    const trimmedName = fboName.trim();
+
+    await executeAction({
+      actionKey: 'onboarding-complete',
+      operation: async () => {
+        await updateProfile({
+          name: trimmedName,
+          initials: computeInitials(trimmedName),
+          title: selectedGradeInfo.label,
+          grade: selectedGradeInfo.code,
+          companyName: companyName.trim() || `${trimmedName} Solutions`,
+          fboId: fboId.trim() || 'Non défini',
+          companyPhone: companyPhone || profile.companyPhone,
+          companyEmail: companyEmail || profile.companyEmail,
+          airtelMoney: airtelMoney || '',
+          mtnMoney: mtnMoney || '',
+          bankRIB: bankRIB || '',
+        });
+      },
+      successMessage: 'Profil FBO enregistré avec succès !',
+      errorContext: "Échec de l'enregistrement de votre profil FBO",
+      redirectToDashboard: true,
+      onSuccess: () => {
+        try {
+          localStorage.setItem('fcf-onboarding-completed', 'true');
+        } catch (e) {
+          console.error(e);
+        }
+        onClose();
+      },
+      onError: (formatted) => {
+        setValidationError(formatted);
+      },
+    });
   };
 
   return (
@@ -253,7 +276,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                       <input
                         type="text"
                         value={fboName}
-                        onChange={(e) => setFboName(e.target.value)}
+                        onChange={(e) => {
+                          hasEditedRef.current = true;
+                          setFboName(e.target.value);
+                        }}
                         placeholder="Saisissez votre nom complet"
                         className="w-full bg-slate-50 dark:bg-[#121215] border border-slate-200 dark:border-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white outline-none font-bold placeholder:font-normal"
                         id="onb_fbo_name_input"
@@ -295,7 +321,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                         <button
                           type="button"
                           key={g.code}
-                          onClick={() => setFboGrade(g.code)}
+                          onClick={() => {
+                            hasEditedRef.current = true;
+                            setFboGrade(g.code);
+                          }}
                           className={`p-3 rounded-xl border flex items-center justify-between text-left transition-all cursor-pointer ${
                             selected
                               ? 'bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/20'
@@ -338,7 +367,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                     <input
                       type="text"
                       value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
+                      onChange={(e) => {
+                        hasEditedRef.current = true;
+                        setCompanyName(e.target.value);
+                      }}
                       placeholder="Saisissez le nom de votre entreprise"
                       className="w-full bg-slate-50 dark:bg-[#121215] border border-slate-200 dark:border-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white outline-none font-bold"
                     />
@@ -351,7 +383,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                     <input
                       type="text"
                       value={companyPhone}
-                      onChange={(e) => setCompanyPhone(e.target.value)}
+                      onChange={(e) => {
+                        hasEditedRef.current = true;
+                        setCompanyPhone(e.target.value);
+                      }}
                       placeholder="Saisissez votre numéro de téléphone"
                       className="w-full bg-slate-50 dark:bg-[#121215] border border-slate-200 dark:border-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white outline-none font-bold"
                     />
@@ -397,7 +432,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                       <input
                         type="text"
                         value={airtelMoney}
-                        onChange={(e) => setAirtelMoney(e.target.value)}
+                        onChange={(e) => {
+                          hasEditedRef.current = true;
+                          setAirtelMoney(e.target.value);
+                        }}
                         placeholder="Saisissez un numéro de téléphone"
                         className="w-full bg-white dark:bg-[#121215] border border-slate-205 dark:border-slate-850 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none font-bold"
                         id="onb_wave_input"
@@ -419,7 +457,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                       <input
                         type="text"
                         value={mtnMoney}
-                        onChange={(e) => setMtnMoney(e.target.value)}
+                        onChange={(e) => {
+                          hasEditedRef.current = true;
+                          setMtnMoney(e.target.value);
+                        }}
                         placeholder="Saisissez un numéro de téléphone"
                         className="w-full bg-white dark:bg-[#121215] border border-slate-205 dark:border-slate-850 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none font-bold"
                         id="onb_orange_input"
@@ -438,7 +479,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
                     <input
                       type="text"
                       value={bankRIB}
-                      onChange={(e) => setBankRIB(e.target.value)}
+                      onChange={(e) => {
+                        hasEditedRef.current = true;
+                        setBankRIB(e.target.value);
+                      }}
                       placeholder="Saisissez votre RIB ou IBAN"
                       className="w-full bg-white dark:bg-[#121215] border border-slate-200 dark:border-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white outline-none font-mono"
                     />
@@ -557,11 +601,13 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onCl
             </button>
           ) : (
             <button
+              type="button"
               onClick={handleCompleteOnboarding}
-              className="py-2.1 px-6 bg-emerald-500 hover:bg-emerald-600 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer h-12 transition-all active:scale-95 shadow-lg shadow-emerald-500/10 hover:-translate-y-0.5"
+              disabled={isSaving}
+              className="py-2.1 px-6 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer h-12 transition-all active:scale-95 shadow-lg shadow-emerald-500/10 hover:-translate-y-0.5"
               id="onboarding_finish_btn"
             >
-              Terminer & Lancer ! 🚀
+              {isSaving ? 'Enregistrement...' : 'Terminer & Lancer ! 🚀'}
             </button>
           )}
         </div>

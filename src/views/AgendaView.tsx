@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 
 import { AgendaItem } from '../types';
+import { useActionFeedback } from '../hooks/useActionFeedback';
 
 export const AgendaView: React.FC = () => {
   const { customers } = useCustomersStore();
@@ -30,6 +31,9 @@ export const AgendaView: React.FC = () => {
     deleteAgendaItem,
     toggleAgendaItemCompleted
   } = useAgendaStore();
+
+  const { executeAction, confirmAction, isActionPending, notifyError } = useActionFeedback();
+  const isSubmitting = isActionPending('agenda-add');
 
   // State controllers for Adding Event
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -46,7 +50,6 @@ export const AgendaView: React.FC = () => {
   // Autocomplete search states for contact linking
   const [contactSearchQuery, setContactSearchQuery] = useState('');
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const selectedContact = contactId ? customers.find(c => c.id === contactId) : null;
   const filteredContacts = customers.filter(c => 
@@ -54,9 +57,12 @@ export const AgendaView: React.FC = () => {
     c.phone.includes(contactSearchQuery)
   );
 
-  const handleAddEvent = (e: React.FormEvent) => {
+  const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !dateStr) return;
+    if (!title.trim() || !dateStr) {
+      notifyError('Veuillez saisir un titre et une date pour le rendez-vous.');
+      return;
+    }
 
     let linkedCustomerName = '';
     let linkedPhone = '';
@@ -69,35 +75,62 @@ export const AgendaView: React.FC = () => {
       }
     }
 
-    addAgendaItem({
-      title,
-      date: dateStr,
-      time: timeStr,
-      type,
-      contactName: linkedCustomerName || undefined,
-      contactPhone: linkedPhone || undefined,
-      location: location || undefined,
-      notes: notes || undefined
+    await executeAction({
+      actionKey: 'agenda-add',
+      operation: () =>
+        addAgendaItem({
+          title,
+          date: dateStr,
+          time: timeStr,
+          type,
+          customerId: contactId || undefined,
+          contactName: linkedCustomerName || undefined,
+          contactPhone: linkedPhone || undefined,
+          location: location || undefined,
+          notes: notes || undefined
+        }),
+      successMessage: 'Rendez-vous planifié avec succès !',
+      errorContext: "Échec de l'enregistrement du rendez-vous",
+      redirectToDashboard: true,
+      onSuccess: () => {
+        setTitle('');
+        setLocation('');
+        setNotes('');
+        setContactId('');
+        setContactSearchQuery('');
+        setIsSuggestionsOpen(false);
+        setIsAddOpen(false);
+      },
     });
-
-    // Reset fields
-    setTitle('');
-    setLocation('');
-    setNotes('');
-    setContactId('');
-    setContactSearchQuery('');
-    setIsSuggestionsOpen(false);
-    setIsAddOpen(false);
   };
 
-  const handleToggleComplete = (id: string) => {
-    toggleAgendaItemCompleted(id);
+  const handleToggleComplete = async (id: string) => {
+    await executeAction({
+      actionKey: `agenda-toggle-${id}`,
+      operation: () => toggleAgendaItemCompleted(id),
+      successMessage: 'Tâche mise à jour avec succès !',
+      errorContext: 'Échec de la mise à jour du rendez-vous',
+      redirectToDashboard: true,
+    });
   };
 
-  const handleDeleteEvent = (id: string) => {
-    if (confirm('Voulez-vous supprimer ce rendez-vous ?')) {
-      deleteAgendaItem(id);
-    }
+  const handleDeleteEvent = async (id: string) => {
+    const confirmed = await confirmAction({
+      title: 'Supprimer le rendez-vous',
+      message: 'Voulez-vous supprimer définitivement ce rendez-vous ?',
+      confirmLabel: 'Oui, supprimer',
+      cancelLabel: 'Annuler',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    await executeAction({
+      actionKey: `agenda-delete-${id}`,
+      operation: () => deleteAgendaItem(id),
+      successMessage: 'Rendez-vous supprimé avec succès !',
+      errorContext: 'Échec de la suppression du rendez-vous',
+      redirectToDashboard: true,
+    });
   };
 
   const getBadgeStyle = (t: AgendaItem['type']) => {
@@ -178,7 +211,8 @@ export const AgendaView: React.FC = () => {
                   {/* Interactive circle check status */}
                   <button
                     onClick={() => handleToggleComplete(item.id)}
-                    className="mt-1 shrink-0 active:scale-90 transition-all text-slate-300 hover:text-amber-500"
+                    disabled={isActionPending(`agenda-toggle-${item.id}`)}
+                    className="mt-1 shrink-0 active:scale-90 transition-all text-slate-300 hover:text-amber-500 disabled:opacity-50"
                     id={`agenda_item_toggle_${item.id}`}
                   >
                     {item.completed ? (
@@ -232,35 +266,15 @@ export const AgendaView: React.FC = () => {
                   </div>
 
                   {/* Delete button option */}
-                  {deletingId === item.id ? (
-                    <div className="flex flex-col items-end gap-1 shrink-0 self-start animate-in fade-in zoom-in-95 duration-100">
-                      <button
-                        onClick={() => {
-                          deleteAgendaItem(item.id);
-                          setDeletingId(null);
-                        }}
-                        className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[9px] rounded-lg transition-all active:scale-95 cursor-pointer"
-                        title="Confirmer"
-                      >
-                        Supprimer ?
-                      </button>
-                      <button
-                        onClick={() => setDeletingId(null)}
-                        className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-350 font-bold text-[9px] rounded-lg transition-all cursor-pointer"
-                      >
-                        Annuler
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setDeletingId(item.id)}
-                      className="p-1.5 text-slate-300 hover:text-red-500 rounded-lg active:scale-90 transition-all shrink-0 self-start cursor-pointer"
-                      title="Supprimer évènement"
-                      id={`agenda_item_delete_${item.id}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleDeleteEvent(item.id)}
+                    disabled={isActionPending(`agenda-delete-${item.id}`)}
+                    className="p-1.5 text-slate-300 hover:text-red-500 disabled:opacity-50 rounded-lg active:scale-90 transition-all shrink-0 self-start cursor-pointer"
+                    title="Supprimer évènement"
+                    id={`agenda_item_delete_${item.id}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </Card>
             ))
@@ -441,9 +455,10 @@ export const AgendaView: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all text-sm mt-4"
+            disabled={isSubmitting}
+            className="w-full py-4 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all text-sm mt-4"
           >
-            PLANIFIER TÂCHE
+            {isSubmitting ? 'ENREGISTREMENT...' : 'PLANIFIER TÂCHE'}
           </button>
         </form>
       </Drawer>

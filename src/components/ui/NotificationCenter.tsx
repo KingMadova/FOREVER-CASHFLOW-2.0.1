@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import { useActionFeedback } from '../../hooks/useActionFeedback';
 
 export const NotificationCenter: React.FC = () => {
   const {
@@ -56,6 +57,7 @@ export const NotificationCenter: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
 
   const navigate = useNavigate();
+  const { executeAction } = useActionFeedback();
   const [isOpen, setIsOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -277,25 +279,30 @@ export const NotificationCenter: React.FC = () => {
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
-    const onFocus = () => {};
-    navigator.serviceWorker.addEventListener('message', (event) => {
+    const onMessage = (event: MessageEvent) => {
       if (event.data?.type === 'NOTIF_CLICK') {
         navigate('/prospects');
       }
-    });
-    return () => navigator.serviceWorker.removeEventListener('message', onFocus);
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
   }, [navigate]);
 
   const handleMarkContacted = async (relance: RelanceInfo) => {
-    try {
-      await updateCustomer({
-        ...relance.customer,
-        lastContactDate: todayStr,
-      });
-      playNotificationChime(true);
-    } catch (err) {
-      console.error('markContacted failed:', err);
-    }
+    await executeAction({
+      actionKey: `notif-relance-${relance.customer.id}`,
+      operation: () =>
+        updateCustomer({
+          ...relance.customer,
+          lastContactDate: todayStr,
+        }),
+      successMessage: `${relance.customer.name} marqué(e) comme contacté(e) !`,
+      errorContext: 'Échec de la mise à jour de la relance',
+      redirectToDashboard: false,
+      onSuccess: () => {
+        playNotificationChime(true);
+      },
+    });
   };
 
   const [prevCount, setPrevCount] = useState(0);
@@ -331,29 +338,50 @@ export const NotificationCenter: React.FC = () => {
   }, [isOpen]);
 
   const handleSnooze = async (item: AgendaItem) => {
-    try {
-      const updatedItem: AgendaItem = {
-        ...item,
-        date: tomorrowStr,
-      };
-      await updateAgendaItem(updatedItem);
-      playNotificationChime(true);
-    } catch (err) {
-      console.error('Snooze failed:', err);
-    }
+    const updatedItem: AgendaItem = {
+      ...item,
+      date: tomorrowStr,
+    };
+    await executeAction({
+      actionKey: `notif-snooze-${item.id}`,
+      operation: () => updateAgendaItem(updatedItem),
+      successMessage: 'Rappel reporté à demain avec succès !',
+      errorContext: 'Échec du report du rappel',
+      redirectToDashboard: false,
+      onSuccess: () => {
+        playNotificationChime(true);
+      },
+    });
   };
 
   const handleValidateOrder = async (order: Order) => {
-    try {
-      const updatedOrder: Order = {
-        ...order,
-        status: OrderStatus.VALIDATED,
-      };
-      await updateOrder(updatedOrder);
-      playNotificationChime(true);
-    } catch (err) {
-      console.error('Order validation failed:', err);
-    }
+    const updatedOrder: Order = {
+      ...order,
+      status: OrderStatus.VALIDATED,
+    };
+    await executeAction({
+      actionKey: `notif-validate-${order.id}`,
+      operation: () => updateOrder(updatedOrder),
+      successMessage: 'Commande validée avec succès !',
+      errorContext: 'Échec de la validation de la commande',
+      redirectToDashboard: false,
+      onSuccess: () => {
+        playNotificationChime(true);
+      },
+    });
+  };
+
+  const handleCompleteAgendaItem = async (itemId: string) => {
+    await executeAction({
+      actionKey: `notif-agenda-${itemId}`,
+      operation: () => toggleAgendaItemCompleted(itemId),
+      successMessage: 'Rappel marqué comme accompli avec succès !',
+      errorContext: 'Échec de la mise à jour du rappel',
+      redirectToDashboard: false,
+      onSuccess: () => {
+        playNotificationChime(true);
+      },
+    });
   };
 
   const getContactInfo = (contactName?: string) => {
@@ -851,7 +879,7 @@ export const NotificationCenter: React.FC = () => {
                     >
                       <div className="flex items-start gap-2.5">
                         <button
-                          onClick={() => toggleAgendaItemCompleted(item.id)}
+                          onClick={() => handleCompleteAgendaItem(item.id)}
                           className="mt-0.5 w-5 h-5 rounded-full border border-slate-300 dark:border-slate-700 hover:border-emerald-500 flex items-center justify-center group active:scale-90 transition-all cursor-pointer shrink-0"
                           title="Marquer la livraison comme exécutée"
                           id={`complete_delivery_btn_${item.id}`}
@@ -952,7 +980,7 @@ export const NotificationCenter: React.FC = () => {
                     >
                       <div className="flex items-start gap-2.5">
                         <button
-                          onClick={() => toggleAgendaItemCompleted(item.id)}
+                          onClick={() => handleCompleteAgendaItem(item.id)}
                           className="mt-0.5 w-5 h-5 rounded-full border border-slate-300 dark:border-slate-700 hover:border-emerald-500 flex items-center justify-center group active:scale-90 transition-all cursor-pointer shrink-0"
                           title="Marquer le suivi comme accompli"
                           id={`complete_followup_btn_${item.id}`}

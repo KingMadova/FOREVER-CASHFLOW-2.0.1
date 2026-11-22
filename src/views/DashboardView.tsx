@@ -29,7 +29,8 @@ import { useOrdersStore } from '../store/slices/ordersSlice';
 import { useBudgetStore } from '../store/slices/budgetSlice';
 import { useDailyLogsStore } from '../store/slices/dailyLogsSlice';
 import { isCountedOrder, orderAccountingDate } from '../lib/orderStats';
-import { GRADES, OrderStatut } from '../types';
+import { getGradeByCode, OrderStatut } from '../types';
+import { useActionFeedback } from '../hooks/useActionFeedback';
 
 import { HeroCard } from '../components/ui/dashboard/HeroCard';
 import { StatRow } from '../components/ui/dashboard/StatRow';
@@ -69,6 +70,9 @@ export const DashboardView: React.FC = () => {
   const { getDailyLog, dailyLogs } = useDailyLogsStore();
   const navigate = useNavigate();
 
+  const { executeAction, isActionPending } = useActionFeedback();
+  const isSavingGoals = isActionPending('dashboard-goals-save');
+
   const [isEditingGoals, setIsEditingGoals] = useState(false);
   const [goalCCInput, setGoalCCInput] = useState('');
   const [goalAmountInput, setGoalAmountInput] = useState('');
@@ -84,12 +88,20 @@ export const DashboardView: React.FC = () => {
     e.preventDefault();
     const cc = parseFloat(goalCCInput) || 0;
     const amt = parseInt(goalAmountInput) || 0;
-    await updateProfile({
-      ...profile,
-      monthlyGoalCC: cc,
-      monthlyGoalAmount: amt,
+    await executeAction({
+      actionKey: 'dashboard-goals-save',
+      operation: () =>
+        updateProfile({
+          monthlyGoalCC: cc,
+          monthlyGoalAmount: amt,
+        }),
+      successMessage: 'Objectifs du mois enregistrés avec succès !',
+      errorContext: "Échec de l'enregistrement des objectifs",
+      redirectToDashboard: false,
+      onSuccess: () => {
+        setIsEditingGoals(false);
+      },
     });
-    setIsEditingGoals(false);
   };
 
   const [currentDateRef, setCurrentDateRef] = useState(() => new Date());
@@ -146,7 +158,7 @@ export const DashboardView: React.FC = () => {
     .reduce((s, b) => s + b.amount, 0);
 
   const netCashflow = totalMarginThisMonth - thisMonthExpenses;
-  const currentGrade = GRADES.find((g) => g.code === profile.grade) || GRADES[1];
+  const currentGrade = getGradeByCode(profile.grade);
 
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -311,8 +323,8 @@ export const DashboardView: React.FC = () => {
                 placeholder="1000000"
               />
             </label>
-            <button type="submit" className="dashboard-goals-submit">
-              Enregistrer
+            <button type="submit" disabled={isSavingGoals} className="dashboard-goals-submit">
+              {isSavingGoals ? 'Enregistrement...' : 'Enregistrer'}
             </button>
           </form>
         ) : (

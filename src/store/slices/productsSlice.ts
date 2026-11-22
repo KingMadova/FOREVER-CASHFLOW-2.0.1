@@ -77,7 +77,9 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
 
   addProduct: async (product) => {
     const { user } = useAuthStore.getState();
-    if (!user) return;
+    if (!user) {
+      throw new Error('Utilisateur non authentifié. Veuillez vous reconnecter.');
+    }
 
     // Block phantom products from onboarding (id containing _new)
     const rawId = (product as any).id || '';
@@ -93,7 +95,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         createdAt: new Date().toISOString(),
       });
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, path);
+      handleFirestoreError(err, OperationType.CREATE, `${path}/${id}`);
     }
   },
 
@@ -168,19 +170,22 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
 
   purgePhantomProducts: async () => {
     const { user } = useAuthStore.getState();
-    if (!user) return;
+    if (!user) {
+      throw new Error('Utilisateur non authentifié. Veuillez vous reconnecter.');
+    }
 
     const path = getPaths(user.uid).products;
     try {
       const snap = await getDocs(collection(db, path));
-      if (!snap) return;
-      for (const d of snap.docs) {
-        await deleteDoc(doc(db, path, d.id)).catch(() => {});
+      if (snap) {
+        for (const d of snap.docs) {
+          await deleteDoc(doc(db, path, d.id));
+        }
       }
       localStorage.removeItem('fcf-products');
       set({ products: DEFAULT_PRODUCTS });
     } catch (err) {
-      console.error('purgePhantomProducts error:', err);
+      handleFirestoreError(err, OperationType.DELETE, path);
     }
   },
 

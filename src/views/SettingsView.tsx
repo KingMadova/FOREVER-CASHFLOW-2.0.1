@@ -6,9 +6,10 @@ import { useOrdersStore } from '../store/slices/ordersSlice';
 import { useBudgetStore } from '../store/slices/budgetSlice';
 import { useProductsStore } from '../store/slices/productsSlice';
 import { useSyncStore } from '../store/slices/syncSlice';
-import { useThemeStore } from '../store/slices/themeSlice';
 import { useBackupStore } from '../store/slices/backupSlice';
 import { Card } from '../components/ui/Card';
+import { ThemeMode } from '../types';
+import { useActionFeedback } from '../hooks/useActionFeedback';
 import './SettingsView.css';
 import { ActivityReport } from '../components/ui/ActivityReport';
 import { 
@@ -30,10 +31,20 @@ import {
 export const SettingsView: React.FC = () => {
   const { 
     profile,
+    themeMode,
+    setThemeMode,
     logout
   } = useAuthStore();
-  const { themeMode, setThemeMode } = useThemeStore();
-  const { isOfflineMode, isSimulatedOffline, toggleSimulatedOffline, syncQueue, isSyncing, triggerSync } = useSyncStore();
+  const {
+    isOfflineMode,
+    isSimulatedOffline,
+    toggleSimulatedOffline,
+    syncQueue,
+    isSyncing,
+    triggerSync,
+    retrySyncTask,
+    dismissSyncTask,
+  } = useSyncStore();
   const { customers } = useCustomersStore();
   const { orders } = useOrdersStore();
   const { budget } = useBudgetStore();
@@ -41,24 +52,44 @@ export const SettingsView: React.FC = () => {
   const { purgePhantomProducts } = useProductsStore();
 
   const navigate = useNavigate();
-  const [systemFeedback, setSystemFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [isPurging, setIsPurging] = useState(false);
+  const { executeAction, confirmAction, isActionPending, notifySuccess, notifyError } = useActionFeedback();
+  const isPurging = isActionPending('settings-purge-phantoms');
+  const isSavingTheme = isActionPending('settings-theme');
+  const isImporting = isActionPending('settings-import');
+  const isResetting = isActionPending('settings-hard-reset');
+  const isForcingSync = isActionPending('settings-force-sync');
 
-  const handlePurgePhantoms = async () => {
-    setIsPurging(true);
-    try {
-      await purgePhantomProducts();
-      setSystemFeedback({ message: 'Produits parasites supprimés ! Rechargement...', type: 'success' });
-      setTimeout(() => window.location.reload(), 1500);
-    } catch {
-      setSystemFeedback({ message: 'Erreur lors de la purge.', type: 'error' });
-      setIsPurging(false);
-    }
+  const handleThemeChange = async (mode: ThemeMode) => {
+    await executeAction({
+      actionKey: 'settings-theme',
+      operation: () => setThemeMode(mode),
+      successMessage: 'Paramètres mis à jour avec succès !',
+      errorContext: 'Échec de la mise à jour du thème',
+      redirectToDashboard: true,
+    });
   };
 
-  const handleLogout = () => {
-    logout();
+  const handlePurgePhantoms = async () => {
+    const confirmed = await confirmAction({
+      title: 'Nettoyer les produits parasites',
+      message: 'Supprimer les produits parasites du catalogue tout en conservant vos commandes existantes ?',
+      confirmLabel: 'Oui, nettoyer',
+      cancelLabel: 'Annuler',
+      tone: 'warning',
+    });
+    if (!confirmed) return;
+
+    await executeAction({
+      actionKey: 'settings-purge-phantoms',
+      operation: () => purgePhantomProducts(),
+      successMessage: 'Produits parasites supprimés avec succès !',
+      errorContext: 'Échec du nettoyage du catalogue',
+      redirectToDashboard: true,
+    });
+  };
+
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -83,44 +114,33 @@ export const SettingsView: React.FC = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      setSystemFeedback({
-        message: "Fichier de sauvegarde généré et téléchargé avec succès !",
-        type: 'success'
-      });
-      setTimeout(() => setSystemFeedback(null), 3000);
-    } catch (e) {
-      setSystemFeedback({
-        message: "Erreur lors du téléchargement de la sauvegarde.",
-        type: 'error'
-      });
-      setTimeout(() => setSystemFeedback(null), 3000);
+      notifySuccess('Fichier de sauvegarde téléchargé avec succès !');
+    } catch {
+      notifyError('Échec lors du téléchargement de la sauvegarde.');
     }
   };
 
   // Data Actions: Import Backup
   const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const data = JSON.parse(event.target?.result as string);
-        await importBackupData(data);
-        
-        setSystemFeedback({
-          message: "Restauration terminée ! Rechargement en cours...",
-          type: 'success'
+        await executeAction({
+          actionKey: 'settings-import',
+          operation: () => importBackupData(data),
+          successMessage: 'Sauvegarde restaurée avec succès !',
+          errorContext: 'Échec de la restauration de la sauvegarde',
+          redirectToDashboard: true,
         });
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-      } catch (err) {
-        setSystemFeedback({
-          message: "Le fichier JSON sélectionné n'est pas une sauvegarde valide.",
-          type: 'error'
-        });
-        setTimeout(() => setSystemFeedback(null), 4000);
+      } catch {
+        notifyError("Le fichier JSON sélectionné n'est pas une sauvegarde valide.");
+      } finally {
+        input.value = '';
       }
     };
     reader.readAsText(file);
@@ -128,19 +148,37 @@ export const SettingsView: React.FC = () => {
 
   // Data Actions: Hard Reset
   const handleHardReset = async () => {
-    try {
-      await hardResetData();
-      
-      setSystemFeedback({
-        message: "Application réinitialisée ! Rechargement...",
-        type: 'success'
-      });
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } catch {
-      window.location.reload();
-    }
+    const confirmed = await confirmAction({
+      title: "Réinitialiser l'application",
+      message: 'Cette opération supprimera définitivement vos clients, commandes, budgets, rendez-vous et réinitialisera votre profil. Êtes-vous absolument sûr ?',
+      confirmLabel: 'Oui, tout réinitialiser',
+      cancelLabel: 'Annuler',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    await executeAction({
+      actionKey: 'settings-hard-reset',
+      operation: () => hardResetData(),
+      successMessage: 'Application réinitialisée avec succès !',
+      errorContext: 'Échec de la réinitialisation des données',
+      redirectToDashboard: true,
+    });
+  };
+
+  const handleTriggerSync = async () => {
+    await executeAction({
+      actionKey: 'settings-force-sync',
+      operation: async () => {
+        await triggerSync();
+        if (useSyncStore.getState().syncQueue.length > 0) {
+          throw new Error('Certaines modifications restent en attente de synchronisation.');
+        }
+      },
+      successMessage: 'Synchronisation terminée avec succès !',
+      errorContext: 'Échec de la synchronisation',
+      redirectToDashboard: true,
+    });
   };
 
   return (
@@ -152,17 +190,6 @@ export const SettingsView: React.FC = () => {
         <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-0.5">Paramètres d'Application</h2>
         <p className="text-xs text-slate-500">Ajustez l'apparence visuelle, gérez la synchronisation hors-ligne des données et effectuez des sauvegardes de sécurité.</p>
       </div>
-
-      {/* FEEDBACK STATUS BANNER */}
-      {systemFeedback && (
-        <div className={`p-4 rounded-xl border text-xs font-bold transition-all text-center ${
-          systemFeedback.type === 'success' 
-            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' 
-            : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
-        }`}>
-          {systemFeedback.message}
-        </div>
-      )}
 
       {/* SYSTEM PREFERENCES & APP OPTIONS */}
       <div className="space-y-6" id="settings_tab_system_content">
@@ -196,8 +223,9 @@ export const SettingsView: React.FC = () => {
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
-              onClick={() => setThemeMode('light')}
-              className={`py-3 px-3 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all text-xs font-bold cursor-pointer ${
+              disabled={isSavingTheme}
+              onClick={() => handleThemeChange('light')}
+              className={`py-3 px-3 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all text-xs font-bold cursor-pointer disabled:opacity-60 ${
                 themeMode === 'light'
                   ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500 shadow-sm'
                   : 'bg-slate-50 dark:bg-[#2a2a2e] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100/50'
@@ -209,8 +237,9 @@ export const SettingsView: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setThemeMode('dark')}
-              className={`py-3 px-3 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all text-xs font-bold cursor-pointer ${
+              disabled={isSavingTheme}
+              onClick={() => handleThemeChange('dark')}
+              className={`py-3 px-3 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all text-xs font-bold cursor-pointer disabled:opacity-60 ${
                 themeMode === 'dark'
                   ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500 shadow-sm'
                   : 'bg-slate-50 dark:bg-[#2a2a2e] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100/50'
@@ -222,8 +251,9 @@ export const SettingsView: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setThemeMode('system')}
-              className={`py-3 px-3 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all text-xs font-bold cursor-pointer ${
+              disabled={isSavingTheme}
+              onClick={() => handleThemeChange('system')}
+              className={`py-3 px-3 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all text-xs font-bold cursor-pointer disabled:opacity-60 ${
                 themeMode === 'system'
                   ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500 shadow-sm'
                   : 'bg-slate-50 dark:bg-[#2a2a2e] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100/50'
@@ -301,36 +331,104 @@ export const SettingsView: React.FC = () => {
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Modifications à synchroniser
                 </h4>
-                <div className="max-h-36 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-slate-50/20 dark:bg-[#1a1a1d]/20 px-2.5">
-                  {syncQueue.map((task) => (
-                    <div key={task.id} className="py-2.5 flex items-center justify-between text-[11px]">
-                      <div className="flex items-center gap-1.5 overflow-hidden">
-                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase shrink-0 ${
-                          task.type === 'CUSTOMER' ? 'bg-indigo-500/10 text-indigo-500' : 'bg-pink-500/10 text-pink-500'
-                        }`}>
-                          {task.type === 'CUSTOMER' ? 'Prospect' : 'Vente'}
-                        </span>
-                        <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">
-                          {task.name}
-                        </span>
+                <div className="max-h-52 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-slate-50/20 dark:bg-[#1a1a1d]/20 px-2.5">
+                  {syncQueue.map((task) => {
+                    const isPermanent = Boolean(task.permanentError);
+                    const isBlocked = Boolean(task.blockedByTaskId);
+                    const typeLabel =
+                      task.type === 'CUSTOMER_INTERACTION'
+                        ? 'Interaction'
+                        : task.type === 'CUSTOMER'
+                          ? 'Prospect'
+                          : task.type === 'ORDER'
+                            ? 'Vente'
+                            : task.type === 'AGENDA'
+                              ? 'Agenda'
+                              : task.type === 'BUDGET'
+                                ? 'Budget'
+                                : 'Journal';
+                    return (
+                      <div key={task.id} className="py-2.5 space-y-1.5 text-[11px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 overflow-hidden">
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase shrink-0 ${
+                                task.type === 'CUSTOMER_INTERACTION'
+                                  ? 'bg-emerald-500/10 text-emerald-600'
+                                  : task.type === 'CUSTOMER'
+                                    ? 'bg-indigo-500/10 text-indigo-500'
+                                    : 'bg-pink-500/10 text-pink-500'
+                              }`}
+                            >
+                              {typeLabel}
+                            </span>
+                            <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">
+                              {task.name}
+                            </span>
+                          </div>
+                          <span
+                            className={`text-[9px] font-bold select-none flex items-center gap-1 shrink-0 ${
+                              isPermanent
+                                ? 'text-rose-600 dark:text-rose-400'
+                                : isBlocked
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-slate-400'
+                            }`}
+                          >
+                            {isPermanent ? (
+                              'Erreur permanente'
+                            ) : isBlocked ? (
+                              'Bloquée par parent'
+                            ) : (
+                              <>
+                                <RefreshCw className="w-2.5 h-2.5 animate-spin text-slate-400" />
+                                {task.retryCount ? `Reprise (${task.retryCount})` : "File d'attente"}
+                              </>
+                            )}
+                          </span>
+                        </div>
+
+                        {(task.lastError || task.blockedReason) && (
+                          <p className="text-[10px] text-rose-600 dark:text-rose-400 break-words">
+                            {task.blockedReason || task.lastError}
+                          </p>
+                        )}
+
+                        {(isPermanent || isBlocked) && (
+                          <div className="flex items-center gap-2">
+                            {!isBlocked && (
+                              <button
+                                type="button"
+                                onClick={() => void retrySyncTask(task.id)}
+                                disabled={isOfflineMode || isSyncing}
+                                className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 text-[10px] font-black cursor-pointer"
+                              >
+                                Réessayer
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => void dismissSyncTask(task.id)}
+                              className="px-2.5 py-1 rounded-lg border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-[10px] font-bold hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
+                            >
+                              Ignorer et retirer
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <span className="text-[9px] font-medium text-slate-400 select-none flex items-center gap-1 shrink-0">
-                        <RefreshCw className="w-2.5 h-2.5 animate-spin text-slate-400" />
-                        File d'attente
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {!isOfflineMode ? (
                   <button
                     type="button"
-                    onClick={triggerSync}
-                    disabled={isSyncing}
+                    onClick={handleTriggerSync}
+                    disabled={isSyncing || isForcingSync}
                     className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 text-slate-950 text-xs font-black uppercase rounded-2xl flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-[98]"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Synchronisation forcée...' : 'Forcer la synchronisation immédiatement'}
+                    <RefreshCw className={`w-3.5 h-3.5 ${(isSyncing || isForcingSync) ? 'animate-spin' : ''}`} />
+                    {(isSyncing || isForcingSync) ? 'Synchronisation forcée...' : 'Forcer la synchronisation immédiatement'}
                   </button>
                 ) : (
                   <div className="p-3 rounded-2xl bg-amber-500/5 border border-amber-500/15 text-[10px] text-amber-600 dark:text-amber-400 font-bold leading-relaxed">
@@ -370,12 +468,13 @@ export const SettingsView: React.FC = () => {
               <span>Sauvegarder (.JSON)</span>
             </button>
 
-            <label className="flex items-center gap-2 justify-center py-3.5 px-5 bg-slate-50 dark:bg-[#2a2a2e] hover:bg-amber-500 hover:text-slate-950 duration-200 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-black uppercase text-slate-700 dark:text-slate-350 cursor-pointer select-none">
+            <label className={`flex items-center gap-2 justify-center py-3.5 px-5 bg-slate-50 dark:bg-[#2a2a2e] hover:bg-amber-500 hover:text-slate-950 duration-200 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-black uppercase text-slate-700 dark:text-slate-350 cursor-pointer select-none ${isImporting ? 'opacity-60 pointer-events-none' : ''}`}>
               <Upload className="w-4 h-4" />
-              <span>Restaurer une sauvegarde</span>
+              <span>{isImporting ? 'Restauration...' : 'Restaurer une sauvegarde'}</span>
               <input 
                 type="file" 
                 accept=".json" 
+                disabled={isImporting}
                 onChange={handleImportBackup} 
                 className="hidden" 
               />
@@ -401,48 +500,27 @@ export const SettingsView: React.FC = () => {
             Cette action supprimera irrémédiablement l'intégralité du cache local : prospects enregistrés, commandes, rapports financiers et informations du profil utilisateur. Prenez soin de faire une sauvegarde JSON au préalable.
           </p>
 
-          <button
-            type="button"
-            onClick={handlePurgePhantoms}
-            disabled={isPurging}
-            className="mb-3 py-3 px-5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white text-xs font-black uppercase rounded-2xl transition-all cursor-pointer inline-flex items-center gap-1.5"
-          >
-            <Trash2 className="w-4 h-4" />
-            {isPurging ? 'Nettoyage en cours...' : 'Purger les produits parasites (onboarding)'}
-          </button>
-
-          {!showResetConfirm ? (
+          <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={() => setShowResetConfirm(true)}
-              className="py-3 px-5 bg-red-500 hover:bg-red-600 text-white text-xs font-black uppercase rounded-2xl transition-all cursor-pointer inline-flex items-center gap-1.5"
+              onClick={handlePurgePhantoms}
+              disabled={isPurging}
+              className="py-3 px-5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white text-xs font-black uppercase rounded-2xl transition-all cursor-pointer inline-flex items-center gap-1.5"
             >
               <Trash2 className="w-4 h-4" />
-              Réinitialiser l'application
+              {isPurging ? 'Nettoyage en cours...' : 'Purger les produits parasites (onboarding)'}
             </button>
-          ) : (
-            <div className="p-4 border border-red-500/20 rounded-2xl bg-red-500/10 space-y-3">
-              <p className="text-xs text-red-600 dark:text-red-400 font-extrabold uppercase tracking-wide">
-                ⚠️ ÊTES-VOUS ABSOLUMENT SÛR ? CETTE OPERATION EST IRRÉVERSIBLE.
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleHardReset}
-                  className="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase rounded-xl cursor-pointer"
-                >
-                  Oui, vider toutes les données
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowResetConfirm(false)}
-                  className="py-2.5 px-4 bg-slate-200 dark:bg-[#2a2a2e] text-slate-700 dark:text-slate-300 text-xs font-black uppercase rounded-xl cursor-pointer"
-                >
-                  Annuler
-                </button>
-              </div>
-            </div>
-          )}
+
+            <button
+              type="button"
+              onClick={handleHardReset}
+              disabled={isResetting}
+              className="py-3 px-5 bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white text-xs font-black uppercase rounded-2xl transition-all cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <Trash2 className="w-4 h-4" />
+              {isResetting ? 'Réinitialisation...' : "Réinitialiser l'application"}
+            </button>
+          </div>
         </Card>
       </div>
 

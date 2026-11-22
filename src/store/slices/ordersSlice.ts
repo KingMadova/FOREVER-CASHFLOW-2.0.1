@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Order, OrderStatut, OrderItem, OrderType, OrderCanal, OrderPaiement, OrderGeste, Livraison, LivraisonMode } from '../../types';
+import { Order } from '../../types';
 import { useAuthStore } from './authSlice';
 import { useSyncStore } from './syncSlice';
 import { db } from '../../lib/firebase';
@@ -7,62 +7,32 @@ import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from 'fireb
 import { getPaths, handleFirestoreError, OperationType } from '../../lib/firestoreService';
 import { useBudgetStore } from './budgetSlice';
 import { isCountedStatus, localDateISO } from '../../lib/orderStats';
+import {
+  calculateLivraisonFrais,
+  applyGeste,
+  createOrderFromCart,
+} from '../../lib/orderCalculations';
 
-const PV_PER_CC = 135; // 1 CC = 135 PV (ratio FLP standard)
-
-const DEFAULT_LIVRAISON: Livraison = {
-  mode: 'DOMICILE',
-  frais: 0,
-  datePrevue: new Date().toISOString().split('T')[0],
-};
+export { calculateLivraisonFrais, createOrderFromCart };
 
 function generateRefCommande(existingOrders: Order[]): string {
   const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
-  // Garde anti-crash : les commandes antérieures au système de référence
-  // peuvent avoir un refCommande absent -> startsWith levait un TypeError
-  // qui empêchait TOUTE création de commande (échec silencieux).
-  const sequence = (existingOrders.filter(o => typeof o.refCommande === 'string' && o.refCommande.startsWith(`CMD-${today}`)).length + 1).toString().padStart(3, '0');
+  const sequence = (
+    existingOrders.filter(
+      (o) => typeof o.refCommande === 'string' && o.refCommande.startsWith(`CMD-${today}`)
+    ).length + 1
+  )
+    .toString()
+    .padStart(3, '0');
   return `CMD-${today}-${sequence}`;
-}
-
-export function calculateLivraisonFrais(totalRetail: number, mode: LivraisonMode): number {
-  if (totalRetail >= 15000) return 0; // Livraison offerte ≥ 15k
-  switch (mode) {
-    case 'DOMICILE': return 5000;
-    case 'POINT_RELAIS': return 3000;
-    case 'MAIN_PROPRE': return 0;
-    case 'RETRAIT_BOUTIQUE': return 0;
-    default: return 0;
-  }
-}
-
-function applyGeste(order: Partial<Order>): Partial<Order> {
-  const updated = { ...order };
-  switch (updated.geste) {
-    case 'CLEAN9_-7K':
-      updated.gesteMontant = 7166;
-      updated.livraison = { ...updated.livraison, frais: 0 };
-      break;
-    case 'LIVRAISON_GRATUITE':
-      updated.livraison = { ...updated.livraison, frais: 0 };
-      break;
-    case 'FIELDS_OFFERT':
-      // Le produit Fields of Greens est ajouté dans items avec prix 0
-      updated.gesteMontant = 10285; // Prix retail Fields of Greens
-      break;
-    case 'REMISE_5':
-      updated.discountPercent = 5;
-      break;
-  }
-  return updated;
 }
 
 interface OrdersState {
   orders: Order[];
   // Actions
-  addOrder: (order: Omit<Order, 'id'>) => Promise<void>;
-  updateOrder: (order: Order) => Promise<void>;
-  deleteOrder: (id: string) => Promise<void>;
+  addOrder: (order: Omit<Order, 'id'>) => Promise<'saved' | 'queued'>;
+  updateOrder: (order: Order) => Promise<'saved' | 'queued'>;
+  deleteOrder: (id: string) => Promise<'saved' | 'queued'>;
   setOrders: (orders: Order[]) => void;
   initializeListener: () => () => void;
 }
@@ -72,15 +42,17 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
 
   addOrder: async (ord) => {
     const { user } = useAuthStore.getState();
-    if (!user) return;
+    if (!user) {
+      throw new Error('Utilisateur non authentifié. Veuillez vous reconnecter.');
+    }
 
     const { isOfflineMode, addToSyncQueue } = useSyncStore.getState();
     const paths = getPaths(user.uid);
     const id = 'ord_' + Math.random().toString(36).substr(2, 9);
-    
+
     const refCommande = generateRefCommande(get().orders);
     const livraisonFrais = calculateLivraisonFrais(ord.totalRetail, ord.livraison.mode);
-    
+
     const newOrd = {
       ...ord,
       userId: user.uid,
@@ -97,32 +69,14 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
       delaiLivraison: ord.delaiLivraison,
     };
 
-    // Appliquer uniquement les gestes commerciaux ; le coût d'achat est déjà figé par ligne.
+    // Appliquer uniquement les gestes commerciaux ; le coût d'achat officiel est déjà figé par ligne.
     const withGeste = applyGeste(newOrd);
 
-    // Optimistic update
-    set((state) => ({
-      orders: [...state.orders, { ...withGeste, id, synced: !isOfflineMode } as Order],
-    }));
+    const prevOrders = get().orders;
+    const optimisticOrder = { ...withGeste, id, synced: !isOfflineMode } as Order;
 
-    try {
-      await setDoc(doc(db, paths.orders, id), withGeste);
-
-      // Auto-create budget entry if validated
-      if (withGeste.status === 'VALIDATED' || withGeste.status === 'PAYE') {
-        await useBudgetStore.getState().addBudgetEntry({
-          type: 'REVENUE',
-          category: 'Vente Directe FBO',
-          amount: withGeste.totalMargin,
-          date: withGeste.date,
-          description: `Marge sur commande ${withGeste.refCommande} - ${withGeste.customerName}`,
-          createdAt: new Date().toISOString(),
-          orderId: id,
-        });
-      }
-    } catch (err) {
-      // Offline: queue for sync
-      console.error('[addOrder] Ecriture Firestore impossible, mise en file de sync:', err);
+    if (isOfflineMode) {
+      set({ orders: [...prevOrders, optimisticOrder] });
       addToSyncQueue({
         id: 'sync_' + Math.random().toString(36).substr(2, 9),
         type: 'ORDER',
@@ -132,54 +86,107 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
         payload: withGeste,
         createdAt: new Date().toISOString(),
       });
+      return 'queued';
+    }
+
+    set({ orders: [...prevOrders, optimisticOrder] });
+
+    try {
+      await setDoc(doc(db, paths.orders, id), withGeste);
+
+      if (withGeste.status === 'VALIDATED' || withGeste.status === 'PAYE') {
+        await useBudgetStore.getState().addBudgetEntry({
+          type: 'REVENUE',
+          category: 'Vente Directe FBO',
+          amount: withGeste.totalMargin || 0,
+          date: withGeste.date || localDateISO(),
+          description: `Marge sur commande ${withGeste.refCommande} - ${withGeste.customerName}`,
+          createdAt: new Date().toISOString(),
+          orderId: id,
+        });
+      }
+      return 'saved';
+    } catch (err) {
+      set({ orders: prevOrders });
+      handleFirestoreError(err, OperationType.CREATE, `${paths.orders}/${id}`);
+      throw err;
     }
   },
 
   updateOrder: async (updated) => {
     const { user } = useAuthStore.getState();
-    if (!user) return;
+    if (!user) {
+      throw new Error('Utilisateur non authentifié. Veuillez vous reconnecter.');
+    }
 
+    const { isOfflineMode, upsertOrderSyncTask } = useSyncStore.getState();
     const paths = getPaths(user.uid);
-    try {
-      const oldOrd = get().orders.find((o) => o.id === updated.id);
+    const oldOrd = get().orders.find((o) => o.id === updated.id);
 
-      // Date de validation réelle : posée au passage vers VALIDATED/PAYE (jamais écrasée ensuite)
-      let validatedAt = updated.validatedAt;
-      if (isCountedStatus(updated.status) && !(oldOrd && isCountedStatus(oldOrd.status))) {
-        validatedAt = localDateISO();
-      }
+    // Date de validation réelle : posée au passage vers VALIDATED/PAYE (jamais écrasée ensuite)
+    let validatedAt = updated.validatedAt;
+    if (isCountedStatus(updated.status) && !(oldOrd && isCountedStatus(oldOrd.status))) {
+      validatedAt = localDateISO();
+    }
 
-      // Recalculer délai livraison si dateReelle changée
-      let delaiLivraison = updated.delaiLivraison;
-      if (updated.livraison.dateReelle && updated.date) {
-        const d1 = new Date(updated.date);
-        const d2 = new Date(updated.livraison.dateReelle);
-        delaiLivraison = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
-      }
+    // Recalculer délai livraison si dateReelle changée
+    let delaiLivraison = updated.delaiLivraison;
+    if (updated.livraison?.dateReelle && updated.date) {
+      const d1 = new Date(updated.date);
+      const d2 = new Date(updated.livraison.dateReelle);
+      delaiLivraison = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+    }
 
-      // Recalculer frais livraison si mode changé
-      let livraison = updated.livraison;
-      if (oldOrd && oldOrd.livraison.mode !== updated.livraison.mode) {
-        livraison = { ...updated.livraison, frais: calculateLivraisonFrais(updated.totalRetail, updated.livraison.mode) };
-      }
-
-      const toSave = {
-        ...updated,
-        livraison,
-        delaiLivraison,
-        validatedAt,
+    // Recalculer frais livraison si mode changé
+    let livraison = updated.livraison;
+    if (oldOrd && oldOrd.livraison?.mode !== updated.livraison?.mode && updated.livraison?.mode) {
+      livraison = {
+        ...updated.livraison,
+        frais: calculateLivraisonFrais(updated.totalRetail, updated.livraison.mode),
       };
+    }
 
+    const { synced: _synced, ...withoutSynced } = updated as Order & { synced?: boolean };
+    const toSave = {
+      ...withoutSynced,
+      userId: (updated as any).userId || (oldOrd as any)?.userId || user.uid,
+      createdAt: (updated as any).createdAt || (oldOrd as any)?.createdAt || new Date().toISOString(),
+      livraison,
+      delaiLivraison,
+      validatedAt,
+    };
+
+    if (isOfflineMode) {
+      set((state) => ({
+        orders: state.orders.map((o) =>
+          o.id === updated.id ? ({ ...toSave, delaiLivraison, synced: false } as Order) : o
+        ),
+      }));
+      upsertOrderSyncTask({
+        id: 'sync_' + Math.random().toString(36).substr(2, 9),
+        type: 'ORDER',
+        entityId: updated.id,
+        name: updated.customerName,
+        actionType: 'UPDATE',
+        payload: toSave,
+        createdAt: new Date().toISOString(),
+      });
+      return 'queued';
+    }
+
+    try {
       await updateDoc(doc(db, paths.orders, updated.id), { ...toSave });
 
-      // Handle budget sync based on status change
+      // Handle budget sync based on status change (preserves historical order totals untouched)
       if (updated.status !== 'VALIDATED' && updated.status !== 'PAYE') {
         const matchingEntries = useBudgetStore.getState().budget.filter((entry) => {
           if (entry.orderId === updated.id) return true;
           if (!entry.orderId && oldOrd) {
             const descLower = (entry.description || '').toLowerCase();
             const custLower = (oldOrd.customerName || '').toLowerCase();
-            return entry.category === 'Vente Directe FBO' && custLower && descLower.includes(custLower);
+            return (
+              entry.category === 'Vente Directe FBO' && custLower && descLower.includes(custLower)
+            );
           }
           return false;
         });
@@ -193,7 +200,9 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
           if (!entry.orderId && oldOrd) {
             const descLower = (entry.description || '').toLowerCase();
             const custLower = (oldOrd.customerName || '').toLowerCase();
-            return entry.category === 'Vente Directe FBO' && custLower && descLower.includes(custLower);
+            return (
+              entry.category === 'Vente Directe FBO' && custLower && descLower.includes(custLower)
+            );
           }
           return false;
         });
@@ -220,23 +229,62 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
           });
         }
       }
-      
-      // Update local state
+
       set((state) => ({
-        orders: state.orders.map(o => o.id === updated.id ? { ...toSave, delaiLivraison } : o),
+        orders: state.orders.map((o) =>
+          o.id === updated.id ? ({ ...toSave, delaiLivraison, synced: true } as Order) : o
+        ),
       }));
+      return 'saved';
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `${paths.orders}/${updated.id}`);
+      throw err;
     }
   },
 
   deleteOrder: async (id) => {
     const { user } = useAuthStore.getState();
-    if (!user) return;
+    if (!user) {
+      throw new Error('Utilisateur non authentifié. Veuillez vous reconnecter.');
+    }
 
+    const { isOfflineMode, upsertSyncTask } = useSyncStore.getState();
     const path = getPaths(user.uid).orders;
+    const prevOrders = get().orders;
+    const oldOrd = prevOrders.find((o) => o.id === id);
+
+    set({ orders: prevOrders.filter((o) => o.id !== id) });
+
+    if (isOfflineMode) {
+      upsertSyncTask({
+        id: 'sync_' + Math.random().toString(36).substr(2, 9),
+        type: 'ORDER',
+        entityId: id,
+        name: oldOrd?.customerName || 'Commande',
+        actionType: 'DELETE',
+        payload: {},
+        createdAt: new Date().toISOString(),
+      });
+      if (oldOrd) {
+        const matchingEntries = useBudgetStore.getState().budget.filter((entry) => {
+          if (entry.orderId === id) return true;
+          if (!entry.orderId) {
+            const descLower = (entry.description || '').toLowerCase();
+            const custLower = (oldOrd.customerName || '').toLowerCase();
+            return (
+              entry.category === 'Vente Directe FBO' && custLower && descLower.includes(custLower)
+            );
+          }
+          return false;
+        });
+        for (const entry of matchingEntries) {
+          await useBudgetStore.getState().deleteBudgetEntry(entry.id);
+        }
+      }
+      return 'queued';
+    }
+
     try {
-      const oldOrd = get().orders.find((o) => o.id === id);
       await deleteDoc(doc(db, path, id));
 
       if (oldOrd) {
@@ -245,7 +293,9 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
           if (!entry.orderId) {
             const descLower = (entry.description || '').toLowerCase();
             const custLower = (oldOrd.customerName || '').toLowerCase();
-            return entry.category === 'Vente Directe FBO' && custLower && descLower.includes(custLower);
+            return (
+              entry.category === 'Vente Directe FBO' && custLower && descLower.includes(custLower)
+            );
           }
           return false;
         });
@@ -254,12 +304,12 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
           await useBudgetStore.getState().deleteBudgetEntry(entry.id);
         }
       }
-      
-      set((state) => ({
-        orders: state.orders.filter(o => o.id !== id),
-      }));
+
+      return 'saved';
     } catch (err) {
+      set({ orders: prevOrders });
       handleFirestoreError(err, OperationType.DELETE, `${path}/${id}`);
+      throw err;
     }
   },
 
@@ -274,9 +324,6 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
 
     const paths = getPaths(user.uid);
     const unsub = onSnapshot(
-      // Pas de orderBy serveur : Firestore exclut silencieusement les documents
-      // sans le champ trié (vieilles commandes sans 'date' -> invisibles).
-      // La vue trie déjà côté client par date décroissante.
       collection(db, paths.orders),
       (snap) => {
         const data = snap.docs.map((d) => ({ ...d.data(), id: d.id } as Order));
@@ -288,105 +335,3 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
     return () => unsub();
   },
 }));
-
-// Helper pour créer commande avec calculs auto
-export function createOrderFromCart(params: {
-  customerId: string;
-  customerName: string;
-  items: OrderItem[];
-  type: OrderType;
-  canal: OrderCanal;
-  paiement: OrderPaiement;
-  geste: OrderGeste;
-  livraisonMode: LivraisonMode;
-  datePrevueLivraison: string;
-  distributeurId?: string;
-  tags?: string[];
-  notes?: string;
-  /** Prix catalogue total AVANT remise (Σ prixRetail × qté) */
-  catalogTotal: number;
-  /** Montant réellement perçu du client (après négociation/remise) */
-  amountPaid?: number;
-  profileGrade: import('../../types').GradeCode;
-  customerPriceType: import('../../types').CustomerPriceType;
-}): Omit<Order, 'id'> {
-  if (params.items.some(item => item.unitCost == null || !Number.isFinite(item.unitCost))) {
-    throw new Error('Impossible de créer la commande : coût d’achat officiel manquant pour un produit.');
-  }
-
-  // Prix catalogue (brut, sans remise) fourni par l'appelant
-  const catalogRetail = params.catalogTotal;
-  // Ce que le client paie réellement (fallback : catalogue si non négocié)
-  const paid = params.amountPaid ?? catalogRetail;
-  // Remise effective dérivée de la négociation
-  const discountPercent = catalogRetail > 0
-    ? Math.round(((catalogRetail - paid) / catalogRetail) * 100)
-    : 0;
-
-  // Le coût provient du tarif officiel du grade partenaire, figé sur chaque ligne.
-  // Aucun pourcentage de remise générique n'est utilisé pour calculer le coût.
-  const totalCost = params.items.reduce(
-    (sum, item) => sum + item.unitCost! * item.quantity,
-    0
-  );
-  // Marge RÉELLE : encaissement - coût d'achat - frais de livraison - geste commercial
-  const livraisonFraisCalc = calculateLivraisonFrais(catalogRetail, params.livraisonMode);
-  const gesteMontantCalc =
-    params.geste === 'CLEAN9_-7K' ? 7166 :
-    params.geste === 'FIELDS_OFFERT' ? 10285 :
-    params.geste === 'REMISE_5' ? Math.max(0, Math.round(catalogRetail * 0.05)) : 0;
-  const realMargin = paid - totalCost - livraisonFraisCalc - gesteMontantCalc;
-
-  const totalRetail = catalogRetail; // valeur catalogue conservée pour la facture
-  const totalCC = params.items.reduce((sum, i) => sum + i.unitCC * i.quantity, 0);
-  const totalPV = Math.round(totalCC * PV_PER_CC);
-  const totalBV = totalCC; // 1 CC = 1 BV
-
-  const livraisonFrais = calculateLivraisonFrais(totalRetail, params.livraisonMode);
-
-  const baseOrder: Omit<Order, 'id'> = {
-    customerId: params.customerId,
-    customerName: params.customerName,
-    date: new Date().toISOString().split('T')[0],
-    items: params.items,
-    status: 'PENDING',
-    totalRetail,
-    totalCost,
-    totalMargin: realMargin,
-    amountPaid: paid,
-    totalCC,
-    totalPV,
-    totalBV,
-    discountPercent: discountPercent > 0 ? discountPercent : undefined,
-    customerPriceType: params.customerPriceType,
-    partnerGrade: params.profileGrade,
-    type: params.type,
-    canal: params.canal,
-    paiement: params.paiement,
-    geste: params.geste,
-    refPaiement: undefined,
-    encaissementDate: undefined,
-    refCommande: '', // Sera généré dans addOrder
-    gesteMontant: undefined,
-    livraison: {
-      mode: params.livraisonMode,
-      frais: livraisonFrais,
-      datePrevue: params.datePrevueLivraison,
-      dateReelle: undefined,
-      transporteur: undefined,
-      adresseLivraison: undefined,
-    },
-    delaiLivraison: undefined,
-    satisfaction: undefined,
-    satisfactionNote: undefined,
-    satisfactionDate: undefined,
-    recommandation: false,
-    recommandationClientId: undefined,
-    distributeurId: params.distributeurId || '',
-    tags: params.tags || [],
-    notes: params.notes,
-  };
-
-  // Appliquer geste
-  return applyGeste(baseOrder) as Omit<Order, 'id'>;
-}

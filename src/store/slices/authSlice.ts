@@ -1,93 +1,144 @@
 import { create } from 'zustand';
-import { User } from 'firebase/auth';
-import { UserProfile, ThemeMode, GradeCode, GRADES } from '../../types';
-import { auth, db } from '../../lib/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { User, onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import {
+  UserProfile,
+  ThemeMode,
+  Grade,
+  getGradeByCode,
+} from '../../types';
+import { auth, db } from '../../lib/firebase';
 import { getPaths, handleFirestoreError, OperationType } from '../../lib/firestoreService';
-
-const DEFAULT_PROFILE: UserProfile = {
-  name: '',
-  title: '',
-  grade: 'A',
-  initials: '',
-  companyName: '',
-  companyAddress: '',
-  companyPhone: '',
-  companyEmail: '',
-  fboId: '',
-  airtelMoney: '',
-  mtnMoney: '',
-  bankRIB: '',
-  tvaApplicable: false,
-  monthlyGoalCC: 0,
-  monthlyGoalAmount: 0,
-};
+import {
+  DEFAULT_PROFILE,
+  buildBootstrappedProfile,
+  buildMergedUserProfile,
+  shouldIgnorePendingSnapshot,
+} from '../../lib/profileHelpers';
+import { useThemeStore } from './themeSlice';
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isAuthReady: boolean;
+  isProfileLoaded: boolean;
+  isSavingProfile: boolean;
   profile: UserProfile;
   themeMode: ThemeMode;
   // Actions
   setUser: (user: User | null) => void;
   setProfile: (profile: UserProfile) => void;
-  updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
-  setThemeMode: (mode: ThemeMode) => void;
+  updateProfile: (profile: Partial<UserProfile>) => Promise<UserProfile>;
+  setThemeMode: (mode: ThemeMode) => Promise<void>;
   login: () => void;
   logout: () => Promise<void>;
   initializeAuth: () => () => void;
-  getCurrentGrade: () => { code: GradeCode; label: string };
+  getCurrentGrade: () => Grade;
+}
+
+let activeProfileUnsub: (() => void) | null = null;
+
+function cleanupActiveProfileListener() {
+  if (activeProfileUnsub) {
+    activeProfileUnsub();
+    activeProfileUnsub = null;
+  }
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   isAuthReady: false,
+  isProfileLoaded: false,
+  isSavingProfile: false,
   profile: DEFAULT_PROFILE,
   themeMode: 'system',
 
   setUser: (user) => set({ user, isAuthenticated: !!user, isAuthReady: true }),
 
-  setProfile: (profile) => set({ profile }),
+  setProfile: (profile) =>
+    set({
+      profile: {
+        ...DEFAULT_PROFILE,
+        ...profile,
+        grade: getGradeByCode(profile.grade).code,
+        title: getGradeByCode(profile.grade).label,
+      },
+      isProfileLoaded: true,
+    }),
 
   updateProfile: async (updates) => {
     const { user, profile, themeMode } = get();
-    if (!user) return;
+    if (!user) {
+      throw new Error('Utilisateur non authentifié. Veuillez vous reconnecter.');
+    }
+
+    const { useSyncStore } = await import('./syncSlice');
+    if (useSyncStore.getState().isOfflineMode) {
+      throw new Error(
+        'Connexion Internet requise pour enregistrer les modifications du profil et du grade dans Firestore.'
+      );
+    }
 
     const path = getPaths(user.uid).user;
-    const newProfile = {
-      ...profile,
-      ...updates,
-      name: updates.name || profile.name || '',
-      grade: (updates.grade as GradeCode) || profile.grade || 'A',
-      createdAt: profile.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      themeMode,
-    };
+    const newProfile = buildMergedUserProfile(profile, updates, themeMode);
 
+    // Règle métier #3 (Cohérence & Atomicité) :
+    // On n'applique PAS le nouveau grade dans le store avant la confirmation Firestore.
+    set({ isSavingProfile: true });
     try {
       await setDoc(doc(db, path), newProfile, { merge: true });
-      set({ profile: newProfile });
+      set({
+        profile: newProfile,
+        isProfileLoaded: true,
+        isSavingProfile: false,
+      });
+      return newProfile;
     } catch (err) {
+      set({ isSavingProfile: false });
       handleFirestoreError(err, OperationType.UPDATE, path);
+      throw err;
     }
   },
 
-  setThemeMode: (mode) => {
+  setThemeMode: async (mode) => {
+    const prevMode = get().themeMode;
+    const { user, profile } = get();
+
+    if (user) {
+      const { useSyncStore } = await import('./syncSlice');
+      if (useSyncStore.getState().isOfflineMode) {
+        throw new Error(
+          'Connexion Internet requise pour synchroniser le thème sur votre profil Firestore.'
+        );
+      }
+    }
+
     try {
       localStorage.setItem('fcf-theme', mode);
     } catch (e) {
       console.error(e);
     }
+    useThemeStore.getState().setThemeMode(mode);
     set({ themeMode: mode });
-    // Sync to Firestore if user exists
-    const { user } = get();
+
     if (user) {
       const path = getPaths(user.uid).user;
-      setDoc(doc(db, path), { themeMode: mode }, { merge: true })
-        .catch(err => handleFirestoreError(err, OperationType.UPDATE, path));
+      const merged = buildMergedUserProfile(profile, { themeMode: mode }, mode);
+      try {
+        await setDoc(doc(db, path), merged, { merge: true });
+        set({ profile: merged });
+      } catch (err) {
+        try {
+          localStorage.setItem('fcf-theme', prevMode);
+        } catch {
+          // ignore
+        }
+        useThemeStore.getState().setThemeMode(prevMode);
+        set({ themeMode: prevMode });
+        handleFirestoreError(err, OperationType.UPDATE, path);
+        throw err;
+      }
     }
   },
 
@@ -96,60 +147,94 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    cleanupActiveProfileListener();
     try {
       await signOut(auth);
-      set({ isAuthenticated: false, user: null, profile: DEFAULT_PROFILE });
-    } catch (e) {
-      console.error(e);
+    } finally {
+      set({
+        isAuthenticated: false,
+        user: null,
+        profile: DEFAULT_PROFILE,
+        isProfileLoaded: false,
+        isSavingProfile: false,
+      });
     }
   },
 
   initializeAuth: () => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        set({ user: firebaseUser, isAuthenticated: true, isAuthReady: true });
-        
-        // Load profile from Firestore
-        const path = getPaths(firebaseUser.uid).user;
-        const unsubProfile = onSnapshot(doc(db, path), (docSnap) => {
-          if (docSnap.exists()) {
-            const profileData = docSnap.data() as UserProfile;
-            set({ profile: profileData });
-            if (profileData.themeMode) {
-              set({ themeMode: profileData.themeMode as ThemeMode });
-            }
-          } else {
-            const initials = firebaseUser.displayName
-              ? firebaseUser.displayName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
-              : 'FBO';
-            const bootstrappedProfile: UserProfile = {
-              name: firebaseUser.displayName || '',
-              title: 'Distributeur Indépendant',
-              grade: 'A',
-              initials,
-              photoUrl: firebaseUser.photoURL || '',
-              companyEmail: firebaseUser.email || '',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              themeMode: get().themeMode,
-            };
-            setDoc(doc(db, path), bootstrappedProfile, { merge: true })
-              .catch(err => handleFirestoreError(err, OperationType.CREATE, path));
-            set({ profile: bootstrappedProfile });
-          }
-        }, (err) => handleFirestoreError(err, OperationType.GET, path));
+    let activeUid: string | null = null;
 
-        return () => unsubProfile();
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      cleanupActiveProfileListener();
+
+      if (firebaseUser) {
+        activeUid = firebaseUser.uid;
+        set({
+          user: firebaseUser,
+          isAuthenticated: true,
+          isAuthReady: true,
+          isProfileLoaded: false,
+        });
+
+        const path = getPaths(firebaseUser.uid).user;
+        activeProfileUnsub = onSnapshot(
+          doc(db, path),
+          (docSnap) => {
+            if (activeUid !== firebaseUser.uid) return;
+            if (shouldIgnorePendingSnapshot(docSnap.metadata.hasPendingWrites, get().isSavingProfile)) {
+              return;
+            }
+
+            if (docSnap.exists()) {
+              const raw = docSnap.data() as UserProfile;
+              const gradeInfo = getGradeByCode(raw.grade);
+              const normalizedProfile: UserProfile = {
+                ...DEFAULT_PROFILE,
+                ...raw,
+                grade: gradeInfo.code,
+                title: gradeInfo.label,
+              };
+              set({ profile: normalizedProfile, isProfileLoaded: true });
+              if (raw.themeMode) {
+                const mode = raw.themeMode as ThemeMode;
+                set({ themeMode: mode });
+                useThemeStore.getState().setThemeMode(mode);
+              }
+            } else {
+              const bootstrappedProfile = buildBootstrappedProfile(
+                firebaseUser,
+                get().themeMode
+              );
+              set({ profile: bootstrappedProfile, isProfileLoaded: true });
+              setDoc(doc(db, path), bootstrappedProfile, { merge: true }).catch((err) => {
+                console.error('[initializeAuth] Bootstrap profile write failed:', err);
+              });
+            }
+          },
+          (err) => handleFirestoreError(err, OperationType.GET, path)
+        );
       } else {
-        set({ user: null, isAuthenticated: false, isAuthReady: true, profile: DEFAULT_PROFILE });
+        activeUid = null;
+        set({
+          user: null,
+          isAuthenticated: false,
+          isAuthReady: true,
+          isProfileLoaded: false,
+          isSavingProfile: false,
+          profile: DEFAULT_PROFILE,
+        });
       }
     });
 
-    return unsubscribe;
+    return () => {
+      activeUid = null;
+      cleanupActiveProfileListener();
+      unsubscribeAuth();
+    };
   },
 
   getCurrentGrade: () => {
     const { profile } = get();
-    return GRADES.find(g => g.code === profile.grade) || GRADES[1];
+    return getGradeByCode(profile.grade);
   },
 }));

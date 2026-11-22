@@ -2,17 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/slices/authSlice';
 import { Card } from '../components/ui/Card';
 import './ProfileView.css';
-import { GRADES, GradeCode } from '../types';
-import { 
-  User, 
-  CreditCard, 
-  Percent, 
-  Save, 
+import { DEFAULT_GRADE_CODE, GRADES, GradeCode, getGradeByCode } from '../types';
+import { useActionFeedback } from '../hooks/useActionFeedback';
+import {
+  User,
+  CreditCard,
+  Percent,
+  Save,
   Building2,
   Upload,
   Camera,
   RefreshCw,
-  Trash2
+  Trash2,
 } from 'lucide-react';
 import { auth } from '../lib/firebase';
 
@@ -63,28 +64,22 @@ const resizeAndCompressImage = (file: File): Promise<string> => {
 };
 
 export const ProfileView: React.FC = () => {
-  const { 
-    profile, 
-    updateProfile
-  } = useAuthStore();
+  const { profile, updateProfile } = useAuthStore();
+  const { executeAction, isActionPending, notifyError } = useActionFeedback();
+  const isSavingProfile = isActionPending('profile-save');
+  const isSavingPhoto = isActionPending('profile-photo');
 
-  const [profileSaved, setProfileSaved] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(profile.photoUrl || '');
 
-  useEffect(() => {
-    setPhotoUrl(profile.photoUrl || '');
-  }, [profile.photoUrl]);
-
   // Profile Form states
-  const [name, setName] = useState(profile.name);
-  const [title, setTitle] = useState(profile.title || '');
+  const [name, setName] = useState(profile.name || '');
   const [fboId, setFboId] = useState(profile.fboId || '');
-  const [grade, setGrade] = useState<GradeCode>(profile.grade);
+  const [grade, setGrade] = useState<GradeCode>(profile.grade || DEFAULT_GRADE_CODE);
   const [companyName, setCompanyName] = useState(profile.companyName || '');
   const [companyAddress, setCompanyAddress] = useState(profile.companyAddress || '');
   const [companyPhone, setCompanyPhone] = useState(profile.companyPhone || '');
   const [companyEmail, setCompanyEmail] = useState(profile.companyEmail || '');
-  
+
   // Payment methods for client invoices
   const [airtelMoney, setAirtelMoney] = useState(profile.airtelMoney || '');
   const [mtnMoney, setMtnMoney] = useState(profile.mtnMoney || '');
@@ -94,71 +89,119 @@ export const ProfileView: React.FC = () => {
   const [tvaApplicable, setTvaApplicable] = useState(profile.tvaApplicable || false);
   const [tvaRate, setTvaRate] = useState<number>(profile.tvaRate || 18); // TVA Congo-Brazzaville : 18%
 
+  // Synchronisation complète avec le profil Firestore réel (source de vérité)
+  useEffect(() => {
+    setPhotoUrl(profile.photoUrl || '');
+    setName(profile.name || '');
+    setFboId(profile.fboId || '');
+    setGrade(getGradeByCode(profile.grade).code);
+    setCompanyName(profile.companyName || '');
+    setCompanyAddress(profile.companyAddress || '');
+    setCompanyPhone(profile.companyPhone || '');
+    setCompanyEmail(profile.companyEmail || '');
+    setAirtelMoney(profile.airtelMoney || '');
+    setMtnMoney(profile.mtnMoney || '');
+    setBankRIB(profile.bankRIB || '');
+    setTvaApplicable(Boolean(profile.tvaApplicable));
+    setTvaRate(profile.tvaRate || 18);
+  }, [profile]);
+
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const prevPhoto = photoUrl;
+    let base64Data = '';
     try {
-      const base64Data = await resizeAndCompressImage(file);
-      setPhotoUrl(base64Data);
-      updateProfile({
-        ...profile,
-        photoUrl: base64Data
-      });
-    } catch (err) {
-      console.error("Error uploading photo:", err);
+      base64Data = await resizeAndCompressImage(file);
+    } catch {
+      notifyError("Impossible de traiter l'image sélectionnée.");
+      return;
     }
+
+    setPhotoUrl(base64Data);
+    await executeAction({
+      actionKey: 'profile-photo',
+      operation: () => updateProfile({ photoUrl: base64Data }),
+      successMessage: 'Photo de profil enregistrée avec succès !',
+      errorContext: 'Échec de la mise à jour de la photo de profil',
+      redirectToDashboard: false,
+      onError: () => setPhotoUrl(prevPhoto),
+    });
   };
 
-  const handleSyncGooglePhoto = () => {
+  const handleSyncGooglePhoto = async () => {
     const googlePhoto = auth.currentUser?.photoURL;
-    if (googlePhoto) {
-      setPhotoUrl(googlePhoto);
-      updateProfile({
-        ...profile,
-        photoUrl: googlePhoto
-      });
-    }
+    if (!googlePhoto) return;
+
+    const prevPhoto = photoUrl;
+    setPhotoUrl(googlePhoto);
+    await executeAction({
+      actionKey: 'profile-photo',
+      operation: () => updateProfile({ photoUrl: googlePhoto }),
+      successMessage: 'Photo Google synchronisée avec succès !',
+      errorContext: 'Échec de la synchronisation de la photo Google',
+      redirectToDashboard: false,
+      onError: () => setPhotoUrl(prevPhoto),
+    });
   };
 
-  const handleRemovePhoto = () => {
+  const handleRemovePhoto = async () => {
+    const prevPhoto = photoUrl;
     setPhotoUrl('');
-    updateProfile({
-      ...profile,
-      photoUrl: ''
+    await executeAction({
+      actionKey: 'profile-photo',
+      operation: () => updateProfile({ photoUrl: '' }),
+      successMessage: 'Photo de profil supprimée avec succès !',
+      errorContext: 'Échec de la suppression de la photo de profil',
+      redirectToDashboard: false,
+      onError: () => setPhotoUrl(prevPhoto),
     });
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name) return;
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      notifyError('Veuillez renseigner votre nom complet.');
+      return;
+    }
 
-    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const initials = trimmedName
+      .split(/\s+/)
+      .map((n) => n[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
+    const selectedGradeInfo = getGradeByCode(grade);
 
-    updateProfile({
-      ...profile,
-      name,
-      title,
-      initials,
-      photoUrl,
-      fboId,
-      grade,
-      companyName,
-      companyAddress,
-      companyPhone,
-      companyEmail,
-      airtelMoney,
-      mtnMoney,
-      bankRIB,
-      tvaApplicable,
-      tvaRate
+    await executeAction({
+      actionKey: 'profile-save',
+      operation: () =>
+        updateProfile({
+          name: trimmedName,
+          title: selectedGradeInfo.label,
+          initials,
+          photoUrl,
+          fboId,
+          grade: selectedGradeInfo.code,
+          companyName,
+          companyAddress,
+          companyPhone,
+          companyEmail,
+          airtelMoney,
+          mtnMoney,
+          bankRIB,
+          tvaApplicable,
+          tvaRate,
+        }),
+      successMessage: 'Profil enregistré avec succès !',
+      errorContext: 'Échec de la mise à jour du profil FBO',
+      redirectToDashboard: true,
     });
-
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 2500);
   };
 
-  const currentGrade = GRADES.find(g => g.code === grade) || GRADES[1];
+  const currentGrade = getGradeByCode(grade);
 
   return (
     <div className="space-y-6 text-left" id="profile_view_container">
@@ -241,9 +284,10 @@ export const ProfileView: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleSyncGooglePhoto}
-                      className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-950 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                      disabled={isSavingPhoto}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-950 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
+                      <RefreshCw className={`w-3.5 h-3.5 ${isSavingPhoto ? 'animate-spin' : ''}`} />
                       <span>Synchroniser avec Google</span>
                     </button>
                   )}
@@ -252,7 +296,8 @@ export const ProfileView: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleRemovePhoto}
-                      className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-450 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                      disabled={isSavingPhoto}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 disabled:opacity-60 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-450 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>Supprimer</span>
@@ -449,23 +494,18 @@ export const ProfileView: React.FC = () => {
             </div>
           </Card>
 
-          {/* Save Buttons & Alert */}
+          {/* Save Button */}
           <div className="flex justify-end pt-2">
             <button
               type="submit"
-              className="w-full md:w-auto py-4 px-8 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 text-sm cursor-pointer"
+              disabled={isSavingProfile}
+              className="w-full md:w-auto py-4 px-8 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 text-sm cursor-pointer"
               id="profile_save_btn2"
             >
               <Save className="w-5 h-5" />
-              SAUVEGARDER CONFIGURATION PROFIL FBO
+              {isSavingProfile ? 'ENREGISTREMENT...' : 'SAUVEGARDER CONFIGURATION PROFIL FBO'}
             </button>
           </div>
-
-          {profileSaved && (
-            <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs rounded-2xl text-center select-none animate-pulse">
-              🎉 PROFIL FBO ENREGISTRÉ ET MIS À JOUR FINEMENT !
-            </div>
-          )}
 
         </form>
       </div>

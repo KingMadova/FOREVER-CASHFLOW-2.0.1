@@ -6,6 +6,7 @@ import { useBudgetStore } from '../store/slices/budgetSlice';
 import { useAuthStore } from '../store/slices/authSlice';
 import { Drawer } from '../components/ui/Drawer';
 import { BudgetEntry } from '../types';
+import { useActionFeedback } from '../hooks/useActionFeedback';
 // ─── Design System Arc ─────────────────────────────────────────
 import { Input } from '../components/arc/input/input';
 import { Select, type SelectOption } from '../components/arc/select/select';
@@ -64,14 +65,16 @@ export const BudgetView: React.FC = () => {
   const { budget, addBudgetEntry, updateBudgetEntry, deleteBudgetEntry } = useBudgetStore();
   const { profile } = useAuthStore();
 
+  const { executeAction, confirmAction, isActionPending, notifySuccess, notifyError } = useActionFeedback();
+
   // ─── Filtres ────────────────────────────────────────────────
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
   const [budgetSort, setBudgetSort] = useSortPref('fcf-sort-budget', BUDGET_SORT_OPTIONS, 'date_desc');
 
   // ─── Dialog ─────────────────────────────────────────────────
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const isSubmitting = isActionPending(editingId ? `budget-update-${editingId}` : 'budget-add');
 
   // ─── Form fields ────────────────────────────────────────────
   const [newType, setNewType] = useState<'REVENUE' | 'EXPENSE'>('EXPENSE');
@@ -80,7 +83,6 @@ export const BudgetView: React.FC = () => {
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // ─── Date de référence (détecte le changement de mois) ──────
   const [currentDateRef, setCurrentDateRef] = useState(() => new Date());
@@ -231,41 +233,88 @@ const trend =
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (amount <= 0) {
-      setFormError('Veuillez entrer un montant supérieur à 0.');
+      const msg = 'Veuillez entrer un montant supérieur à 0.';
+      setFormError(msg);
+      notifyError(msg);
       return;
     }
     setFormError(null);
-    setIsSubmitting(true);
-    try {
-      if (editingId) {
-        const existing = budget.find(b => b.id === editingId);
-        if (!existing) return;
-        await updateBudgetEntry({
-          ...existing,
-          type: newType,
-          category,
-          amount,
-          date,
-          description,
-        });
-      } else {
-        await addBudgetEntry({
+
+    if (editingId) {
+      const existing = budget.find(b => b.id === editingId);
+      if (!existing) {
+        const msg = 'Transaction introuvable.';
+        setFormError(msg);
+        notifyError(msg);
+        return;
+      }
+      await executeAction({
+        actionKey: `budget-update-${editingId}`,
+        operation: () =>
+          updateBudgetEntry({
+            ...existing,
+            type: newType,
+            category,
+            amount,
+            date,
+            description,
+          }),
+        successMessage: 'Transaction modifiée avec succès !',
+        errorContext: 'Échec de la modification de la transaction',
+        redirectToDashboard: true,
+        onSuccess: () => {
+          setIsAddOpen(false);
+          resetForm();
+        },
+        onError: (msg) => {
+          setFormError(msg);
+        },
+      });
+      return;
+    }
+
+    await executeAction({
+      actionKey: 'budget-add',
+      operation: () =>
+        addBudgetEntry({
           type: newType,
           category,
           amount,
           date,
           description,
           createdAt: new Date().toISOString(),
-        });
-      }
-      setIsAddOpen(false);
-      resetForm();
-    } catch (err) {
-      console.error('[BudgetView] Erreur enregistrement:', err);
-      setFormError("Erreur d'enregistrement. Vérifie ta connexion puis réessaie.");
-    } finally {
-      setIsSubmitting(false);
-    }
+        }),
+      successMessage: 'Budget enregistré avec succès !',
+      queuedMessage: 'Mouvement budgétaire enregistré hors-ligne (en attente de synchronisation).',
+      errorContext: "Échec de l'enregistrement du budget",
+      redirectToDashboard: true,
+      onSuccess: () => {
+        setIsAddOpen(false);
+        resetForm();
+      },
+      onError: (msg) => {
+        setFormError(msg);
+      },
+    });
+  };
+
+  const handleDeleteBudget = async (id: string) => {
+    const confirmed = await confirmAction({
+      title: 'Supprimer la transaction',
+      message: 'Voulez-vous supprimer définitivement ce mouvement budgétaire ?',
+      confirmLabel: 'Oui, supprimer',
+      cancelLabel: 'Annuler',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    await executeAction({
+      actionKey: `budget-delete-${id}`,
+      operation: () => deleteBudgetEntry(id),
+      successMessage: 'Transaction supprimée avec succès !',
+      errorContext: 'Échec de la suppression de la transaction',
+      redirectToDashboard: true,
+    });
   };
 
   // ─── Export CSV ─────────────────────────────────────────────
@@ -298,6 +347,8 @@ const trend =
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    notifySuccess('Export Excel de trésorerie téléchargé !');
   };
 
   const handlePrintBudget = async () => {
@@ -649,51 +700,27 @@ const trend =
                 {b.type === 'REVENUE' ? '+' : '−'}{b.amount.toLocaleString('fr-FR')} F
               </div>
               <div className="budget-tx-actions">
-                {deletingId === b.id ? (
-                  <div className="budget-tx-confirm">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        deleteBudgetEntry(b.id);
-                        setDeletingId(null);
-                      }}
-                      className="budget-tx-confirm-yes"
-                      id={`budget_delete_confirm_${b.id}`}
-                    >
-                      Supprimer
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeletingId(null)}
-                      className="budget-tx-confirm-no"
-                    >
-                      Non
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    {!b.orderId && (
-                      <button
-                        type="button"
-                        onClick={() => openEdit(b)}
-                        className="budget-tx-btn"
-                        title="Modifier"
-                        id={`budget_edit_${b.id}`}
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setDeletingId(b.id)}
-                      className="budget-tx-btn is-danger"
-                      title="Supprimer"
-                      id={`budget_delete_${b.id}`}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </>
+                {!b.orderId && (
+                  <button
+                    type="button"
+                    onClick={() => openEdit(b)}
+                    className="budget-tx-btn"
+                    title="Modifier"
+                    id={`budget_edit_${b.id}`}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => handleDeleteBudget(b.id)}
+                  disabled={isActionPending(`budget-delete-${b.id}`)}
+                  className="budget-tx-btn is-danger"
+                  title="Supprimer"
+                  id={`budget_delete_${b.id}`}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           ))

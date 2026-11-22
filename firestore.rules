@@ -27,10 +27,10 @@ service cloud.firestore {
     function isValidUserProfile(data) {
       return data.name is string &&
              data.grade is string && (data.grade in ['AA', 'A', 'MA', 'M']) &&
-             (data.createdAt == null || data.createdAt is string) &&
-             (data.updatedAt == null || data.updatedAt is string) &&
-             (data.monthlyGoalCC == null || data.monthlyGoalCC is number) &&
-             (data.monthlyGoalAmount == null || data.monthlyGoalAmount is number);
+             (!('createdAt' in data) || data.createdAt == null || data.createdAt is string) &&
+             (!('updatedAt' in data) || data.updatedAt == null || data.updatedAt is string) &&
+             (!('monthlyGoalCC' in data) || data.monthlyGoalCC == null || data.monthlyGoalCC is number) &&
+             (!('monthlyGoalAmount' in data) || data.monthlyGoalAmount == null || data.monthlyGoalAmount is number);
     }
 
     function isValidCustomer(data, userId) {
@@ -39,7 +39,12 @@ service cloud.firestore {
              data.phone is string &&
              data.status is string &&
              data.pipelineStage is string &&
-             data.createdAt is string;
+             data.createdAt is string &&
+             (!('interactions' in data) || data.interactions == null || (data.interactions is list && data.interactions.size() <= 500)) &&
+             (!('convertedAt' in data) || data.convertedAt == null || (data.convertedAt is string && data.convertedAt.size() <= 32)) &&
+             (!('conversionChannel' in data) || data.conversionChannel == null || (data.conversionChannel is string && data.conversionChannel in ['WHATSAPP', 'SMS', 'APPEL', 'PRESENTATION', 'AUTRE', 'INCONNU'])) &&
+             (!('recordOrigin' in data) || data.recordOrigin == null || (data.recordOrigin is string && data.recordOrigin in ['PROSPECTION', 'DIRECT_CLIENT'])) &&
+             (!('convertedFromProspect' in data) || data.convertedFromProspect == null || data.convertedFromProspect is bool);
     }
 
     function isValidOrder(data, userId) {

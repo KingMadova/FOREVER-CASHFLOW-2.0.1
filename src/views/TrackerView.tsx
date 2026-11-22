@@ -4,6 +4,8 @@ import { useOrdersStore } from '../store/slices/ordersSlice';
 import { useCustomersStore } from '../store/slices/customersSlice';
 import { DailyLog } from '../types';
 import { isCountedOrder, orderAccountingDate } from '../lib/orderStats';
+import { useActionFeedback } from '../hooks/useActionFeedback';
+import { formatOperationError } from '../lib/actionFeedback';
 import {
   CheckCircle, Circle, ChevronLeft, ChevronRight,
   Flame, Target, Users, MessageCircle, Presentation,
@@ -145,6 +147,8 @@ export const TrackerView: React.FC = () => {
   const { dailyLogs, getDailyLog, saveDailyLog } = useDailyLogsStore();
   const { orders } = useOrdersStore();
   const { customers } = useCustomersStore();
+  const { executeAction, isActionPending, notifyError } = useActionFeedback();
+  const isSavingDay = isActionPending('tracker-save-day');
 
   const [selectedDate, setSelectedDate] = useState(today());
   const [activeTab, setActiveTab] = useState<'today' | 'week' | 'month'>('today');
@@ -165,8 +169,23 @@ export const TrackerView: React.FC = () => {
     boutiques: 0,
   } as Partial<DailyLog> & { date: string };
 
-  const patch = (fields: Partial<DailyLog>) =>
-    saveDailyLog({ ...log, ...fields, date: selectedDate });
+  const patch = async (fields: Partial<DailyLog>) => {
+    try {
+      await saveDailyLog({ ...log, ...fields, date: selectedDate });
+    } catch (err) {
+      notifyError(formatOperationError(err, 'Échec de la mise à jour du journal G4'));
+    }
+  };
+
+  const handleValidateDay = async () => {
+    await executeAction({
+      actionKey: 'tracker-save-day',
+      operation: () => saveDailyLog({ ...log, date: selectedDate }),
+      successMessage: 'Activité G4 enregistrée avec succès !',
+      errorContext: "Échec de l'enregistrement du journal G4",
+      redirectToDashboard: true,
+    });
+  };
 
   const toggleBool = (key: keyof DailyLog) =>
     patch({ [key]: !log[key as keyof typeof log] });
@@ -374,6 +393,15 @@ export const TrackerView: React.FC = () => {
                 onInc={() => inc('boutiques')} onDec={() => dec('boutiques')} />
             </div>
           </div>
+
+          <button
+            type="button"
+            disabled={isSavingDay}
+            onClick={handleValidateDay}
+            className="w-full py-4 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed text-slate-950 font-black rounded-2xl shadow-lg active:scale-95 transition-all text-sm cursor-pointer"
+          >
+            {isSavingDay ? 'ENREGISTREMENT...' : 'ENREGISTRER LA JOURNÉE G4'}
+          </button>
         </>
       )}
 

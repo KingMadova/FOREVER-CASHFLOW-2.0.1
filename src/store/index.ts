@@ -11,3 +11,4 @@ export { useDailyLogsStore } from './slices/dailyLogsSlice';
 export { useSyncStore, type SyncTask } from './slices/syncSlice';
 export { useThemeStore } from './slices/themeSlice';
 export { useBackupStore } from './slices/backupSlice';
+export { useFeedbackStore } from './slices/feedbackSlice';

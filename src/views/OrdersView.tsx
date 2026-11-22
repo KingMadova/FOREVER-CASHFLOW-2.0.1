@@ -14,8 +14,10 @@ import { OrdersControls, type OrdersPeriod } from '../components/ui/orders/Order
 import { OrdersList } from '../components/ui/orders/OrdersList';
 import { OrdersKanban } from '../components/ui/orders/OrdersKanban';
 import '../components/ui/orders/OrdersStyles.css';
-import { Order, OrderStatut, OrderStatus, Product, GRADES, CustomerStatus, OrderItem, OrderType, OrderCanal, OrderPaiement, OrderGeste, LivraisonMode, CustomerPriceType } from '../types';
+import { Order, OrderStatut, OrderStatus, Product, getGradeByCode, OrderItem, OrderType, OrderCanal, OrderPaiement, OrderGeste, LivraisonMode, CustomerPriceType } from '../types';
 import { getCustomerSalePrice, getPartnerPurchasePrice } from '../lib/pricing';
+import { buildEditedOrderPayload, buildOrderItemsForEdit, resolveLegacyFrozenUnitCost } from '../lib/orderCalculations';
+import { useActionFeedback } from '../hooks/useActionFeedback';
 // ─── Design System Arc ─────────────────────────────────────────
 import { Input } from '../components/arc/input/input';
 import { Select, type SelectOption } from '../components/arc/select/select';
@@ -149,14 +151,15 @@ export const OrdersView: React.FC = () => {
   const { products } = useProductsStore();
   const { profile } = useAuthStore();
 
+  const { executeAction, confirmAction, isActionPending, notifySuccess, notifyError } = useActionFeedback();
+
   // Dialog / State controllers
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmitting = isActionPending('order-submit');
 
   // Filter lists
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatut>('ALL');
@@ -306,15 +309,38 @@ export const OrdersView: React.FC = () => {
   const kanbanStatuses: OrderStatut[] = ['PENDING', 'VALIDATED', 'PAYE', 'LIVRE', 'CANCELLED', 'RETOUR', 'REMPLACEMENT'];
 
   // Le grade partenaire et le statut tarifaire du client sont deux données distinctes.
-  const currentGrade = GRADES.find(g => g.code === profile.grade) || GRADES[1];
+  // En édition d'une commande existante, les prix et coûts des lignes déjà enregistrées restent figés.
+  const currentGrade = getGradeByCode(profile.grade);
   const selectedCustomer = customers.find(c => c.id === orderCustomer);
   const customerPriceType: CustomerPriceType = selectedCustomer?.isCP ? 'CP' : 'PUBLIC';
-  const salePriceFor = (product: Product) => getCustomerSalePrice(product, customerPriceType);
-  const costPriceFor = (product: Product) => getPartnerPurchasePrice(product, currentGrade.code);
+  const editingOrder = isEditMode && editingOrderId
+    ? orders.find(o => o.id === editingOrderId) ?? null
+    : null;
+  const frozenItemsByProductId = new Map<string, OrderItem>(
+    (editingOrder?.items || []).map(item => [item.productId, item])
+  );
+  const salePriceFor = (product: Product): number | null => {
+    if (isEditMode) {
+      const frozen = frozenItemsByProductId.get(product.id);
+      if (frozen) return frozen.unitPrice;
+    }
+    return getCustomerSalePrice(product, customerPriceType);
+  };
+  const costPriceFor = (product: Product): number | null => {
+    if (isEditMode && editingOrder) {
+      const frozen = frozenItemsByProductId.get(product.id);
+      if (frozen) {
+        return resolveLegacyFrozenUnitCost(editingOrder, frozen) ?? null;
+      }
+    }
+    return getPartnerPurchasePrice(product, currentGrade.code);
+  };
 
-  // Totaux live : prix de vente selon le statut du client, coût selon le grade FBO.
+  // Totaux live : lignes existantes figées à leur tarif d'origine ; nouvelles lignes au tarif actuel.
   const catalogTotal = invoiceItems.reduce((acc, slot) => acc + ((salePriceFor(slot.product) ?? 0) * slot.quantity), 0);
-  const totalCostGrade = invoiceItems.reduce((acc, slot) => acc + ((costPriceFor(slot.product) ?? 0) * slot.quantity), 0);
+  const totalCostGrade = Math.round(
+    invoiceItems.reduce((acc, slot) => acc + (costPriceFor(slot.product) ?? 0) * slot.quantity, 0)
+  );
   const hasUnavailablePrice = invoiceItems.some(slot => salePriceFor(slot.product) == null || costPriceFor(slot.product) == null);
   const livraisonFraisLive = calculateLivraisonFrais(catalogTotal, livraisonMode);
   const gesteLive =
@@ -355,114 +381,222 @@ export const OrdersView: React.FC = () => {
   // Submit Draft
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      if (!orderCustomer) {
-        setOrderFormError('Veuillez sélectionner un client.');
+    if (isSubmitting) return;
+
+    if (!orderCustomer) {
+      const msg = 'Veuillez sélectionner un client.';
+      setOrderFormError(msg);
+      notifyError(msg);
+      return;
+    }
+
+    if (invoiceItems.length === 0) {
+      const msg = 'Veuillez ajouter au moins un produit à la commande.';
+      setOrderFormError(msg);
+      notifyError(msg);
+      return;
+    }
+
+    const selectedCust = customers.find(c => c.id === orderCustomer);
+    if (!selectedCust) {
+      const msg = 'Client sélectionné introuvable.';
+      setOrderFormError(msg);
+      notifyError(msg);
+      return;
+    }
+
+    setOrderFormError(null);
+
+    if (isEditMode && editingOrderId) {
+      const existing = orders.find(o => o.id === editingOrderId);
+      if (!existing) {
+        const msg = 'Commande à modifier introuvable.';
+        setOrderFormError(msg);
+        notifyError(msg);
         return;
       }
 
-      if (invoiceItems.length === 0) {
-        setOrderFormError('Veuillez ajouter au moins un produit à la commande.');
+      let parsedItemsForEdit: OrderItem[];
+      try {
+        parsedItemsForEdit = buildOrderItemsForEdit({
+          existing,
+          cartItems: invoiceItems,
+          currentPartnerGrade: currentGrade.code,
+          currentCustomerPriceType: customerPriceType,
+          applyDiscount,
+          getSalePrice: getCustomerSalePrice,
+          getPurchasePrice: getPartnerPurchasePrice,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Un tarif officiel est indisponible pour un produit ajouté.';
+        setOrderFormError(msg);
+        notifyError(msg);
         return;
       }
 
-      setOrderFormError(null);
-
-      const selectedCust = customers.find(c => c.id === orderCustomer);
-      if (!selectedCust) return;
-      const selectedPriceType: CustomerPriceType = selectedCust.isCP ? 'CP' : 'PUBLIC';
-      const orderCatalogTotal = invoiceItems.reduce(
-        (sum, item) => sum + (getCustomerSalePrice(item.product, selectedPriceType) ?? 0) * item.quantity,
-        0
-      );
-      const hasMissingTariff = invoiceItems.some(item =>
-        getCustomerSalePrice(item.product, selectedPriceType) == null ||
-        getPartnerPurchasePrice(item.product, currentGrade.code) == null
-      );
-      if (hasMissingTariff) {
-        setOrderFormError('Un tarif officiel est indisponible pour ce produit et votre grade. Retirez-le du panier ou vérifiez le catalogue.');
-        return;
-      }
-
-      const parsedItems: OrderItem[] = invoiceItems.map(item => ({
-        productId: item.product.id,
-        productName: item.product.name,
-        quantity: item.quantity,
-        unitPrice: getCustomerSalePrice(item.product, selectedPriceType)!,
-        unitCost: getPartnerPurchasePrice(item.product, currentGrade.code)!,
-        priceCategory: selectedPriceType,
-        unitCC: item.product.unitCC,
-        unitPV: item.product.unitPV,
-        isDiscounted: applyDiscount
-      }));
-
+      const frozenCatalogTotal = parsedItemsForEdit.reduce((sum, it) => sum + it.unitPrice * it.quantity, 0);
       const paidAmount = applyDiscount
         ? (amountPaidInput !== ''
             ? Math.max(0, parseInt(amountPaidInput) || 0)
-            : Math.round(orderCatalogTotal * (1 - discountPercent / 100)))
+            : Math.round(frozenCatalogTotal * (1 - discountPercent / 100)))
         : undefined;
 
-      const orderData = createOrderFromCart({
+      const updatedCore = buildEditedOrderPayload({
+        existing,
         customerId: selectedCust.id,
         customerName: selectedCust.name,
-        items: parsedItems,
+        items: parsedItemsForEdit,
         type: orderType,
         canal: orderCanal,
         paiement: orderPaiement,
         geste: orderGeste,
         livraisonMode,
         datePrevueLivraison: livraisonDatePrevue,
-        distributeurId: profile.fboId || '',
-        tags: orderTags.split(',').map(t => t.trim()).filter(Boolean),
         notes: orderNotes,
-        catalogTotal: orderCatalogTotal,
         amountPaid: paidAmount,
-        profileGrade: currentGrade.code,
-        customerPriceType: selectedPriceType,
       });
 
-      if (isEditMode && editingOrderId) {
-        const existing = orders.find(o => o.id === editingOrderId);
-        if (!existing) return;
-        updateOrder({
-          ...existing,
-          ...orderData,
-          id: editingOrderId,
-          customerId: selectedCust.id,
-          customerName: selectedCust.name,
-          items: parsedItems,
-          totalRetail: orderData.totalRetail,
-          totalCost: Math.round(orderData.totalCost),
-          totalMargin: Math.round(orderData.totalMargin),
-          totalCC: orderData.totalCC,
-          discountPercent: applyDiscount ? discountPercent : undefined
-        });
+      const editedOrder: Order = {
+        ...updatedCore,
+        totalCost: Math.round(updatedCore.totalCost),
+        totalMargin: Math.round(updatedCore.totalMargin),
+        tags: orderTags.split(',').map(t => t.trim()).filter(Boolean),
+        discountPercent: applyDiscount ? discountPercent : updatedCore.discountPercent,
+      };
+
+      await executeAction({
+        actionKey: 'order-submit',
+        operation: () => updateOrder(editedOrder),
+        successMessage: 'Commande modifiée avec succès !',
+        queuedMessage: 'Modification enregistrée hors-ligne (en attente de synchronisation).',
+        errorContext: 'Échec de la modification de la commande',
+        redirectToDashboard: true,
+        onSuccess: () => {
+          setIsNewOrderOpen(false);
+          resetForm();
+        },
+        onError: (formatted) => {
+          setOrderFormError(formatted);
+        },
+      });
+      return;
+    }
+
+    const selectedPriceType: CustomerPriceType = selectedCust.isCP ? 'CP' : 'PUBLIC';
+    const orderCatalogTotal = invoiceItems.reduce(
+      (sum, item) => sum + (getCustomerSalePrice(item.product, selectedPriceType) ?? 0) * item.quantity,
+      0
+    );
+    const hasMissingTariff = invoiceItems.some(item =>
+      getCustomerSalePrice(item.product, selectedPriceType) == null ||
+      getPartnerPurchasePrice(item.product, currentGrade.code) == null
+    );
+    if (hasMissingTariff) {
+      const msg = 'Un tarif officiel est indisponible pour ce produit et votre grade. Retirez-le du panier ou vérifiez le catalogue.';
+      setOrderFormError(msg);
+      notifyError(msg);
+      return;
+    }
+
+    const parsedItems: OrderItem[] = invoiceItems.map(item => ({
+      productId: item.product.id,
+      productName: item.product.name,
+      quantity: item.quantity,
+      unitPrice: getCustomerSalePrice(item.product, selectedPriceType)!,
+      unitCost: getPartnerPurchasePrice(item.product, currentGrade.code)!,
+      priceCategory: selectedPriceType,
+      unitCC: item.product.unitCC,
+      unitPV: item.product.unitPV,
+      isDiscounted: applyDiscount
+    }));
+
+    const paidAmount = applyDiscount
+      ? (amountPaidInput !== ''
+          ? Math.max(0, parseInt(amountPaidInput) || 0)
+          : Math.round(orderCatalogTotal * (1 - discountPercent / 100)))
+      : undefined;
+
+    const orderData = createOrderFromCart({
+      customerId: selectedCust.id,
+      customerName: selectedCust.name,
+      items: parsedItems,
+      type: orderType,
+      canal: orderCanal,
+      paiement: orderPaiement,
+      geste: orderGeste,
+      livraisonMode,
+      datePrevueLivraison: livraisonDatePrevue,
+      distributeurId: profile.fboId || '',
+      tags: orderTags.split(',').map(t => t.trim()).filter(Boolean),
+      notes: orderNotes,
+      catalogTotal: orderCatalogTotal,
+      amountPaid: paidAmount,
+      profileGrade: currentGrade.code,
+      customerPriceType: selectedPriceType,
+    });
+
+    await executeAction({
+      actionKey: 'order-submit',
+      operation: () => addOrder(orderData),
+      successMessage: 'Commande créée avec succès !',
+      queuedMessage: 'Commande enregistrée hors-ligne (en attente de synchronisation).',
+      errorContext: 'Échec de la création de la commande',
+      redirectToDashboard: true,
+      onSuccess: () => {
         setIsNewOrderOpen(false);
         resetForm();
-        return;
-      }
-
-      await addOrder(orderData);
-    } catch (err) {
-      console.error('[handleCreateOrder] Echec creation commande:', err);
-      setOrderFormError("Erreur lors de la création de la commande. Vérifie ta connexion puis réessaie.");
-      return;
-    } finally {
-      setIsSubmitting(false);
-    }
-
-    setIsNewOrderOpen(false);
-    resetForm();
+      },
+      onError: (formatted) => {
+        setOrderFormError(formatted);
+      },
+    });
   };
 
-  const handleUpdateStatus = (ord: Order, nextStatus: OrderStatus) => {
+  const handleUpdateStatus = async (ord: Order, nextStatus: OrderStatus) => {
     const updatedOrd = { ...ord, status: nextStatus };
-    updateOrder(updatedOrd);
+    const successMessage =
+      nextStatus === OrderStatus.VALIDATED
+        ? 'Commande validée avec succès !'
+        : nextStatus === OrderStatus.CANCELLED
+          ? 'Commande annulée avec succès !'
+          : 'Commande mise à jour avec succès !';
 
-    if (selectedOrder && selectedOrder.id === ord.id) {
-      setSelectedOrder(updatedOrd);
-    }
+    await executeAction({
+      actionKey: `order-status-${ord.id}`,
+      operation: () => updateOrder(updatedOrd),
+      successMessage,
+      errorContext: 'Échec de la mise à jour de la commande',
+      redirectToDashboard: true,
+      onSuccess: () => {
+        if (selectedOrder && selectedOrder.id === ord.id) {
+          setSelectedOrder(updatedOrd);
+        }
+        setIsDetailOpen(false);
+      },
+    });
+  };
+
+  const handleDeleteOrder = async (ord: Order) => {
+    const confirmed = await confirmAction({
+      title: 'Supprimer la commande',
+      message: `Êtes-vous sûr de vouloir supprimer définitivement ce bon de commande (${ord.customerName}) ? Cette action est irréversible.`,
+      confirmLabel: 'Oui, supprimer',
+      cancelLabel: 'Annuler',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    await executeAction({
+      actionKey: `order-delete-${ord.id}`,
+      operation: () => deleteOrder(ord.id),
+      successMessage: 'Commande supprimée avec succès !',
+      errorContext: 'Échec de la suppression de la commande',
+      redirectToDashboard: true,
+      onSuccess: () => {
+        setIsDetailOpen(false);
+        setSelectedOrder(null);
+      },
+    });
   };
 
   // Ouvrir le formulaire en mode edition depuis une commande PENDING
@@ -643,6 +777,7 @@ export const OrdersView: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    notifySuccess('Export Excel des commandes téléchargé !');
   };
 
   return (
@@ -732,9 +867,11 @@ export const OrdersView: React.FC = () => {
               autoComplete="off"
               required
               description={
-                selectedCustomer
-                  ? `Client lié · tarif ${customerPriceType === 'CP' ? 'CP Forever' : 'Public'}`
-                  : undefined
+                isEditMode && editingOrder
+                  ? `Mode édition · anciennes lignes figées (grade d'origine ${editingOrder.partnerGrade || currentGrade.code}) · ajouts au grade actuel ${currentGrade.code} (${customerPriceType === 'CP' ? 'CP Forever' : 'Public'})`
+                  : selectedCustomer
+                    ? `Client lié · tarif ${customerPriceType === 'CP' ? 'CP Forever' : 'Public'}`
+                    : undefined
               }
             />
 
@@ -978,7 +1115,7 @@ export const OrdersView: React.FC = () => {
                               </span>
                             </span>
                             <span className="text-sm font-bold text-[var(--fcf-brand-terracotta)] shrink-0">
-                              {(getCustomerSalePrice(p, customerPriceType) ?? 0).toLocaleString()} F
+                              {(salePriceFor(p) ?? 0).toLocaleString()} F
                             </span>
                           </button>
                         ))}
@@ -1042,10 +1179,10 @@ export const OrdersView: React.FC = () => {
             ) : (
               <ul className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                 {invoiceItems.map((slot, index) => {
+                  const baseUnitPrice = salePriceFor(slot.product) ?? 0;
                   const itemPrice = applyDiscount
-                    ? (getCustomerSalePrice(slot.product, customerPriceType) ?? 0) *
-                      (1 - discountPercent / 100)
-                    : getCustomerSalePrice(slot.product, customerPriceType) ?? 0;
+                    ? baseUnitPrice * (1 - discountPercent / 100)
+                    : baseUnitPrice;
                   return (
                     <li
                       key={index}
@@ -1085,7 +1222,7 @@ export const OrdersView: React.FC = () => {
                           {Math.round(itemPrice).toLocaleString()} F / unité
                           {applyDiscount && (
                             <span className="ml-2 line-through opacity-60">
-                              {(getCustomerSalePrice(slot.product, customerPriceType) ?? 0).toLocaleString()} F
+                              {baseUnitPrice.toLocaleString()} F
                             </span>
                           )}
                         </p>
@@ -1160,14 +1297,7 @@ export const OrdersView: React.FC = () => {
             <div className="flex justify-between">
               <span className="text-[var(--muted)]">Total catalogue</span>
               <span className="font-semibold text-[var(--foreground)]">
-                {invoiceItems
-                  .reduce(
-                    (acc, slot) =>
-                      acc + (getCustomerSalePrice(slot.product, customerPriceType) ?? 0) * slot.quantity,
-                    0,
-                  )
-                  .toLocaleString()}{' '}
-                F
+                {catalogTotal.toLocaleString()} F
               </span>
             </div>
             {applyDiscount && (
@@ -1299,7 +1429,6 @@ export const OrdersView: React.FC = () => {
         isOpen={isDetailOpen && selectedOrder !== null}
         onClose={() => {
           setIsDetailOpen(false);
-          setShowDeleteConfirm(false);
         }}
         title="Facturation et Suivi de Vente"
       >
@@ -1341,7 +1470,8 @@ export const OrdersView: React.FC = () => {
               {selectedOrder.status === 'PENDING' && (
                 <button
                   onClick={() => handleEditOrder(selectedOrder)}
-                  className="py-3 px-3 bg-amber-100 dark:bg-amber-500/15 hover:bg-amber-200 text-amber-700 dark:text-amber-400 font-extrabold rounded-2xl text-xs active:scale-95 transition-all"
+                  disabled={isActionPending(`order-status-${selectedOrder.id}`) || isActionPending(`order-delete-${selectedOrder.id}`)}
+                  className="py-3 px-3 bg-amber-100 dark:bg-amber-500/15 hover:bg-amber-200 disabled:opacity-50 text-amber-700 dark:text-amber-400 font-extrabold rounded-2xl text-xs active:scale-95 transition-all"
                   title="Modifier la commande"
                 >
                   <Edit2 className="w-4 h-4" />
@@ -1350,15 +1480,17 @@ export const OrdersView: React.FC = () => {
               {selectedOrder.status === 'PENDING' && (
                 <button
                   onClick={() => handleUpdateStatus(selectedOrder, OrderStatus.VALIDATED)}
-                  className="flex-1 py-3 px-2 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold rounded-2xl text-xs active:scale-95 transition-all"
+                  disabled={isActionPending(`order-status-${selectedOrder.id}`) || isActionPending(`order-delete-${selectedOrder.id}`)}
+                  className="flex-1 py-3 px-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-extrabold rounded-2xl text-xs active:scale-95 transition-all"
                 >
-                  Valider la Livraison & percevoir la Marge
+                  {isActionPending(`order-status-${selectedOrder.id}`) ? 'Validation...' : 'Valider la Livraison & percevoir la Marge'}
                 </button>
               )}
               {selectedOrder.status !== 'CANCELLED' && (
                 <button
                   onClick={() => handleUpdateStatus(selectedOrder, OrderStatus.CANCELLED)}
-                  className="py-3 px-3 bg-red-100 text-red-600 hover:bg-red-200 font-extrabold rounded-2xl text-xs active:scale-95 transition-all"
+                  disabled={isActionPending(`order-status-${selectedOrder.id}`) || isActionPending(`order-delete-${selectedOrder.id}`)}
+                  className="py-3 px-3 bg-red-100 text-red-600 hover:bg-red-200 disabled:opacity-50 font-extrabold rounded-2xl text-xs active:scale-95 transition-all"
                   title="Annuler Commande"
                 >
                   <XCircle className="w-4 h-4" />
@@ -1599,61 +1731,35 @@ export const OrdersView: React.FC = () => {
 
             {/* Print and Delete controllers */}
             <div className="flex flex-col gap-2">
-              {!showDeleteConfirm ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handlePrint}
-                    className="flex-1 py-3 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center gap-2"
-                  >
-                    <Printer className="w-4 h-4" />
-                    Imprimer / PDF
-                  </button>
-                  <button
-                    onClick={handleShareInvoice}
-                    className={`p-3 rounded-2xl font-black active:scale-95 transition-all cursor-pointer flex items-center justify-center ${
-                      selectedOrder.status === 'VALIDATED'
-                        ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                    }`}
-                    title={selectedOrder.status === 'VALIDATED' ? 'Envoyer la facture au client (WhatsApp)' : "Aperçu texte — valide la commande pour l'envoi officiel"}
-                  >
-                    <Share2 className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="p-3 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/30 text-red-500 rounded-2xl border border-red-200 dark:border-red-900/40 cursor-pointer active:scale-95 transition-all"
-                    title="Supprimer définitivement"
-                    id="btn_delete_order"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-              ) : (
-                <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 p-3 rounded-2xl flex flex-col gap-2">
-                  <p className="text-[10px] font-bold text-red-600 dark:text-red-400 text-left">
-                    Êtes-vous sûr de vouloir supprimer définitivement ce bon de commande ? Cette action est irréversible.
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        deleteOrder(selectedOrder.id);
-                        setIsDetailOpen(false);
-                        setShowDeleteConfirm(false);
-                      }}
-                      className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
-                      id="btn_delete_confirm_yes"
-                    >
-                      Oui, Supprimer
-                    </button>
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="py-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-850 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-350 font-bold text-xs rounded-xl transition-all cursor-pointer"
-                    >
-                      Non
-                    </button>
-                  </div>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePrint}
+                  className="flex-1 py-3 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center gap-2"
+                >
+                  <Printer className="w-4 h-4" />
+                  Imprimer / PDF
+                </button>
+                <button
+                  onClick={handleShareInvoice}
+                  className={`p-3 rounded-2xl font-black active:scale-95 transition-all cursor-pointer flex items-center justify-center ${
+                    selectedOrder.status === 'VALIDATED'
+                      ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                  }`}
+                  title={selectedOrder.status === 'VALIDATED' ? 'Envoyer la facture au client (WhatsApp)' : "Aperçu texte — valide la commande pour l'envoi officiel"}
+                >
+                  <Share2 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => handleDeleteOrder(selectedOrder)}
+                  disabled={isActionPending(`order-delete-${selectedOrder.id}`)}
+                  className="p-3 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/30 disabled:opacity-50 text-red-500 rounded-2xl border border-red-200 dark:border-red-900/40 cursor-pointer active:scale-95 transition-all"
+                  title="Supprimer définitivement"
+                  id="btn_delete_order"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
           </div>

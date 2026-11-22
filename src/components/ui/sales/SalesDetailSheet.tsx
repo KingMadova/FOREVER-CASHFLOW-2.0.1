@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Receipt } from 'lucide-react';
 import { Order } from '../../../types';
 import { orderAccountingDate } from '../../../lib/orderStats';
+import { inspectOrderNetAmount } from '../../../lib/salesReports';
 import { formatMoney } from '../../../lib/format';
 
 import './SalesDetailSheet.css';
@@ -20,6 +21,7 @@ export interface SalesDetailSheetProps {
   summary?: SalesDetailSummary[];
   orders: Order[];
   emptyMessage?: string;
+  highlightProductKey?: string;
 }
 
 
@@ -52,6 +54,7 @@ export const SalesDetailSheet: React.FC<SalesDetailSheetProps> = ({
   summary = [],
   orders,
   emptyMessage = 'Aucune commande dans cette vue.',
+  highlightProductKey,
 }) => {
   // Body scroll lock + Escape
   useEffect(() => {
@@ -116,11 +119,24 @@ export const SalesDetailSheet: React.FC<SalesDetailSheetProps> = ({
             <p className="sales-detail-empty">{emptyMessage}</p>
           ) : (
             orders.map((order) => {
-              const paid = Math.min(
-                order.totalRetail,
-                Math.max(0, order.amountPaid ?? order.totalRetail),
+              const inspectedNet = inspectOrderNetAmount(order);
+              const showNetValue =
+                inspectedNet.status === 'VALID' &&
+                inspectedNet.amount !== null &&
+                inspectedNet.amount !== order.totalRetail;
+              const matchingLines = highlightProductKey
+                ? (order.items || []).filter((item) => {
+                    const key =
+                      (item.productId || '').trim() ||
+                      (item.productName || '').trim().toLocaleLowerCase('fr-FR');
+                    return key === highlightProductKey && item.quantity > 0;
+                  })
+                : [];
+              const productQty = matchingLines.reduce((s, item) => s + item.quantity, 0);
+              const productLineTotal = matchingLines.reduce(
+                (s, item) => s + item.unitPrice * item.quantity,
+                0,
               );
-              const showPaid = paid !== order.totalRetail;
               return (
                 <div key={order.id} className="sales-detail-row">
                   <span className={`sales-detail-icon is-${order.status.toLowerCase()}`}>
@@ -134,12 +150,21 @@ export const SalesDetailSheet: React.FC<SalesDetailSheetProps> = ({
                     </span>
                     <span className="sales-detail-pay">
                       {paymentLabel[order.paiement] || order.paiement}
+                      {highlightProductKey && productQty > 0
+                        ? ` · Qté produit : ${productQty} (cat. ${money(productLineTotal)})`
+                        : ''}
                     </span>
                   </div>
                   <div className="sales-detail-trailing">
                     <strong>{money(order.totalRetail)}</strong>
-                    {showPaid && (
-                      <span className="sales-detail-paid">Encaissé {money(paid)}</span>
+                    {showNetValue && (
+                      <span className="sales-detail-paid">Net bon {money(inspectedNet.amount!)}</span>
+                    )}
+                    {inspectedNet.status === 'MISSING' && (
+                      <span className="sales-detail-pay">Net bon : non renseigné</span>
+                    )}
+                    {inspectedNet.status === 'INVALID' && (
+                      <span className="sales-detail-status">Net bon invalide</span>
                     )}
                     <span className={`sales-detail-status is-${order.status.toLowerCase()}`}>
                       {order.status === 'PAYE' ? 'Payée' : 'Validée'}

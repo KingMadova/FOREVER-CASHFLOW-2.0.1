@@ -248,7 +248,15 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({ isOpen, onClose }) => {
                     <button
                       key={mode}
                       type="button"
-                      onClick={() => setThemeMode(mode)}
+                      onClick={() => {
+                        void setThemeMode(mode).catch(async (err) => {
+                          const { useFeedbackStore } = await import('../../store/slices/feedbackSlice');
+                          const { formatOperationError } = await import('../../lib/actionFeedback');
+                          useFeedbackStore.getState().notifyError(
+                            formatOperationError(err, 'Échec du changement de thème')
+                          );
+                        });
+                      }}
                       className={`app-drawer-theme-btn ${themeMode === mode ? 'is-active' : ''}`}
                       aria-label={`Thème ${label}`}
                     >

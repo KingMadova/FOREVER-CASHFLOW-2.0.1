@@ -7,7 +7,6 @@ import { BrandLogo } from './BrandLogo';
 import { AppDrawer } from './AppDrawer';
 import { useAuthStore } from '../../store/slices/authSlice';
 import { useSyncStore } from '../../store/slices/syncSlice';
-import { useThemeStore } from '../../store/slices/themeSlice';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard,
@@ -31,7 +30,7 @@ import {
   ChevronDown,
   Settings,
 } from 'lucide-react';
-import { ThemeMode } from '../../types';
+import { ThemeMode, getGradeByCode } from '../../types';
 import { OnboardingWizard } from './OnboardingWizard';
 
 interface LayoutProps {
@@ -47,6 +46,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     syncQueue,
     isSyncing,
     triggerSync,
+    retrySyncTask,
+    dismissSyncTask,
   } = useSyncStore();
   const location = useLocation();
   const navigate = useNavigate();
@@ -122,12 +123,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return 'Forever CashFlow';
   };
 
-  const handleCycleTheme = () => {
+  const handleCycleTheme = async () => {
     let next: ThemeMode = 'system';
     if (themeMode === 'system') next = 'light';
     else if (themeMode === 'light') next = 'dark';
     else next = 'system';
-    setThemeMode(next);
+    try {
+      await setThemeMode(next);
+    } catch (err) {
+      const { useFeedbackStore } = await import('../../store/slices/feedbackSlice');
+      const { formatOperationError } = await import('../../lib/actionFeedback');
+      useFeedbackStore.getState().notifyError(
+        formatOperationError(err, 'Échec du changement de thème')
+      );
+    }
   };
 
   return (
@@ -216,7 +225,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               {profile.name}
             </h4>
             <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
-              {profile.title}
+              {getGradeByCode(profile.grade).label}
             </p>
           </div>
         </div>
@@ -368,32 +377,102 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </div>
 
                   {syncQueue.length > 0 ? (
-                    <div className="max-h-28 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50 border border-slate-150 dark:border-slate-850 rounded-xl bg-slate-50/50 dark:bg-[#151518]/50 pr-1">
-                      {syncQueue.map((task) => (
-                        <div
-                          key={task.id}
-                          className="p-2 flex items-center justify-between text-[10.5px]"
-                        >
-                          <div className="flex items-center gap-1.5 overflow-hidden">
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase shrink-0 ${
-                                task.type === 'CUSTOMER'
-                                  ? 'bg-indigo-500/10 text-indigo-500'
-                                  : 'bg-pink-500/10 text-pink-500'
-                              }`}
-                            >
-                              {task.type === 'CUSTOMER' ? 'Prospect' : 'Vente'}
-                            </span>
-                            <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">
-                              {task.name}
-                            </span>
+                    <div className="max-h-36 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50 border border-slate-150 dark:border-slate-850 rounded-xl bg-slate-50/50 dark:bg-[#151518]/50 pr-1">
+                      {syncQueue.map((task) => {
+                        const isBlocked = Boolean(task.blockedByTaskId);
+                        const isPermanent = Boolean(task.permanentError);
+                        const typeLabel =
+                          task.type === 'CUSTOMER_INTERACTION'
+                            ? 'Interaction'
+                            : task.type === 'CUSTOMER'
+                              ? 'Prospect'
+                              : task.type === 'ORDER'
+                                ? 'Vente'
+                                : task.type === 'AGENDA'
+                                  ? 'Agenda'
+                                  : task.type === 'BUDGET'
+                                    ? 'Budget'
+                                    : 'Journal';
+                        return (
+                          <div
+                            key={task.id}
+                            className={`p-2 space-y-1 text-[10.5px] ${
+                              isPermanent
+                                ? 'bg-rose-50/70 dark:bg-rose-950/20'
+                                : isBlocked
+                                  ? 'bg-amber-50/60 dark:bg-amber-950/15'
+                                  : ''
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex items-center gap-1.5 overflow-hidden">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase shrink-0 ${
+                                    task.type === 'CUSTOMER_INTERACTION'
+                                      ? 'bg-emerald-500/10 text-emerald-600'
+                                      : task.type === 'CUSTOMER'
+                                        ? 'bg-indigo-500/10 text-indigo-500'
+                                        : 'bg-pink-500/10 text-pink-500'
+                                  }`}
+                                >
+                                  {typeLabel}
+                                </span>
+                                <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">
+                                  {task.name}
+                                </span>
+                              </div>
+                              <span
+                                className={`text-[9px] font-bold flex items-center gap-1 shrink-0 ml-1 ${
+                                  isPermanent
+                                    ? 'text-rose-600 dark:text-rose-400'
+                                    : isBlocked
+                                      ? 'text-amber-600 dark:text-amber-400'
+                                      : 'text-slate-400'
+                                }`}
+                              >
+                                {isPermanent ? (
+                                  'Erreur permanente'
+                                ) : isBlocked ? (
+                                  'Bloquée'
+                                ) : (
+                                  <>
+                                    <RefreshCw className="w-2.5 h-2.5 animate-spin text-slate-400" />
+                                    {task.retryCount ? `Reprise (${task.retryCount})` : "File d'attente"}
+                                  </>
+                                )}
+                              </span>
+                            </div>
+
+                            {(task.lastError || task.blockedReason) && (
+                              <p className="text-[9px] text-rose-600 dark:text-rose-400 leading-snug break-words">
+                                {task.blockedReason || task.lastError}
+                              </p>
+                            )}
+
+                            {(isPermanent || isBlocked) && (
+                              <div className="flex items-center gap-1.5 pt-0.5">
+                                {!isBlocked && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void retrySyncTask(task.id)}
+                                    disabled={isOfflineMode || isSyncing}
+                                    className="px-2 py-0.5 rounded bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 text-[9px] font-black cursor-pointer"
+                                  >
+                                    Réessayer
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => void dismissSyncTask(task.id)}
+                                  className="px-2 py-0.5 rounded border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-[9px] font-bold hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
+                                >
+                                  Ignorer
+                                </button>
+                              </div>
+                            )}
                           </div>
-                          <span className="text-[9px] font-medium text-slate-400 flex items-center gap-1 shrink-0 ml-1">
-                            <RefreshCw className="w-2.5 h-2.5 animate-spin text-slate-400" />
-                            File d'attente
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="p-3 border border-dashed border-slate-200 dark:border-slate-805 rounded-xl text-center">
@@ -465,7 +544,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <Wifi className="w-5 h-5 text-emerald-500" />
                 )}
                 {syncQueue.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-black text-[9px] min-w-5 h-5 rounded-full flex items-center justify-center border border-white dark:border-[#1a1a1d] px-1 animate-pulse shadow-sm">
+                  <span
+                    className={`absolute -top-1 -right-1 font-black text-[9px] min-w-5 h-5 rounded-full flex items-center justify-center border border-white dark:border-[#1a1a1d] px-1 animate-pulse shadow-sm ${
+                      syncQueue.some((t) => t.permanentError || t.blockedByTaskId)
+                        ? 'bg-rose-500 text-white'
+                        : 'bg-amber-500 text-slate-950'
+                    }`}
+                  >
                     {syncQueue.length}
                   </span>
                 )}
